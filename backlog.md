@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). S0.5 is `[!]` until the sponsor receives more testnet MON. The roles still short are maker, calibration, test owner, and a slice of the pool owner.
+4. Continue with the first eligible task (§1.1). Phase 0 is done. The next task is **G5**.
 
 ---
 
@@ -351,9 +351,9 @@ The human can prepare these in advance.
   - Several personal addresses can claim and then send to the sponsor.
   - Other testnet faucets (QuickNode, Chainlink, Owlto) are fine if they're free.
 - **Pass:** `pnpm cli status` shows sponsor MON ≥ 5 for the first pass, and ≥ 15 cumulative before D3.
-- **Evidence:** `pnpm cli status` showed `SPONSOR MON=10.0000` before distribution (first pass ≥ 5). Cumulative received is 10, still short of 15 before D3. After `fund:mon`, the sponsor sits at `MON=3.0010`, which is the §4.3 floor.
+- **Evidence:** `pnpm cli status` showed `SPONSOR MON=10.0000` before the first distribution (first pass ≥ 5). A second 10 MON transfer brought the pre-top-up balance to 13.001. Cumulative received is 20, which clears the 15 MON bar for D3. After the final `fund:mon`, sponsor `MON=11.9650`.
 
-#### [!] S0.5 Distribute MON and accumulate AUSD
+#### [x] S0.5 Distribute MON and accumulate AUSD
 - **Type:** AGENT · **Depends on:** S0.2, S0.4 · **PRD:** §5.9
 - **Do:**
   - Implement `fund:mon`, which sends MON to the operator (target 5), pool owner (2), maker (0.5), calibration (0.2), and test owner (0.2), keeping the sponsor at or above its floor.
@@ -363,7 +363,7 @@ The human can prepare these in advance.
   - `pnpm cli status` shows every role at or above target. The command exits 0, with no `LOW:` lines.
   - Each faucet call's receipt status is 1.
 - **Fallback:** If the faucet reverts with `MaxFrequencyExceeded`, back off and retry. If it reverts with `InsufficientFunds` or similar, stop and ask the human (§1.4).
-- **Evidence:** Eight `requestFunds` receipts, all `status=1`: pool owner `0xd9fd4331…`, `0x669d1a02…`, `0xd7f695e5…` (30000 AUSD); maker `0xcd2e3476…`, `0xdc93d077…`, `0x087f26cc…` (30000 AUSD); calibration `0xa1a9001f…` (10000 AUSD); test owner `0xd9260b5d…` (10000 AUSD). `fund:mon` sent operator 5 MON (`0x6336950d…`, status=1) and pool owner 1.87436126 MON (`0x7d4c445e…`, status=1), then stopped at the sponsor floor. `pnpm cli status` exit 1. `LOW: MAKER MON 0 < 0.5`. `SHORT: POOL_OWNER MON 1.8743 < 2`, `CALIBRATION MON 0 < 0.2`, `TEST_OWNER MON 0 < 0.2`. AUSD targets are met. Needs about 1.1 more MON above the sponsor floor, sent to the sponsor, before the pass can succeed.
+- **Evidence:** Eight `requestFunds` receipts, all `status=1`. Pool owner and maker hold 30000 AUSD. Calibration and test owner hold 10000 AUSD. Final `fund:mon` receipts, all `status=1`: pool owner +0.12563874 MON `0xb0af20e9`, maker +0.5 MON `0x8f1dc2c6`, calibration +0.2 MON `0x0b0c218f`, test owner +0.2 MON `0x580789f1`. `pnpm cli status` exit 0 with no `LOW:` lines: sponsor 11.9650 MON, operator 5, pool owner 2 and 30000 AUSD, maker 0.5 and 30000 AUSD, calibration 0.2 and 10000 AUSD, test owner 0.2 and 10000 AUSD.
 
 #### [x] S0.6 Service accounts and credentials
 - **Type:** **HUMAN** · **Depends on:** S0.1 · **PRD:** §5.4, §5.6
