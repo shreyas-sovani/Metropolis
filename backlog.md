@@ -384,7 +384,7 @@ The human can prepare these in advance.
 
 ### Phase 1: Gates (PRD §5.9). Build no product features on a dependency until its gate passes.
 
-#### [ ] G5 HyperSync access and liquidation counts
+#### [x] G5 HyperSync access and liquidation counts
 - **Type:** AGENT · **Depends on:** S0.6 · **PRD:** §5.6, §F9
 - **Do:**
   - Implement `packages/core/src/hypersync`: a POST `/query` client and decoders for `PositionLiquidated` and `IncreasePositionCollateral`. Compute topic0 from the ABI, not by hand.
@@ -397,7 +397,7 @@ The human can prepare these in advance.
 - **Fallback:**
   - If testnet's count is 0, set the twins display mode to "crossed liquidation price" (PRD F8) and log it.
   - If the token fails, re-prompt S0.6.
-- **Evidence:**
+- **Evidence:** `pnpm cli gate:5` exit 0. Both scans reached the HyperSync head. Mainnet first Exchange log block 54773010, 3488 `PositionLiquidated` events, 5 pages. Testnet first log block 12174508, 272 events, 2 pages. Five mainnet samples decoded: perpIds 1 and 10 are live markets, scaled marks about 70600, 67302, 69164, 0.0225, and 0.0228, and every `liqLotLNS` was greater than 0.
 
 #### [ ] G8 Mainnet snapshot performance and open-interest cross-check
 - **Type:** AGENT · **Depends on:** S0.2 · **PRD:** §5.2, §5.3
@@ -1143,3 +1143,4 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - S0.5 | sponsor calls `requestFunds(receiver)` | `estimateGas` from the sponsor succeeded for another address | faucet tx `0xd9fd4331` status=1
 - S0.5 | explicit gas is `ceil(estimate × 1.2)` until G7 writes `GAS_LIMITS` | Monad charges the gas limit | transfer limit 25200; faucet limits 156720 and 136158
 - S0.5 | `fund:mon` stops when the next send would put the sponsor under 3 MON | 10 MON cannot pay 7.9 of role targets plus gas and still leave the floor | status after the run: sponsor `MON=3.0010`
+- G5 | sample lot check uses `liqLotLNS > 0` | `posLotLNS` is the lot remaining after liquidation and is 0 on a full close | first mainnet samples had `posLot=0` and `liqLot` 10, 1600, 1132, 488
