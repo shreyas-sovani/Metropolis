@@ -1,4 +1,5 @@
 import { faucetAusd } from "./commands/faucet-ausd.js";
+import { gate1 } from "./commands/gate-1.js";
 import { gate5 } from "./commands/gate-5.js";
 import { gate6 } from "./commands/gate-6.js";
 import { gate8 } from "./commands/gate-8.js";
@@ -16,6 +17,7 @@ export async function run(argv: readonly string[]): Promise<number> {
     console.log("  status");
     console.log("  fund:mon");
     console.log("  faucet:ausd");
+    console.log("  gate:1");
     console.log("  gate:5");
     console.log("  gate:6");
     console.log("  gate:8");
@@ -26,6 +28,7 @@ export async function run(argv: readonly string[]): Promise<number> {
   if (command === "status") return status();
   if (command === "fund:mon") return fundMon();
   if (command === "faucet:ausd") return faucetAusd();
+  if (command === "gate:1") return gate1();
   if (command === "gate:5") return gate5();
   if (command === "gate:6") return gate6();
   if (command === "gate:8") return gate8();

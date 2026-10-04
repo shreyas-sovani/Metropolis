@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, G5, G8, and G6 are done. The next task is **G1**.
+4. Continue with the first eligible task (§1.1). Phase 0, G5, G8, G6, and G1 are done. The next task is **G7**.
 
 ---
 
@@ -428,7 +428,7 @@ The human can prepare these in advance.
 - **Fallback:** If the self-match fails, inspect the order fields and post-only semantics against the dex-sdk docs and retry. If both paths fail, mark `[!]` and ask the human.
 - **Evidence:** `pnpm cli gate:6` exit 0. Proxy `0xEc73AFB31b20729160c247A3009C193a4842e95A` (account 816) is a BTC long, lot 100, entry pricePNS 856095, leverage 14.95×. Maker account 817 is the opposite short, lot 100. IOC open `0x5019f425` status 1, gas 521210. Existing-liquidity IOC `0x6b7f7649` status 1, gas 209468, no fill. Factory create gas 895509, AUSD transfer gas 87488, proxy createAccount gas 362057, maker approve gas 85319, maker createAccount gas 242716, post-only gas 301050.
 
-#### [ ] G1 Operator least privilege: increase-only round-trip
+#### [x] G1 Operator least privilege: increase-only round-trip
 - **Type:** AGENT · **Depends on:** G6 · **PRD:** §5.2, gate 1
 - **Do:**
   - On the G6 proxy, the owner calls `setOperatorAllowlist(selector, false)` for `execOrder`, `execOrders`, `requestDecreasePositionCollateral`, `buyLiquidations`, `depositCollateral`, and `allowOrderForwarding`.
@@ -438,11 +438,11 @@ The human can prepare these in advance.
   - The real top-up succeeds, the position's `depositCNS` rises by exactly `1e6`, and the account's free balance falls by the same amount.
   - All seven simulated operator calls revert.
   - The owner can still `withdrawCollateral(1e6)` successfully.
+- **Evidence:** `pnpm cli gate:1` exit 0 on proxy `0xEc73AFB31b20729160c247A3009C193a4842e95A`. Owner set all six selectors false (`0x4d8dc985`, `0x39435dac`, `0x171a5b81`, `0xbbac6c95`, `0xbad4a01f`, `0x7962f910`); each read back `allowed=false`. Operator `increasePositionCollateral` `0x9893efa8` status 1, gas 210992; `depositCNS` rose by exactly 1000000 and free balance fell by exactly 1000000. Eight operator `eth_call`s reverted: the six revoked selectors, `withdrawCollateral`, and ERC20 `transfer`. Owner `withdrawCollateral` `0x43dfe3ed` status 1, gas 277992.
 - **Fallback:**
   - If the operator `increasePositionCollateral` call reverts because the allowlist lags the Exchange ABI, test the onchain `execOrder` path with order type `IncreasePositionCollateral`. That's 0-indexed enum value 5; confirm it in the dex-sdk.
   - If only that path works, keep `execOrder` allowlisted, log in §9 that H5 is satisfied by the evaluator never building any other order type, and ask the human to approve this deviation.
   - If neither works, mark `[!]` and ask.
-- **Evidence:**
 
 #### [ ] G7 Gas limit measurement
 - **Type:** AGENT · **Depends on:** G1 · **PRD:** §5.9
@@ -1148,3 +1148,4 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - G6 | testnet BTC is perp 16, and a book price is `basePricePNS + priceONS` | perp 1 reverts on testnet; the SDK stores book prices as base plus the ONS offset | BTC `basePricePNS` 50000, and the bid/ask bracketed the mark
 - G6 | order `maxNegPnlCollatBPS` defaults to 1000 | a taker order with 0 reverts `TakerOrderSettlementFailed` result code 14; the dex-sdk default is 1000 bps | IOC at 1000 filled lot 100, leverage hundredths 1495
 - G6 | the self-match target is 15× (`leverageHdths` 1500) | testnet BTC initial margin 1500 is 15×, the PRD cap | filled position printed 1495 hundredths
+- G1 | the operator simulation covers eight calls | the task names six revoked selectors plus `withdrawCollateral` and an ERC20 `transfer` | all eight reverted; `increasePositionCollateral` stayed allowlisted and the 1 AUSD top-up moved deposit and free balance by exactly 1000000
