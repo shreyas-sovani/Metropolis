@@ -1,6 +1,7 @@
 import { faucetAusd } from "./commands/faucet-ausd.js";
 import { gate1 } from "./commands/gate-1.js";
 import { gate2 } from "./commands/gate-2.js";
+import { gate4 } from "./commands/gate-4.js";
 import { gate5 } from "./commands/gate-5.js";
 import { gate6 } from "./commands/gate-6.js";
 import { gate7 } from "./commands/gate-7.js";
@@ -22,6 +23,7 @@ export async function run(argv: readonly string[]): Promise<number> {
     console.log("  gate:1");
     console.log("  gate:2 handoff <guest>");
     console.log("  gate:2 check <proxy> <guest> <signature> <token>");
+    console.log("  gate:4");
     console.log("  gate:5");
     console.log("  gate:6");
     console.log("  gate:7");
@@ -35,6 +37,7 @@ export async function run(argv: readonly string[]): Promise<number> {
   if (command === "faucet:ausd") return faucetAusd();
   if (command === "gate:1") return gate1();
   if (command === "gate:2") return gate2(argv.slice(1));
+  if (command === "gate:4") return gate4();
   if (command === "gate:5") return gate5();
   if (command === "gate:6") return gate6();
   if (command === "gate:7") return gate7();

@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, G5, G8, G6, G1, G7, G3, and G2 are done. The next task is **G4**, which depends on **C1**.
+4. Continue with the first eligible task (§1.1). Phase 0 and gates G5, G8, G6, G1, G7, G3, and G2 are done. C1 is done. **G4** is in progress and waiting on the Perpl UI liquidation price (G4-H) plus a HyperSync retry.
 
 ---
 
@@ -487,7 +487,7 @@ The human can prepare these in advance.
 - **Fallback:** If guest wallets can't send transactions, try Privy email login (still Privy) and log it in §9. If both fail, mark `[!]` and ask the human, offering sandbox-only mode as the option.
 - **Evidence:** Headless create never returned a wallet, so G2-H completed it at `http://localhost:3000/dev/gate-privy` with wallet UI suppressed. Guest `0x435371A37dE781A03F1881bEEb127E2A6079BFdf`. Drip `0x866c823f` status 1. Proxy `0x36DF02ca0E9B1644e181342A795556a66eB28b10`. Accept `0xfcda838d` status success, gas 108076. `owner()` is the guest. Mandate signature recovers to the guest. Access token verifies as ES256. `pnpm cli gate:2 check` printed `ownerOk=true sigOk=true tokenOk=true`.
 
-#### [ ] G4 Liquidation-price calibration
+#### [~] G4 Liquidation-price calibration
 - **Type:** AGENT, plus **HUMAN** (G4-H) · **Depends on:** C1, G5, G6 · **PRD:** §5.3 calibration gates
 - **Do:**
   - **a. Unit test** (already in C1): the docs example.
@@ -500,11 +500,11 @@ The human can prepare these in advance.
   - For step b, the median relative error is ≤ 0.1% over the events checked. If fewer than 5 events exist, log that and rely on a and c.
   - When all of this passes, flip the config flag `CALIBRATED=true`, which removes the "est." labels (H9).
 - **Fallback:** If the error is above 0.1%, investigate funding sign, maintenance-fraction scaling, and lot or price decimals. Until it passes, keep "est." labels and continue the other work; this gate blocks only the label removal.
-- **Evidence:**
+- **Evidence:** Step a passes in C1. Historical step b did not finish: HyperSync returned 429 after retries, so the median error is not recorded and `CALIBRATED` stays false. Calibration account `0xE928c690D27326bc561A2d07fad3dFAca4815ed6` (id 821) has a BTC long, lot 100, entryPNS 860220, depositCNS 5734800. With funding 0 and MMF 25 the computed liquidation price is 83728.08. Waiting on G4-H for the Perpl UI price.
 
 ### Phase 2: Core library (`packages/core`)
 
-#### [ ] C1 Math
+#### [x] C1 Math
 - **Type:** AGENT · **Depends on:** S0.2 · **PRD:** §5.3
 - **Do:** Implement these as pure functions with bigint-safe scaling, using `number` only for display:
   - MMR, liquidation price, distance;
@@ -517,7 +517,7 @@ The human can prepare these in advance.
   - **Each cap binds** in its own test: per-action, free balance, and budget.
   - **Edge cases:** distance at or above trigger gives no action; `add` < 5 is skipped; the cooldown blocks a repeat.
   - Line coverage of `src/math` is ≥ 95%.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/core exec vitest run test/math.test.ts` passed 7 tests. Docs example is exact (MMR 4000, P_liq 94000). PRD demo is within the allowed dollar and AUSD tolerances. v8 line coverage of `src/math` is 100%.
 
 #### [ ] C2 Chain readers
 - **Type:** AGENT · **Depends on:** G8 · **PRD:** §5.2
@@ -1152,3 +1152,4 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - G7 | `GAS_LIMITS` is ceil(max receipt gas × 1.2) per kind | Monad charges the gas limit, and the receipt's gasUsed equals that limit | three resends of each of the 11 kinds succeeded at base fee 100 gwei
 - G2 | guest acceptance went through the dev page with `showWalletUIs: false` | Playwright's `createGuestAccount` stayed on "creating" and never returned a wallet | guest `0x435371A37dE781A03F1881bEEb127E2A6079BFdf` owns proxy `0x36DF02ca0E9B1644e181342A795556a66eB28b10`; mandate recovers to that guest; access token verifies ES256
 - G3 | the soak worker is `lifeline-gate3` on `lifeline-shreyas.workers.dev` | the account had no workers.dev subdomain, and the production name `lifeline` stays free | 906 ticks in 30 minutes, max gap 2090 ms, 0 stored errors, signing succeeded, tail outcomes `ok`
+- C1 | money is micro-dollars and MMF is `perpMaintMarginFracHdths / 100` | the docs example divides notional by 25, and testnet BTC maintenance hundredths are 2500 | docs P_liq is 94000 exactly; the calibration position read MMF 25

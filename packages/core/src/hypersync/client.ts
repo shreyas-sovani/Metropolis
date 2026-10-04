@@ -30,7 +30,7 @@ export async function queryHyperSync(input: {
 }): Promise<HyperSyncPage> {
   const fetchImpl = input.fetchImpl;
   if (!fetchImpl) throw new Error("fetchImpl is required");
-  const response = await fetchImpl(`${input.endpoint.replace(/\/$/, "")}/query`, {
+  let response = await fetchImpl(`${input.endpoint.replace(/\/$/, "")}/query`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -38,6 +38,20 @@ export async function queryHyperSync(input: {
     },
     body: JSON.stringify(input.body),
   });
+  for (let attempt = 0; response.status === 429 && attempt < 5; attempt += 1) {
+    await new Promise<void>((resolve) => {
+      const timer = (globalThis as unknown as { setTimeout: (fn: () => void, ms: number) => void }).setTimeout;
+      timer(resolve, 1_000 * 2 ** attempt);
+    });
+    response = await fetchImpl(`${input.endpoint.replace(/\/$/, "")}/query`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${input.token}`,
+      },
+      body: JSON.stringify(input.body),
+    });
+  }
   if (response.status !== 200) {
     throw new Error(`hypersync status ${response.status}`);
   }
@@ -58,7 +72,8 @@ export async function paginateLogs(input: {
   token: string;
   fromBlock: number;
   address: Address;
-  eventName?: HyperSyncEventName;
+  eventName?: string;
+  eventNames?: readonly string[];
   fetchImpl?: HyperSyncFetch;
 }): Promise<{ logs: HyperSyncLog[]; pages: number; archiveHeight: number; nextBlock: number }> {
   let fromBlock = input.fromBlock;
@@ -71,10 +86,14 @@ export async function paginateLogs(input: {
       logs: [
         {
           address: [input.address],
-          ...(input.eventName ? { topics: [[eventTopic0(input.eventName)]] } : {}),
+          ...(input.eventNames
+            ? { topics: [input.eventNames.map((name) => eventTopic0(name))] }
+            : input.eventName
+              ? { topics: [[eventTopic0(input.eventName)]] }
+              : {}),
         },
       ],
-      field_selection: { log: ["block_number", "data", "topic0"] },
+      field_selection: { log: ["block_number", "log_index", "data", "topic0"] },
     };
     const page = await queryHyperSync({
       endpoint: input.endpoint,

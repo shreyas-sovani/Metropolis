@@ -7,8 +7,12 @@ export {
   multicall3Abi,
 } from "./abi/index.js";
 export {
+  LIFECYCLE_EVENTS,
   decodeIncreasePositionCollateral,
+  decodePositionDecreased,
+  decodePositionIncreased,
   decodePositionLiquidated,
+  decodePositionOpened,
   eventTopic0,
   firstExchangeLogBlock,
   paginateLogs,
@@ -19,6 +23,28 @@ export {
   type IncreasePositionCollateralEvent,
   type PositionLiquidatedEvent,
 } from "./hypersync/index.js";
+export {
+  AT_RISK_DISTANCE,
+  BUCKET_MAX,
+  BUCKET_MIN,
+  COOLDOWN_BLOCKS,
+  DUST_NOTIONAL_MICRO,
+  LOT_SCALE,
+  MICRO,
+  MIN_ACTION_MICRO,
+  bucketIndex,
+  couldProtectNow,
+  distanceE6,
+  isAtRisk,
+  isDust,
+  liquidationPriceMicro,
+  lotFromNotional,
+  maintenanceMargin,
+  replayPosition,
+  sizeTopUp,
+  type LifecycleStep,
+  type TopUpInput,
+} from "./math/index.js";
 export {
   mandateDomain,
   mandateMessage,

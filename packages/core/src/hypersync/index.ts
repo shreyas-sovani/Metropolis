@@ -7,9 +7,15 @@ export {
 } from "./client.js";
 export {
   decodeIncreasePositionCollateral,
+  decodePositionDecreased,
+  decodePositionIncreased,
   decodePositionLiquidated,
+  decodePositionOpened,
   type HyperSyncLog,
   type IncreasePositionCollateralEvent,
+  type PositionDecreasedEvent,
+  type PositionIncreasedEvent,
   type PositionLiquidatedEvent,
+  type PositionOpenedEvent,
 } from "./decode.js";
-export { eventTopic0, type HyperSyncEventName } from "./topics.js";
+export { LIFECYCLE_EVENTS, eventTopic0, type HyperSyncEventName, type LifecycleEventName } from "./topics.js";
