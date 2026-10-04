@@ -12,10 +12,10 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 
 **Start here (a fresh agent):**
 
-1. The repository currently holds only documents: `prd.md`, `analysis.md`, `backlog.md`, `prizes.md`, `tracks&bounties.md`, `resources.md`. There's no code and no git repository yet.
+1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). On a brand-new repository, that's **S0.1**.
+4. Continue with the first eligible task (§1.1). After S0.3, that is the human pair **S0.4** and **S0.6**. S0.5 waits on S0.4.
 
 ---
 
@@ -332,7 +332,7 @@ The human can prepare these in advance.
   - The command exits 0.
 - **Evidence:** `pnpm cli verify:addresses` exit 0. Code present on mainnet exchange (225), AUSD (5937), Multicall3 (3808) and testnet exchange (225), factory (4514), AUSD (5937), faucet (1200), Multicall3 (3808). `getExchangeInfo` collateral and `faucet.token()` both matched the PRD AUSD address on the chain where each exists. Exchange ABI vendored from dex-sdk `dbb37c59` (MIT).
 
-#### [ ] S0.3 Generate testnet role keys
+#### [x] S0.3 Generate testnet role keys
 - **Type:** AGENT · **Depends on:** S0.1 · **PRD:** §5.4
 - **Do:**
   - Implement `pnpm cli keys:generate`, which writes `secrets/testnet-keys.env` with the six keys in §4.1. It refuses to overwrite an existing file.
@@ -342,7 +342,7 @@ The human can prepare these in advance.
   - The file exists with six distinct valid keys.
   - `git check-ignore secrets/testnet-keys.env` succeeds.
   - Re-running the command doesn't change the file (compare checksums).
-- **Evidence:**
+- **Evidence:** `pnpm cli keys:generate` created `secrets/testnet-keys.env` and printed six addresses (sponsor `0x85db51Abac83F8B1DF2E674c29f8D68527Bf6b10`). Second run printed `testnet-keys.env unchanged` and the file checksum matched. `git check-ignore secrets/testnet-keys.env` printed the path. `ADMIN_SECRET` and `RADAR_SALT` were written into `secrets/services.env` and kept on the second run. Values were not printed.
 
 #### [ ] S0.4 Fund the sponsor with testnet MON
 - **Type:** **HUMAN** (recurring) · **Depends on:** S0.3 · **PRD:** §5.9
