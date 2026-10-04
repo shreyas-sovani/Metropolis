@@ -8,6 +8,9 @@
     "dev": "wrangler dev",
     "test": "vitest run"
   },
+  "dependencies": {
+    "viem": "^2.57.2"
+  },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261001.1",
     "typescript": "^5.8.3",

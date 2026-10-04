@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, G5, G8, G6, G1, G7, and G2 are done. G3 is soaking. The next unfinished gate is **G3**, then **G4**.
+4. Continue with the first eligible task (§1.1). Phase 0, G5, G8, G6, G1, G7, G3, and G2 are done. The next task is **G4**, which depends on **C1**.
 
 ---
 
@@ -455,7 +455,7 @@ The human can prepare these in advance.
   - The cost table (MON at the current base fee) is logged in §9.
 - **Evidence:** `pnpm cli gate:7` exit 0. Each of the 11 kinds was re-sent 3 times with its configured limit and every receipt was status 1. Base fee was 100 gwei. Cost in MON at that base fee: factory create 0.1074611, AUSD transfer 0.0104986, createAccount 0.0434469, setOperatorAllowlist 0.0104217, execOrder open 0.0625452, increasePositionCollateral 0.0253191, transferOwnership 0.0129406, acceptOwnership 0.0108076, withdrawCollateral 0.0341734, MON drip 0.0036, faucet requestFunds 0.016339.
 
-#### [ ] G3 Durable Object alarm on the free plan
+#### [x] G3 Durable Object alarm on the free plan
 - **Type:** AGENT · **Depends on:** S0.6, G1 · **PRD:** §5.5, gate 3
 - **Do:**
   - Deploy a minimal Worker plus a SQLite-backed Durable Object.
@@ -470,7 +470,7 @@ The human can prepare these in advance.
 - **Fallback:**
   - Measure and log the CPU per tick.
   - If the free plan can't sustain it, keep the code runtime-agnostic and switch the keeper host to the Node adapter (B1). That needs a laptop, pm2, and Cloudflare Tunnel, so it's a HUMAN step: ask first.
-- **Evidence:**
+- **Evidence:** `https://lifeline-gate3.lifeline-shreyas.workers.dev/health` after 30 minutes: 906 ticks (expected 900, pass floor 855), `ticksLast10Min` 298, `maxGapMs` 2090, `errors` 0, `signed` true. `wrangler tail` showed alarm outcomes `ok`, no CPU-limit or eviction errors, and the highest sampled `cpuTime` was 14 ms.
 
 #### [x] G2 Privy guest wallet: ownership and EIP-712
 - **Type:** AGENT, with **HUMAN** fallback (G2-H) · **Depends on:** S0.6, G1 · **PRD:** §5.4, gate 2
@@ -1151,3 +1151,4 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - G1 | the operator simulation covers eight calls | the task names six revoked selectors plus `withdrawCollateral` and an ERC20 `transfer` | all eight reverted; `increasePositionCollateral` stayed allowlisted and the 1 AUSD top-up moved deposit and free balance by exactly 1000000
 - G7 | `GAS_LIMITS` is ceil(max receipt gas × 1.2) per kind | Monad charges the gas limit, and the receipt's gasUsed equals that limit | three resends of each of the 11 kinds succeeded at base fee 100 gwei
 - G2 | guest acceptance went through the dev page with `showWalletUIs: false` | Playwright's `createGuestAccount` stayed on "creating" and never returned a wallet | guest `0x435371A37dE781A03F1881bEEb127E2A6079BFdf` owns proxy `0x36DF02ca0E9B1644e181342A795556a66eB28b10`; mandate recovers to that guest; access token verifies ES256
+- G3 | the soak worker is `lifeline-gate3` on `lifeline-shreyas.workers.dev` | the account had no workers.dev subdomain, and the production name `lifeline` stays free | 906 ticks in 30 minutes, max gap 2090 ms, 0 stored errors, signing succeeded, tail outcomes `ok`
