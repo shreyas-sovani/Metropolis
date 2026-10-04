@@ -365,7 +365,7 @@ The human can prepare these in advance.
 - **Fallback:** If the faucet reverts with `MaxFrequencyExceeded`, back off and retry. If it reverts with `InsufficientFunds` or similar, stop and ask the human (§1.4).
 - **Evidence:**
 
-#### [ ] S0.6 Service accounts and credentials
+#### [x] S0.6 Service accounts and credentials
 - **Type:** **HUMAN** · **Depends on:** S0.1 · **PRD:** §5.4, §5.6
 - **Prompt the human to do all of these in one sitting** and put the values in `secrets/services.env`:
   1. **Envio:** create a free account at `https://app.envio.dev`, create an API token, and set `ENVIO_API_TOKEN`.
@@ -380,7 +380,7 @@ The human can prepare these in advance.
   - A HyperSync request with the token returns HTTP 200 (G5 runs the full check).
   - `wrangler whoami` shows the account.
   - The Privy values are non-empty, and `PRIVY_VERIFICATION_KEY` parses as a public key.
-- **Evidence:**
+- **Evidence:** HyperSync `POST /query` on `monad.hypersync.xyz` returned HTTP 200. `wrangler whoami` shows an OAuth account. `PRIVY_APP_ID` is non-empty. `PRIVY_VERIFICATION_KEY` parses as an EC public key. `PRIVY_CLIENT_ID` was not in the file (set it later only if the dashboard shows one). Optional Alchemy URLs are set.
 
 ### Phase 1: Gates (PRD §5.9). Build no product features on a dependency until its gate passes.
 
@@ -1139,3 +1139,4 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - S0.2 | testnet RPC order is `testnet-rpc.monad.xyz`, then `rpc-testnet.monadinfra.com`; `ALCHEMY_MONAD_TESTNET_URL` is appended when set | testnet docs publish no public Alchemy URL | docs.monad.xyz testnets
 - S0.2 | faucet fragment is `requestFunds(address)` | Agora's deployed faucet takes the receiver | `faucet.token()` matched testnet AUSD during `verify:addresses`
 - S0.2 | `secrets:check` sets `maxBuffer` to 64MB on `git diff --cached` | Node's default 1MB buffer throws on the vendored Exchange artifact | staging `Exchange.json` made the checker exit 1 before the buffer increase
+- S0.6 | copy `PRIVY_PUBLIC_KEY` into `PRIVY_VERIFICATION_KEY` | dashboard value was stored under the public-key name; the pass check names the verification key | Node `createPublicKey` parsed it as `ec`
