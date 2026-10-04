@@ -20,6 +20,19 @@ export {
   type PositionLiquidatedEvent,
 } from "./hypersync/index.js";
 export {
+  createReadClient,
+  lotSums,
+  perpIdsFromBitmap,
+  POSITION_LONG,
+  POSITION_PAGE_SIZE,
+  POSITION_SHORT,
+  readExchangeSnapshot,
+  slicePositionPage,
+  type MarketSnapshot,
+  type PerpInfo,
+  type PositionNode,
+} from "./chain/index.js";
+export {
   ADDRESSES,
   CHAINS,
   CHAIN_IDS,

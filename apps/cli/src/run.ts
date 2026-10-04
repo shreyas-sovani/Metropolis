@@ -1,5 +1,6 @@
 import { faucetAusd } from "./commands/faucet-ausd.js";
 import { gate5 } from "./commands/gate-5.js";
+import { gate8 } from "./commands/gate-8.js";
 import { fundMon } from "./commands/fund-mon.js";
 import { keysGenerate } from "./commands/keys-generate.js";
 import { status } from "./commands/status.js";
@@ -15,6 +16,7 @@ export async function run(argv: readonly string[]): Promise<number> {
     console.log("  fund:mon");
     console.log("  faucet:ausd");
     console.log("  gate:5");
+    console.log("  gate:8");
     return 0;
   }
   if (command === "verify:addresses") return verifyAddresses();
@@ -23,6 +25,7 @@ export async function run(argv: readonly string[]): Promise<number> {
   if (command === "fund:mon") return fundMon();
   if (command === "faucet:ausd") return faucetAusd();
   if (command === "gate:5") return gate5();
+  if (command === "gate:8") return gate8();
   console.error(`unknown command: ${command}`);
   return 1;
 }

@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0 and G5 are done. The next task is **G8**.
+4. Continue with the first eligible task (§1.1). Phase 0, G5, and G8 are done. The next task is **G6**.
 
 ---
 
@@ -399,7 +399,7 @@ The human can prepare these in advance.
   - If the token fails, re-prompt S0.6.
 - **Evidence:** `pnpm cli gate:5` exit 0. Both scans reached the HyperSync head. Mainnet first Exchange log block 54773010, 3488 `PositionLiquidated` events, 5 pages. Testnet first log block 12174508, 272 events, 2 pages. Five mainnet samples decoded: perpIds 1 and 10 are live markets, scaled marks about 70600, 67302, 69164, 0.0225, and 0.0228, and every `liqLotLNS` was greater than 0.
 
-#### [ ] G8 Mainnet snapshot performance and open-interest cross-check
+#### [x] G8 Mainnet snapshot performance and open-interest cross-check
 - **Type:** AGENT · **Depends on:** S0.2 · **PRD:** §5.2, §5.3
 - **Do:**
   - Implement chain readers in `packages/core/src/chain`: perps from `getPerpetualExistsBitmap`, `getPerpetualInfoV2`, and paged `getPositionsV2` (page size 200, following `nextNodeId`).
@@ -410,7 +410,7 @@ The human can prepare these in advance.
   - For every market, the sum of lots over long positions equals `longOpenInterestLNS` exactly, and the same holds for shorts. Count before any dust filtering.
   - The total position count matches the sum of `numPositions` across pages.
 - **Fallback:** If it's slow or rate-limited, add the optional Alchemy URL (prompt S0.6 item 4) and tune batching.
-- **Evidence:**
+- **Evidence:** `pnpm cli gate:8` exit 0 on the public RPC. Best of 3 was 411 ms (attempts 1073, 411, 648). 17 markets, 696 positions. Every market's long and short lot sums equaled `longOpenInterestLNS` and `shortOpenInterestLNS`, and each market's position count equaled the sum of `numPositions`.
 
 #### [ ] G6 Self-match fill on testnet
 - **Type:** AGENT · **Depends on:** S0.5 · **PRD:** §5.9 provisioning step 5
@@ -1144,3 +1144,4 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - S0.5 | explicit gas is `ceil(estimate × 1.2)` until G7 writes `GAS_LIMITS` | Monad charges the gas limit | transfer limit 25200; faucet limits 156720 and 136158
 - S0.5 | `fund:mon` stops when the next send would put the sponsor under 3 MON | 10 MON cannot pay 7.9 of role targets plus gas and still leave the floor | status after the run: sponsor `MON=3.0010`
 - G5 | sample lot check uses `liqLotLNS > 0` | `posLotLNS` is the lot remaining after liquidation and is 0 on a full close | first mainnet samples had `posLot=0` and `liqLot` 10, 1600, 1132, 488
+- G8 | `getPositionsV2` returns a 200-slot page; only the first `numPositions` entries are live, and the next cursor is that last entry's `nextNodeId` | counting the padded tail broke the position-count check while the lot sums already matched open interest | BTC page 2 was 200 slots with `numPositions` 60; after the slice, 17 markets matched exactly
