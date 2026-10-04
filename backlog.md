@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). After S0.3, that is the human pair **S0.4** and **S0.6**. S0.5 waits on S0.4.
+4. Continue with the first eligible task (§1.1). S0.5 is `[!]` until the sponsor receives more testnet MON. The roles still short are maker, calibration, test owner, and a slice of the pool owner.
 
 ---
 
@@ -344,16 +344,16 @@ The human can prepare these in advance.
   - Re-running the command doesn't change the file (compare checksums).
 - **Evidence:** `pnpm cli keys:generate` created `secrets/testnet-keys.env` and printed six addresses (sponsor `0x85db51Abac83F8B1DF2E674c29f8D68527Bf6b10`). Second run printed `testnet-keys.env unchanged` and the file checksum matched. `git check-ignore secrets/testnet-keys.env` printed the path. `ADMIN_SECRET` and `RADAR_SALT` were written into `secrets/services.env` and kept on the second run. Values were not printed.
 
-#### [ ] S0.4 Fund the sponsor with testnet MON
+#### [x] S0.4 Fund the sponsor with testnet MON
 - **Type:** **HUMAN** (recurring) · **Depends on:** S0.3 · **PRD:** §5.9
 - **Prompt the human:** fund the **SPONSOR** address (print it) with testnet MON. **Target ≥ 15 MON** in total; the first batch can be smaller (≥ 5).
   - Use `https://faucet.monad.xyz`. Connecting Discord or X raises the amount; full-access Discord roles get up to 5 MON per 12 hours per address.
   - Several personal addresses can claim and then send to the sponsor.
   - Other testnet faucets (QuickNode, Chainlink, Owlto) are fine if they're free.
 - **Pass:** `pnpm cli status` shows sponsor MON ≥ 5 for the first pass, and ≥ 15 cumulative before D3.
-- **Evidence:**
+- **Evidence:** `pnpm cli status` showed `SPONSOR MON=10.0000` before distribution (first pass ≥ 5). Cumulative received is 10, still short of 15 before D3. After `fund:mon`, the sponsor sits at `MON=3.0010`, which is the §4.3 floor.
 
-#### [ ] S0.5 Distribute MON and accumulate AUSD
+#### [!] S0.5 Distribute MON and accumulate AUSD
 - **Type:** AGENT · **Depends on:** S0.2, S0.4 · **PRD:** §5.9
 - **Do:**
   - Implement `fund:mon`, which sends MON to the operator (target 5), pool owner (2), maker (0.5), calibration (0.2), and test owner (0.2), keeping the sponsor at or above its floor.
@@ -363,7 +363,7 @@ The human can prepare these in advance.
   - `pnpm cli status` shows every role at or above target. The command exits 0, with no `LOW:` lines.
   - Each faucet call's receipt status is 1.
 - **Fallback:** If the faucet reverts with `MaxFrequencyExceeded`, back off and retry. If it reverts with `InsufficientFunds` or similar, stop and ask the human (§1.4).
-- **Evidence:**
+- **Evidence:** Eight `requestFunds` receipts, all `status=1`: pool owner `0xd9fd4331…`, `0x669d1a02…`, `0xd7f695e5…` (30000 AUSD); maker `0xcd2e3476…`, `0xdc93d077…`, `0x087f26cc…` (30000 AUSD); calibration `0xa1a9001f…` (10000 AUSD); test owner `0xd9260b5d…` (10000 AUSD). `fund:mon` sent operator 5 MON (`0x6336950d…`, status=1) and pool owner 1.87436126 MON (`0x7d4c445e…`, status=1), then stopped at the sponsor floor. `pnpm cli status` exit 1. `LOW: MAKER MON 0 < 0.5`. `SHORT: POOL_OWNER MON 1.8743 < 2`, `CALIBRATION MON 0 < 0.2`, `TEST_OWNER MON 0 < 0.2`. AUSD targets are met. Needs about 1.1 more MON above the sponsor floor, sent to the sponsor, before the pass can succeed.
 
 #### [x] S0.6 Service accounts and credentials
 - **Type:** **HUMAN** · **Depends on:** S0.1 · **PRD:** §5.4, §5.6
@@ -1140,3 +1140,6 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - S0.2 | faucet fragment is `requestFunds(address)` | Agora's deployed faucet takes the receiver | `faucet.token()` matched testnet AUSD during `verify:addresses`
 - S0.2 | `secrets:check` sets `maxBuffer` to 64MB on `git diff --cached` | Node's default 1MB buffer throws on the vendored Exchange artifact | staging `Exchange.json` made the checker exit 1 before the buffer increase
 - S0.6 | copy `PRIVY_PUBLIC_KEY` into `PRIVY_VERIFICATION_KEY` | dashboard value was stored under the public-key name; the pass check names the verification key | Node `createPublicKey` parsed it as `ec`
+- S0.5 | sponsor calls `requestFunds(receiver)` | `estimateGas` from the sponsor succeeded for another address | faucet tx `0xd9fd4331` status=1
+- S0.5 | explicit gas is `ceil(estimate × 1.2)` until G7 writes `GAS_LIMITS` | Monad charges the gas limit | transfer limit 25200; faucet limits 156720 and 136158
+- S0.5 | `fund:mon` stops when the next send would put the sponsor under 3 MON | 10 MON cannot pay 7.9 of role targets plus gas and still leave the floor | status after the run: sponsor `MON=3.0010`
