@@ -1,0 +1,18 @@
+# dependencies and build output
+node_modules/
+.next/
+.wrangler/
+dist/
+coverage/
+*.tsbuildinfo
+playwright-report/
+test-results/
+blob-report/
+.vercel/
+
+# secrets and local state (backlog §3)
+secrets/
+cli-state/
+.env*
+!.env.example
+.dev.vars

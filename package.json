@@ -1,0 +1,18 @@
+{
+  "name": "lifeline",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "lint": "eslint . && pnpm --filter \"./packages/*\" --filter \"./apps/*\" exec tsc --noEmit",
+    "secrets:check": "node scripts/secrets-check.mjs",
+    "cli": "pnpm --filter @lifeline/cli cli",
+    "test:int": "pnpm -r --if-present run test:int"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "eslint": "^9.32.0",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.39.0"
+  }
+}
