@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, G5, and G8 are done. The next task is **G6**.
+4. Continue with the first eligible task (§1.1). Phase 0, G5, G8, and G6 are done. The next task is **G1**.
 
 ---
 
@@ -412,7 +412,7 @@ The human can prepare these in advance.
 - **Fallback:** If it's slow or rate-limited, add the optional Alchemy URL (prompt S0.6 item 4) and tune batching.
 - **Evidence:** `pnpm cli gate:8` exit 0 on the public RPC. Best of 3 was 411 ms (attempts 1073, 411, 648). 17 markets, 696 positions. Every market's long and short lot sums equaled `longOpenInterestLNS` and `shortOpenInterestLNS`, and each market's position count equaled the sum of `numPositions`.
 
-#### [ ] G6 Self-match fill on testnet
+#### [x] G6 Self-match fill on testnet
 - **Type:** AGENT · **Depends on:** S0.5 · **PRD:** §5.9 provisioning step 5
 - **Do:**
   1. As the pool owner, create one `DelegatedAccount` through the factory. The operator signs the `AssignOperator(owner, nonce, deadline)` consent using the factory's EIP-712 domain.
@@ -426,7 +426,7 @@ The human can prepare these in advance.
   - Receipt status is 1, and gas used is recorded.
   - Both paths (self-match and existing liquidity) are tried, with their outcomes recorded.
 - **Fallback:** If the self-match fails, inspect the order fields and post-only semantics against the dex-sdk docs and retry. If both paths fail, mark `[!]` and ask the human.
-- **Evidence:**
+- **Evidence:** `pnpm cli gate:6` exit 0. Proxy `0xEc73AFB31b20729160c247A3009C193a4842e95A` (account 816) is a BTC long, lot 100, entry pricePNS 856095, leverage 14.95×. Maker account 817 is the opposite short, lot 100. IOC open `0x5019f425` status 1, gas 521210. Existing-liquidity IOC `0x6b7f7649` status 1, gas 209468, no fill. Factory create gas 895509, AUSD transfer gas 87488, proxy createAccount gas 362057, maker approve gas 85319, maker createAccount gas 242716, post-only gas 301050.
 
 #### [ ] G1 Operator least privilege: increase-only round-trip
 - **Type:** AGENT · **Depends on:** G6 · **PRD:** §5.2, gate 1
@@ -1145,3 +1145,6 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - S0.5 | `fund:mon` stops when the next send would put the sponsor under 3 MON | 10 MON cannot pay 7.9 of role targets plus gas and still leave the floor | status after the run: sponsor `MON=3.0010`
 - G5 | sample lot check uses `liqLotLNS > 0` | `posLotLNS` is the lot remaining after liquidation and is 0 on a full close | first mainnet samples had `posLot=0` and `liqLot` 10, 1600, 1132, 488
 - G8 | `getPositionsV2` returns a 200-slot page; only the first `numPositions` entries are live, and the next cursor is that last entry's `nextNodeId` | counting the padded tail broke the position-count check while the lot sums already matched open interest | BTC page 2 was 200 slots with `numPositions` 60; after the slice, 17 markets matched exactly
+- G6 | testnet BTC is perp 16, and a book price is `basePricePNS + priceONS` | perp 1 reverts on testnet; the SDK stores book prices as base plus the ONS offset | BTC `basePricePNS` 50000, and the bid/ask bracketed the mark
+- G6 | order `maxNegPnlCollatBPS` defaults to 1000 | a taker order with 0 reverts `TakerOrderSettlementFailed` result code 14; the dex-sdk default is 1000 bps | IOC at 1000 filled lot 100, leverage hundredths 1495
+- G6 | the self-match target is 15× (`leverageHdths` 1500) | testnet BTC initial margin 1500 is 15×, the PRD cap | filled position printed 1495 hundredths

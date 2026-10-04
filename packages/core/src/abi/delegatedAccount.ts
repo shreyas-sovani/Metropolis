@@ -8,6 +8,27 @@ import type { Abi } from "viem";
 export const delegatedAccountAbi = [
   {
     type: "function",
+    name: "accountId",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "exchange",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "operatorAllowlist",
+    stateMutability: "view",
+    inputs: [{ name: "selector", type: "bytes4" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
     name: "owner",
     stateMutability: "view",
     inputs: [],
