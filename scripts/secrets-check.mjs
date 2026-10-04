@@ -24,6 +24,7 @@ function stagedDiff() {
   try {
     return execFileSync("git", ["diff", "--cached", "-U0", "--no-color"], {
       encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
     });
   } catch {
     console.error("secrets:check: git diff --cached failed");

@@ -316,7 +316,7 @@ The human can prepare these in advance.
   - Staging a fake 64-hex key makes `pnpm secrets:check` exit non-zero.
 - **Evidence:** `pnpm install && pnpm -r build && pnpm -r test && pnpm lint` exit 0 (Next.js 15.5.27, vitest 5 tests). `git check-ignore` printed `secrets/x`, `cli-state/x`, `.dev.vars`, `.env.local`. Staging `0x` + 64 hex made `pnpm secrets:check` exit 1 (`private-key`). `git init` reinitialized an existing empty repo.
 
-#### [ ] S0.2 Core config, addresses, ABIs
+#### [x] S0.2 Core config, addresses, ABIs
 - **Type:** AGENT · **Depends on:** S0.1 · **PRD:** §5.2
 - **Do:**
   - In `packages/core/src/config`, add chain objects for 10143 and 143 (viem `monadTestnet` and `monad`), every address from PRD §5.2, ordered RPC fallback lists, and an empty `GAS_LIMITS` map to be filled in G7.
@@ -330,7 +330,7 @@ The human can prepare these in advance.
   - `faucet.token()` equals testnet AUSD.
   - Multicall3 has code on both chains.
   - The command exits 0.
-- **Evidence:**
+- **Evidence:** `pnpm cli verify:addresses` exit 0. Code present on mainnet exchange (225), AUSD (5937), Multicall3 (3808) and testnet exchange (225), factory (4514), AUSD (5937), faucet (1200), Multicall3 (3808). `getExchangeInfo` collateral and `faucet.token()` both matched the PRD AUSD address on the chain where each exists. Exchange ABI vendored from dex-sdk `dbb37c59` (MIT).
 
 #### [ ] S0.3 Generate testnet role keys
 - **Type:** AGENT · **Depends on:** S0.1 · **PRD:** §5.4
@@ -1135,3 +1135,7 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 
 - S0.1 | `!.env.example` under `.env*` | the catalog must be committed and every other `.env*` file must stay ignored | `git status` lists `.env.example` as untracked
 - S0.1 | `secrets:check` skips the `0x`+64-hex key pattern inside `packages/core/src/abi/*.json` | vendored Exchange ABI contains 176 bytes32 literals of that shape; token-prefix scans still apply there | count on `Exchange.json` at dex-sdk `dbb37c59`
+- S0.2 | mainnet RPC order is `rpc.monad.xyz`, `rpc-mainnet.monadinfra.com`, `rpc1.monad.xyz` | PRD fallback is public RPC, then Monad infra, then Alchemy free; `rpc1.monad.xyz` is the documented public Alchemy endpoint | docs.monad.xyz network-information; `verify:addresses` exit 0
+- S0.2 | testnet RPC order is `testnet-rpc.monad.xyz`, then `rpc-testnet.monadinfra.com`; `ALCHEMY_MONAD_TESTNET_URL` is appended when set | testnet docs publish no public Alchemy URL | docs.monad.xyz testnets
+- S0.2 | faucet fragment is `requestFunds(address)` | Agora's deployed faucet takes the receiver | `faucet.token()` matched testnet AUSD during `verify:addresses`
+- S0.2 | `secrets:check` sets `maxBuffer` to 64MB on `git diff --cached` | Node's default 1MB buffer throws on the vendored Exchange artifact | staging `Exchange.json` made the checker exit 1 before the buffer increase

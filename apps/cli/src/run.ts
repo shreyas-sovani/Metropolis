@@ -1,10 +1,13 @@
-export function run(argv: readonly string[]): number {
+import { verifyAddresses } from "./commands/verify-addresses.js";
+
+export async function run(argv: readonly string[]): Promise<number> {
   const command = argv[0];
   if (command === undefined || command === "help" || command === "--help") {
     console.log("lifeline cli");
-    console.log("commands are added in later backlog tasks");
+    console.log("  verify:addresses");
     return 0;
   }
+  if (command === "verify:addresses") return verifyAddresses();
   console.error(`unknown command: ${command}`);
   return 1;
 }

@@ -1,3 +1,4 @@
 import { run } from "./run.js";
 
-process.exit(run(process.argv.slice(2)));
+const code = await run(process.argv.slice(2));
+process.exit(code);
