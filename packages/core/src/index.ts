@@ -20,6 +20,12 @@ export {
   type PositionLiquidatedEvent,
 } from "./hypersync/index.js";
 export {
+  mandateDomain,
+  mandateMessage,
+  mandateTypes,
+  type MandateMessage,
+} from "./lifeline/index.js";
+export {
   ORDER_CANCEL,
   ORDER_CHANGE,
   ORDER_CLOSE_LONG,

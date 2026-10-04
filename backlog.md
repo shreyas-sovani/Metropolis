@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, G5, G8, G6, G1, and G7 are done. The next task is **G3**.
+4. Continue with the first eligible task (§1.1). Phase 0, G5, G8, G6, G1, G7, and G2 are done. G3 is soaking. The next unfinished gate is **G3**, then **G4**.
 
 ---
 
@@ -472,7 +472,7 @@ The human can prepare these in advance.
   - If the free plan can't sustain it, keep the code runtime-agnostic and switch the keeper host to the Node adapter (B1). That needs a laptop, pm2, and Cloudflare Tunnel, so it's a HUMAN step: ask first.
 - **Evidence:**
 
-#### [ ] G2 Privy guest wallet: ownership and EIP-712
+#### [x] G2 Privy guest wallet: ownership and EIP-712
 - **Type:** AGENT, with **HUMAN** fallback (G2-H) · **Depends on:** S0.6, G1 · **PRD:** §5.4, gate 2
 - **Do:**
   1. Build a temporary page at `apps/web/app/dev/gate-privy` that creates a guest account, shows the embedded wallet address, can send `acceptOwnership()` on a given proxy (explicit gas and nonce, wallet UI suppressed), and can sign the PRD §F5 `Mandate` typed data.
@@ -485,7 +485,7 @@ The human can prepare these in advance.
   - No more than one wallet confirmation UI appeared (ideally none).
   - The Privy access token from the page verifies offline with `PRIVY_VERIFICATION_KEY` (ES256).
 - **Fallback:** If guest wallets can't send transactions, try Privy email login (still Privy) and log it in §9. If both fail, mark `[!]` and ask the human, offering sandbox-only mode as the option.
-- **Evidence:**
+- **Evidence:** Headless create never returned a wallet, so G2-H completed it at `http://localhost:3000/dev/gate-privy` with wallet UI suppressed. Guest `0x435371A37dE781A03F1881bEEb127E2A6079BFdf`. Drip `0x866c823f` status 1. Proxy `0x36DF02ca0E9B1644e181342A795556a66eB28b10`. Accept `0xfcda838d` status success, gas 108076. `owner()` is the guest. Mandate signature recovers to the guest. Access token verifies as ES256. `pnpm cli gate:2 check` printed `ownerOk=true sigOk=true tokenOk=true`.
 
 #### [ ] G4 Liquidation-price calibration
 - **Type:** AGENT, plus **HUMAN** (G4-H) · **Depends on:** C1, G5, G6 · **PRD:** §5.3 calibration gates
@@ -1150,3 +1150,4 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - G6 | the self-match target is 15× (`leverageHdths` 1500) | testnet BTC initial margin 1500 is 15×, the PRD cap | filled position printed 1495 hundredths
 - G1 | the operator simulation covers eight calls | the task names six revoked selectors plus `withdrawCollateral` and an ERC20 `transfer` | all eight reverted; `increasePositionCollateral` stayed allowlisted and the 1 AUSD top-up moved deposit and free balance by exactly 1000000
 - G7 | `GAS_LIMITS` is ceil(max receipt gas × 1.2) per kind | Monad charges the gas limit, and the receipt's gasUsed equals that limit | three resends of each of the 11 kinds succeeded at base fee 100 gwei
+- G2 | guest acceptance went through the dev page with `showWalletUIs: false` | Playwright's `createGuestAccount` stayed on "creating" and never returned a wallet | guest `0x435371A37dE781A03F1881bEEb127E2A6079BFdf` owns proxy `0x36DF02ca0E9B1644e181342A795556a66eB28b10`; mandate recovers to that guest; access token verifies ES256
