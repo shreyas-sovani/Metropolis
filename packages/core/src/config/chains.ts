@@ -33,6 +33,11 @@ export const PUBLIC_RPC_URLS: Record<ChainId, readonly string[]> = {
   ],
 };
 
+export const HYPERSYNC_ENDPOINTS: Record<ChainId, string> = {
+  [MAINNET_ID]: "https://monad.hypersync.xyz",
+  [TESTNET_ID]: "https://monad-testnet.hypersync.xyz",
+};
+
 export function rpcUrls(chainId: ChainId, alchemyUrl?: string): string[] {
   const urls = [...PUBLIC_RPC_URLS[chainId]];
   if (alchemyUrl && !urls.includes(alchemyUrl)) urls.push(alchemyUrl);

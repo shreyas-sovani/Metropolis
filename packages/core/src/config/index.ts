@@ -6,6 +6,7 @@ export {
   CHAINS,
   CHAIN_IDS,
   MAINNET_ID,
+  HYPERSYNC_ENDPOINTS,
   PUBLIC_RPC_URLS,
   TESTNET_ID,
   rpcUrls,
