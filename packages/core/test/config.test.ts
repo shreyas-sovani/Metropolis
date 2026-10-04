@@ -3,8 +3,22 @@ import { exchangeAbi } from "../src/abi/exchange.js";
 import { ADDRESSES, GAS_LIMITS, PUBLIC_RPC_URLS } from "../src/config/index.js";
 
 describe("config", () => {
-  it("keeps gas limits empty until G7", () => {
-    expect(Object.keys(GAS_LIMITS)).toEqual([]);
+  it("sets G7 gas limits from measured testnet usage", () => {
+    expect(Object.keys(GAS_LIMITS).sort()).toEqual([
+      "acceptOwnership",
+      "ausdTransfer",
+      "createAccount",
+      "execOrderOpen",
+      "factoryCreate",
+      "faucetRequestFunds",
+      "increasePositionCollateral",
+      "monDrip",
+      "setOperatorAllowlist",
+      "transferOwnership",
+      "withdrawCollateral",
+    ]);
+    expect(GAS_LIMITS.factoryCreate).toBe(1_074_611n);
+    expect(GAS_LIMITS.monDrip).toBe(36_000n);
   });
 
   it("lists PRD §5.2 addresses", () => {

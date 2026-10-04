@@ -28,17 +28,20 @@ export async function sendContract(args: {
   args: readonly unknown[];
   kind: string;
   value?: bigint;
+  gas?: bigint;
 }): Promise<{ hash: `0x${string}`; gasUsed: bigint; status: number; receipt: TransactionReceipt }> {
-  const gas = bumpedGas(
-    await args.client.estimateContractGas({
-      account: args.account,
-      address: args.address,
-      abi: args.abi,
-      functionName: args.functionName,
-      args: args.args,
-      value: args.value,
-    } as never),
-  );
+  const gas =
+    args.gas ??
+    bumpedGas(
+      await args.client.estimateContractGas({
+        account: args.account,
+        address: args.address,
+        abi: args.abi,
+        functionName: args.functionName,
+        args: args.args,
+        value: args.value,
+      } as never),
+    );
   const hash = await args.wallet.writeContract({
     account: args.account,
     chain: args.wallet.chain,
@@ -55,6 +58,16 @@ export async function sendContract(args: {
   appendGas(args.kind, hash, receipt.gasUsed, status);
   if (status !== 1) throw new Error(`${args.kind} reverted ${hash}`);
   return { hash, gasUsed: receipt.gasUsed, status, receipt };
+}
+
+export function recordGas(
+  kind: string,
+  hash: string,
+  gasUsed: bigint,
+  status: number,
+  root = workspaceRoot(),
+) {
+  appendGas(kind, hash, gasUsed, status, root);
 }
 
 function appendGas(kind: string, hash: string, gasUsed: bigint, status: number, root = workspaceRoot()) {

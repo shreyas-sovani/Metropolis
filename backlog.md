@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, G5, G8, G6, and G1 are done. The next task is **G7**.
+4. Continue with the first eligible task (§1.1). Phase 0, G5, G8, G6, G1, and G7 are done. The next task is **G3**.
 
 ---
 
@@ -444,7 +444,7 @@ The human can prepare these in advance.
   - If only that path works, keep `execOrder` allowlisted, log in §9 that H5 is satisfied by the evaluator never building any other order type, and ask the human to approve this deviation.
   - If neither works, mark `[!]` and ask.
 
-#### [ ] G7 Gas limit measurement
+#### [x] G7 Gas limit measurement
 - **Type:** AGENT · **Depends on:** G1 · **PRD:** §5.9
 - **Do:**
   - From the G6/G1 runs (plus any extra runs), record gas used for: factory `create`, AUSD `transfer`, `createAccount`, `setOperatorAllowlist`, owner `execOrder` open, operator `increasePositionCollateral`, `transferOwnership`, `acceptOwnership`, `withdrawCollateral`, the MON drip, and faucet `requestFunds`.
@@ -453,7 +453,7 @@ The human can prepare these in advance.
   - Every transaction type has a limit.
   - Re-sending each type with its configured limit succeeds 3 times out of 3.
   - The cost table (MON at the current base fee) is logged in §9.
-- **Evidence:**
+- **Evidence:** `pnpm cli gate:7` exit 0. Each of the 11 kinds was re-sent 3 times with its configured limit and every receipt was status 1. Base fee was 100 gwei. Cost in MON at that base fee: factory create 0.1074611, AUSD transfer 0.0104986, createAccount 0.0434469, setOperatorAllowlist 0.0104217, execOrder open 0.0625452, increasePositionCollateral 0.0253191, transferOwnership 0.0129406, acceptOwnership 0.0108076, withdrawCollateral 0.0341734, MON drip 0.0036, faucet requestFunds 0.016339.
 
 #### [ ] G3 Durable Object alarm on the free plan
 - **Type:** AGENT · **Depends on:** S0.6, G1 · **PRD:** §5.5, gate 3
@@ -1149,3 +1149,4 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - G6 | order `maxNegPnlCollatBPS` defaults to 1000 | a taker order with 0 reverts `TakerOrderSettlementFailed` result code 14; the dex-sdk default is 1000 bps | IOC at 1000 filled lot 100, leverage hundredths 1495
 - G6 | the self-match target is 15× (`leverageHdths` 1500) | testnet BTC initial margin 1500 is 15×, the PRD cap | filled position printed 1495 hundredths
 - G1 | the operator simulation covers eight calls | the task names six revoked selectors plus `withdrawCollateral` and an ERC20 `transfer` | all eight reverted; `increasePositionCollateral` stayed allowlisted and the 1 AUSD top-up moved deposit and free balance by exactly 1000000
+- G7 | `GAS_LIMITS` is ceil(max receipt gas × 1.2) per kind | Monad charges the gas limit, and the receipt's gasUsed equals that limit | three resends of each of the 11 kinds succeeded at base fee 100 gwei
