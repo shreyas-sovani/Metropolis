@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0 and gates G5, G8, G6, G1, G7, G3, and G2 are done. C1 is done. **G4** is in progress and waiting on the Perpl UI liquidation price (G4-H) plus a HyperSync retry.
+4. Continue with the first eligible task (§1.1). Phase 0 and gates G5, G8, G6, G1, G7, G3, and G2 are done. C1 is done. **G4** is in progress: the UI check passed and the historical median did not, so `CALIBRATED` stays false.
 
 ---
 
@@ -500,7 +500,7 @@ The human can prepare these in advance.
   - For step b, the median relative error is ≤ 0.1% over the events checked. If fewer than 5 events exist, log that and rely on a and c.
   - When all of this passes, flip the config flag `CALIBRATED=true`, which removes the "est." labels (H9).
 - **Fallback:** If the error is above 0.1%, investigate funding sign, maintenance-fraction scaling, and lot or price decimals. Until it passes, keep "est." labels and continue the other work; this gate blocks only the label removal.
-- **Evidence:** Step a passes in C1. Step c: the Perpl testnet UI showed 83650.6 for calibration account `0xE928c690D27326bc561A2d07fad3dFAca4815ed6` (id 821, BTC long, lot 100, entryPNS 860220, depositCNS 5734800). With funding 0 and MMF 25 ours is 83728.08. |83728.08 − 83650.6| / 83650.6 = 0.0926%, within 0.1%. Step b has no median yet: a full lifecycle scan is rate-limited (HyperSync 429) and a 2.5M-block window contained 114 liquidations whose opens were older than that window, so none could be reconstructed. `CALIBRATED` stays false until step b passes.
+- **Evidence:** Step a passes in C1. Step c: the Perpl testnet UI showed 83650.6 for calibration account `0xE928c690D27326bc561A2d07fad3dFAca4815ed6` (id 821, BTC long, lot 100, entryPNS 860220, depositCNS 5734800). With funding 0 and MMF 25 ours is 83728.08. |83728.08 − 83650.6| / 83650.6 = 0.0926%, within 0.1%. Step b: 8 of 115 recent liquidations could be tied to a `PositionOpened` while walking back to block 54,000,000. Median relative error was 0.1388 using the event funding as positive and 0.1293 using it as negative. Both are above 0.1%. Those positions' lots had changed since the open (for example open lot 144 versus liquidated lot 11059), and paging `PositionIncreased` with the other lifecycle events hits HyperSync 429 before a full replay finishes. `CALIBRATED` stays false.
 
 ### Phase 2: Core library (`packages/core`)
 
@@ -1153,4 +1153,4 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - G2 | guest acceptance went through the dev page with `showWalletUIs: false` | Playwright's `createGuestAccount` stayed on "creating" and never returned a wallet | guest `0x435371A37dE781A03F1881bEEb127E2A6079BFdf` owns proxy `0x36DF02ca0E9B1644e181342A795556a66eB28b10`; mandate recovers to that guest; access token verifies ES256
 - G3 | the soak worker is `lifeline-gate3` on `lifeline-shreyas.workers.dev` | the account had no workers.dev subdomain, and the production name `lifeline` stays free | 906 ticks in 30 minutes, max gap 2090 ms, 0 stored errors, signing succeeded, tail outcomes `ok`
 - C1 | money is micro-dollars and MMF is `perpMaintMarginFracHdths / 100` | the docs example divides notional by 25, and testnet BTC maintenance hundredths are 2500 | docs P_liq is 94000 exactly; the calibration position read MMF 25
-- G4 | funding 0 is within 0.1% of the testnet UI on a fresh BTC long | the UI price is 83650.6 and the formula with F = 0 gives 83728.08 | relative error 0.0926%; historical sign is still unset because the lifecycle scan hit HyperSync 429
+- G4 | funding 0 is within 0.1% of the testnet UI on a fresh BTC long, and the historical median is not | the UI price is 83650.6 and the formula with F = 0 gives 83728.08; 8 reconstructed liquidations had median error 0.1293 | relative UI error 0.0926%; `CALIBRATED` stays false because the historical median is above 0.1%

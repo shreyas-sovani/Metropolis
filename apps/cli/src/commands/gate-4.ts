@@ -14,7 +14,6 @@ import {
   decodePositionOpened,
   eventTopic0,
   exchangeAbi,
-  firstExchangeLogBlock,
   ORDER_OPEN_LONG,
   ORDER_OPEN_SHORT,
   TESTNET_ID,
@@ -48,6 +47,24 @@ function envioToken(root: string): string {
   throw new Error("ENVIO_API_TOKEN missing");
 }
 
+async function archiveHeight(endpoint: string, token: string, exchange: string): Promise<number> {
+  const response = await fetch(`${endpoint}/query`, {
+    method: "POST",
+    signal: AbortSignal.timeout(20_000),
+    headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      from_block: 0,
+      to_block: 1,
+      logs: [{ address: [exchange] }],
+      field_selection: { log: ["block_number"] },
+    }),
+  });
+  if (!response.ok) throw new Error(`hypersync status ${response.status}`);
+  const body = (await response.json()) as { archive_height?: number };
+  if (typeof body.archive_height !== "number") throw new Error("hypersync missing archive height");
+  return body.archive_height;
+}
+
 function median(values: number[]): number {
   const sorted = [...values].sort((left, right) => left - right);
   const mid = Math.floor(sorted.length / 2);
@@ -65,44 +82,44 @@ function toLot(lotLNS: bigint, decimals: number): bigint {
 }
 
 export async function gate4(root = workspaceRoot()): Promise<number> {
-  try {
-    await historical(root);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "historical failed";
-    console.log(`historical failed: ${message}`);
-  }
-  return openCalibration(root);
+  const historicalCode = await historical(root);
+  const calibrationCode = await openCalibration(root);
+  return historicalCode === 0 && calibrationCode === 0 ? 0 : 1;
 }
 
-async function historical(root: string): Promise<void> {
+async function historical(root: string): Promise<number> {
   const token = envioToken(root);
   const endpoint = "https://monad.hypersync.xyz";
   const exchange = ADDRESSES[MAINNET_ID].exchange;
-  const fetchImpl = fetch;
-  const firstBlock = await firstExchangeLogBlock({ endpoint, token, address: exchange, fetchImpl });
-  const liquidations = await paginateLogs({
-    endpoint,
-    token,
-    fromBlock: firstBlock,
-    address: exchange,
-    eventName: "PositionLiquidated",
-    fetchImpl,
-  });
-  const lifecycle = await paginateLogs({
-    endpoint,
-    token,
-    fromBlock: firstBlock,
-    address: exchange,
-    eventNames: LIFECYCLE_EVENTS,
-    fetchImpl,
-  });
+  const head = await archiveHeight(endpoint, token, exchange);
+  const liqLogs = await queryLogs(endpoint, token, exchange, 108_000_000, head, [
+    eventTopic0("PositionLiquidated"),
+  ]);
+  const events = liqLogs.map((log) => decodePositionLiquidated(log));
+  const wanted = new Set(events.map((event) => `${event.posAccountId}:${event.perpId}`));
+  console.error(`historical liquidations=${events.length} keys=${wanted.size}`);
   const steps = new Map<string, LifecycleStep[]>();
-  for (const log of lifecycle.logs) {
-    const step = stepFrom(log);
-    if (!step) continue;
-    const list = steps.get(step.key) ?? [];
-    list.push(step.step);
-    steps.set(step.key, list);
+  const topics = [eventTopic0("PositionOpened")];
+  let cursor = 108_000_000;
+  const floor = 54_000_000;
+  while (cursor > floor && replayedCount(events, steps) < 20) {
+    const from = Math.max(floor, cursor - 1_000_000);
+    const page: HyperSyncLog[] = [];
+    for (const topic of topics) {
+      const fetched = await queryLogs(endpoint, token, exchange, from, cursor, [topic]);
+      for (const log of fetched) page.push(log);
+    }
+    let kept = 0;
+    for (const log of page) {
+      const step = stepFrom(log);
+      if (!step || !wanted.has(step.key)) continue;
+      const list = steps.get(step.key) ?? [];
+      list.push(step.step);
+      steps.set(step.key, list);
+      kept += 1;
+    }
+    console.error(`chunk ${from}-${cursor} logs=${page.length} kept=${kept} ready=${replayedCount(events, steps)}`);
+    cursor = from;
   }
 
   const client = createPublicClient({
@@ -113,9 +130,8 @@ async function historical(root: string): Promise<void> {
   const positive: number[] = [];
   const negative: number[] = [];
   let checked = 0;
-  for (const log of liquidations.logs) {
+  for (const event of events) {
     if (checked >= 20) break;
-    const event = decodePositionLiquidated(log);
     const key = `${event.posAccountId}:${event.perpId}`;
     const replayed = replayPosition(steps.get(key) ?? [], event.blockNumber);
     if (!replayed || event.liqPricePNS === 0n) continue;
@@ -134,14 +150,101 @@ async function historical(root: string): Promise<void> {
     positive.push(relative(plus, actual));
     negative.push(relative(minus, actual));
     checked += 1;
-    console.log(
+    console.error(
       `perp=${event.perpId} account=${event.posAccountId} liq=${event.liqPricePNS} plus=${plus} minus=${minus} err+=${relative(plus, actual).toFixed(6)} err-=${relative(minus, actual).toFixed(6)}`,
     );
   }
-  console.log(
-    `checked=${checked} medianPlus=${median(positive).toFixed(6)} medianMinus=${median(negative).toFixed(6)}`,
+  const best = Math.min(median(positive), median(negative));
+  console.error(
+    `checked=${checked} medianPlus=${median(positive).toFixed(6)} medianMinus=${median(negative).toFixed(6)} best=${best.toFixed(6)}`,
   );
-  if (checked < 5) console.log("fewer than 5 reconstructable liquidations");
+  if (checked < 5) {
+    console.error("fewer than 5 reconstructable liquidations");
+    return 1;
+  }
+  return best <= 0.001 ? 0 : 1;
+}
+
+function replayedCount(
+  events: { posAccountId: bigint; perpId: bigint; blockNumber: number; liqPricePNS: bigint }[],
+  steps: Map<string, LifecycleStep[]>,
+): number {
+  let count = 0;
+  for (const event of events) {
+    if (count >= 20) break;
+    const replayed = replayPosition(steps.get(`${event.posAccountId}:${event.perpId}`) ?? [], event.blockNumber);
+    if (replayed && event.liqPricePNS > 0n) count += 1;
+  }
+  return count;
+}
+
+async function queryLogs(
+  endpoint: string,
+  token: string,
+  exchange: string,
+  fromBlock: number,
+  toBlock: number,
+  topics: string[],
+): Promise<HyperSyncLog[]> {
+  const logs: HyperSyncLog[] = [];
+  let from = fromBlock;
+  while (from < toBlock) {
+    const page = await queryOnce(endpoint, token, exchange, from, toBlock, topics);
+    logs.push(...page.logs);
+    if (page.next >= toBlock || page.next <= from) break;
+    from = page.next;
+    await sleep(350);
+  }
+  return logs;
+}
+
+async function queryOnce(
+  endpoint: string,
+  token: string,
+  exchange: string,
+  fromBlock: number,
+  toBlock: number,
+  topics: string[],
+): Promise<{ logs: HyperSyncLog[]; next: number }> {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetch(`${endpoint}/query`, {
+        method: "POST",
+        signal: AbortSignal.timeout(25_000),
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          from_block: fromBlock,
+          to_block: toBlock,
+          logs: [{ address: [exchange], topics: [topics] }],
+          field_selection: { log: ["block_number", "log_index", "data", "topic0"] },
+        }),
+      });
+    } catch (error) {
+      console.error(`hypersync timeout ${fromBlock}-${toBlock} ${error instanceof Error ? error.name : "error"}`);
+      await sleep(3_000);
+      continue;
+    }
+    if (response.status === 429) {
+      console.error(`hypersync 429 ${fromBlock}-${toBlock}`);
+      await sleep(8_000 + attempt * 4_000);
+      continue;
+    }
+    if (!response.ok) throw new Error(`hypersync status ${response.status}`);
+    const body = (await response.json()) as {
+      next_block?: number;
+      data?: { logs?: HyperSyncLog[] }[];
+    };
+    const logs = (body.data ?? []).flatMap((group) => group.logs ?? []);
+    return { logs, next: body.next_block ?? toBlock };
+  }
+  throw new Error("hypersync status 429");
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    (globalThis as unknown as { setTimeout: (fn: () => void, ms: number) => void }).setTimeout(resolve, ms);
+  });
 }
 
 function relative(ours: bigint, actual: bigint): number {
