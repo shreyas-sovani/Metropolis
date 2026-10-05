@@ -30,8 +30,10 @@ import {
 import { CHAINS, rpcUrls } from "@lifeline/core";
 import { ContractFunctionRevertedError, createPublicClient, fallback, getAddress, http } from "viem";
 import { loadRoles } from "../roles.js";
+import { parseForkArgs } from "../fork-truth.js";
 import { sendContract } from "../send.js";
 import { testnetPublicClient, testnetWallet } from "../testnet.js";
+import { gate4Fork } from "./gate-4-fork.js";
 import { workspaceRoot } from "./keys-generate.js";
 
 const PERP_BTC = 16n;
@@ -81,7 +83,15 @@ function toLot(lotLNS: bigint, decimals: number): bigint {
   return (lotLNS * LOT_SCALE) / 10n ** BigInt(decimals);
 }
 
-export async function gate4(root = workspaceRoot()): Promise<number> {
+export async function gate4(root = workspaceRoot(), argv: readonly string[] = []): Promise<number> {
+  let chains: ReturnType<typeof parseForkArgs>;
+  try {
+    chains = parseForkArgs(argv);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : "bad gate:4 args");
+    return 1;
+  }
+  if (chains) return gate4Fork(root, chains);
   const historicalCode = await historical(root);
   const calibrationCode = await openCalibration(root);
   return historicalCode === 0 && calibrationCode === 0 ? 0 : 1;

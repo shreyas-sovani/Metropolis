@@ -15,7 +15,8 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), Phase 3 (P1–P3), and W1–W4 and W6 are done. **G4** finished its scan through block 108,000,000. The UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label. **W5** passed its hour. Next is the live W7 arm trial.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W6, and U2 are done. W7 is in progress.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: the contract's exact liquidation rule is verified to the tick on 694 of 694 live positions. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2 is done. The next item is U1, which closes G4 with those fixtures.
 
 ---
 
@@ -174,6 +175,7 @@ Create this layout in S0.1. Keep it unless the Decision log records a better one
 ├─ .env.example                every variable name from §4, with empty values and comments
 ├─ secrets/                    GITIGNORED. testnet-keys.env (agent-generated), services.env (human-filled)
 ├─ cli-state/                  GITIGNORED. Provisioning state (pool.json, twins.json), resumable
+├─ docs/reference/             Planner reference material (not built, not linted): G4 fork probe and its result tables
 ├─ packages/
 │  └─ core/                    @lifeline/core: runtime-agnostic TypeScript, no Node- or Worker-only APIs
 │     ├─ src/config/           chains, addresses, RPC lists, gas limits, tunable defaults
@@ -488,18 +490,40 @@ The human can prepare these in advance.
 - **Evidence:** Headless create never returned a wallet, so G2-H completed it at `http://localhost:3000/dev/gate-privy` with wallet UI suppressed. Guest `0x435371A37dE781A03F1881bEEb127E2A6079BFdf`. Drip `0x866c823f` status 1. Proxy `0x36DF02ca0E9B1644e181342A795556a66eB28b10`. Accept `0xfcda838d` status success, gas 108076. `owner()` is the guest. Mandate signature recovers to the guest. Access token verifies as ES256. `pnpm cli gate:2 check` printed `ownerOk=true sigOk=true tokenOk=true`.
 
 #### [~] G4 Liquidation-price calibration
-- **Type:** AGENT, plus **HUMAN** (G4-H) · **Depends on:** C1, G5, G6 · **PRD:** §5.3 calibration gates
+- **Type:** AGENT, plus **HUMAN** (G4-H, already done) · **Depends on:** C1, G5, G6, **U1, U2** · **PRD:** §5.3 calibration gates
+- **Planner finding (verified, read this first):**
+  - **The historical check failed because of the method, not the math.** Replaying a position's lifecycle from events misses state the contract keeps: collateralized PnL on increases, premium settlement, collateral decreases, partial liquidations, and price residue. That's where the 10.7% median came from.
+  - **The contract itself is the ground truth.** On a *local* Anvil fork, `Exchange.liquidations(descs, false)` on a healthy position emits `CantLiquidatePosAboveMMR(perpId, posAccountId, positionType, markPricePNS, liqPricePNS)`. That is the contract's own liquidation price.
+  - **The exact rule matched 694 of 694 positions to the tick** (testnet 152 and mainnet 542; 215 shorts; 626 with nonzero `premiumPnlCNS`; 267 with nonzero residue):
+
+    ```
+    entry = pricePNS / 10^priceDecimals                       (raw: ignore priceResiduePNSQ16)
+    size  = lotLNS / 10^lotDecimals
+    MMF   = getMarginFractions(perpId, 0).perpMaintMarginFracHdths / 100
+    MMR   = entry · size / MMF
+    liq   = entry + s · (MMR − depositCNS/1e6 − premiumPnlCNS/1e6) / size     (s = +1 long, −1 short)
+    liqPNS = s = +1 ? ceil(liq · 10^priceDecimals) : floor(liq · 10^priceDecimals)   (conservative tick rounding)
+    ```
+
+  - **Positive `premiumPnlCNS` means funding received,** as in dex-sdk `state/position.rs`. Without the premium term the error grows to 0.3–43%.
+  - The reference probe and both result tables are in `docs/reference/` (`g4-fork-probe.mjs.txt`, `g4-fork-*-result.txt`).
+  - **Fork mechanics** that the probe proved necessary:
+    - start Anvil with `--no-mining` and mine each transaction with `evm_mine(ts)`, with `ts` starting at the fork block's timestamp + 1, so the mark doesn't go stale (`MarkPriceAgeExceedsMax`, 60 s);
+    - impersonate `Exchange.owner()` on the fork and call `setPositionAdministrator(caller, true)` and `setAdministrator(caller, true)`, because `liquidations` is permissioned;
+    - batch every live position of a market into one `liquidations(…, false)` call.
 - **Do:**
-  - **a. Unit test** (already in C1): the docs example.
-  - **b. Historical check.** For up to 20 mainnet `PositionLiquidated` events, reconstruct each position's entry price and deposit from earlier `PositionOpened`, `PositionIncreased`, `IncreasePositionCollateral`, and `PositionDecreased` events for the same account and market (via HyperSync). Compute the liquidation price and compare it with the event's `liqPricePNS`.
-  - **c. UI check (G4-H).** The calibration key opens a plain EOA position on testnet; the CLI does this. Then prompt the human: "Import the CALIBRATION key into a browser wallet (testnet only), open `https://testnet.perpl.xyz`, connect, and reply with the Liquidation Price shown for the open position."
-  - Use the results to settle the sign of funding (`premiumPnlCNS`).
+  - **a. Unit tests** (C1 plus U1): the docs example, plus the dex-sdk test vectors (U1).
+  - **b. Contract-truth check (replaces the historical check):** `pnpm cli gate:4 --fork` (built in U2) on local forks of testnet and mainnet.
+  - **c. UI check (G4-H):** already done, 0.0926%. Note that the UI read used funding 0; the remaining gap is consistent with the premium term.
+  - **Historical replay is demoted** to informational only (it's no longer a gate). Keep the code if it's useful for U14, which uses a fork at block N−1 instead.
 - **Pass:**
   - Step a passes.
-  - For step c, |ours − UI| / UI ≤ 0.1%.
-  - For step b, the median relative error is ≤ 0.1% over the events checked. If fewer than 5 events exist, log that and rely on a and c.
-  - When all of this passes, flip the config flag `CALIBRATED=true`, which removes the "est." labels (H9).
-- **Fallback:** If the error is above 0.1%, investigate funding sign, maintenance-fraction scaling, and lot or price decimals. Until it passes, keep "est." labels and continue the other work; this gate blocks only the label removal.
+  - **Step b:**
+    - at least 600 positions across both chains, at least 4 markets per chain, at least 100 shorts, at least 100 with nonzero premium, and at least 50 with nonzero residue;
+    - **100% exact tick match** between `liqPNS` from the core function and the contract's `liqPricePNS`.
+  - Step c is already passed.
+  - Then set `CALIBRATED=true`, which swaps the "est." label for the "contract-exact" badge (U9).
+- **Fallback:** If any position mismatches, print it with all inputs, then compare the entry/residue variants and the rounding direction exactly as the reference probe does. Don't loosen the pass bar without logging why in §9.
 - **Evidence:** Step a passes in C1. Step c: the Perpl testnet UI showed 83650.6 for calibration account `0xE928c690D27326bc561A2d07fad3dFAca4815ed6` (id 821, BTC long, lot 100, entryPNS 860220, depositCNS 5734800). With funding 0 and MMF 25 ours is 83728.08. |83728.08 − 83650.6| / 83650.6 = 0.0926%, within 0.1%. Step b: the resumed scan walked from the checkpoint to block 108,000,000 and exited 1. It still reconstructed 8 liquidations. Median relative error was 0.106726 with funding positive and 0.107222 with funding negative. The best, 10.67%, is above the 0.1% bar. `CALIBRATED` stays false. This gate blocks only the "est." label removal.
 
 ### Phase 2: Core library (`packages/core`)
@@ -850,6 +874,7 @@ The human can prepare these in advance.
   - The withdraw transaction succeeds and the wallet's AUSD rises by 50.
   - Disarm stops actions.
   - If Playwright can't drive Privy, the human runs it once (prompt as G2-H) and the agent verifies onchain.
+  - **Amended by U3 and U6:** arm defaults come from the live distance (U3), and the automated runs use U6's strategy.
 - **Evidence:**
 
 #### [ ] A8 Twins panel
@@ -921,7 +946,7 @@ The human can prepare these in advance.
 #### [ ] D4 Uptime monitoring
 - **Type:** **HUMAN** · **Depends on:** D2 · **PRD:** §5.5
 - **Prompt the human:** Create a free UptimeRobot account and add:
-  - a keyword monitor on `<worker>/health` that alerts when the body contains `"degraded":true` or the check fails, every 5 minutes, alerting your email;
+  - a keyword monitor on `<worker>/health` that alerts when the body contains `"degraded":true` or `"low":true` (U5), or when the check fails, every 5 minutes, alerting your email;
   - an HTTP monitor on the Vercel `/`.
 - **Pass:** Both monitors show "up," and a test alert (pause the Worker briefly with `LIFELINE_PAUSED` or make `/health` fail) reaches the human. The human confirms.
 - **Evidence:**
@@ -939,6 +964,9 @@ The human can prepare these in advance.
   - Withdraw works.
   - Zero browser requests go to `*.perpl.xyz`.
   - Pool availability stays ≥ 17 afterward.
+  - **Amended by U6:** each D5 cycle is 3 automated runs plus 1 human run with a real Privy guest, verified onchain.
+  - **Amended by U3:** all 3 runs show a confirmed top-up at the arm step (no `ABOVE_TRIGGER` skips).
+  - The receipt shows the "Contract-exact" badge (U9).
   - **Only when D5 passes may Phase 8 start.**
 - **Evidence:**
 
@@ -1042,7 +1070,8 @@ Each item must keep every hard rule and must not regress D5. Re-run D5 after eac
 - **Pass:** Subscribing a testnet pool account and forcing its distance under 5% (via a twin or a test) delivers an alert within 10 s.
 - **Evidence:**
 
-#### [ ] X5 Replay a real liquidation
+#### [-] X5 Replay a real liquidation
+- **Superseded by U14** (§7A), which uses a local fork at block N−1 and the exact contract rule instead of event reconstruction. Logged in §9.
 - **Type:** AGENT · **PRD:** §6.A.5
 - **Do:** For a chosen historical mainnet liquidation, reconstruct the position and its mark path (Perpl candles server-side from a non-US region, with an onchain fallback). Animate the path, with the block where Lifeline would have acted and the AUSD it would have used.
 - **Pass:** The replay's liquidation price matches the event's `liqPricePNS` within 0.1%, and the "Lifeline would act" block is the first block where distance fell below 4%.
@@ -1109,7 +1138,267 @@ Each item must keep every hard rule and must not regress D5. Re-run D5 after eac
 
 #### [ ] B7 Calibration suite
 - **Type:** AGENT · **PRD:** §6.B.7
-- **Pass:** Every new `PositionLiquidated` event is checked against our math, and drift above 0.1% sets a degraded-calibration banner.
+- **Pass:** `pnpm cli gate:4 --fork` (U2) runs daily against fresh local forks of both chains, and any tick mismatch sets a degraded-calibration banner. Event reconstruction is no longer used for calibration (see G4).
+- **Evidence:**
+
+---
+
+## 7A. Planner review: corrections and upgrades for winning the cash prizes
+
+These tasks come from a review of the build's progress against the prize targets. They are part of the core unless marked otherwise, and they follow the same protocol (§1): pass checks, evidence, commits, and human stops.
+
+**Order of work.** Interleave these with the remaining Phase 4–7 tasks in this order:
+
+1. **U2 → U1 → finish G4** (`CALIBRATED=true`).
+2. **U15** (time-sensitive: twins need time and volatility to show a real liquidation).
+3. Finish **W7**, then **U3**, then W8 and W9.
+4. **U4** and **U5**.
+5. **U7**, then A1–A3.
+6. A4–A6 together with **U8, U9, U10, U13, U16**.
+7. A7 with **U6**, then A8–A10.
+8. **U12** (it has a HUMAN step), then D1–D4.
+9. D5, using U6's criteria.
+10. **U11** before R1 and R2. **U14** before D8, so the replay can appear in the video.
+
+**Prize mapping.** Each task's **Why** line names the prize it strengthens: Perpl API $5k, Perpl Analytics/Risk $3k, Envio $1k, Privy $5k, Track 1 $10k, or Grand Champion.
+
+#### [x] U2 Contract-truth calibration command: `gate:4 --fork`
+- **Type:** AGENT · **Depends on:** C2 · **Unblocks:** G4, U1, U9, B7
+- **Why:** It turns "est." into "matches Perpl's contract to the tick," the strongest credibility line for the Perpl Analytics bounty and Track 1.
+- **Do:**
+  - Port `docs/reference/g4-fork-probe.mjs.txt` into `apps/cli` as `gate:4 --fork [--chain 10143|143|both]`.
+  - **Fork lifecycle:** start `anvil --fork-url <chain rpc> --port <free port> --no-mining --silent` as a child process, wait until it's ready, and always kill it on exit.
+  - **Safety assertions:**
+    - the client URL is `127.0.0.1` or `localhost`;
+    - the fork's chain ID equals the source chain's;
+    - no role key from `secrets/` is ever loaded by this command; only impersonation is used.
+  - **On the fork:**
+    - pin block timestamps (`evm_mine(ts)` starting at the fork block timestamp + 1);
+    - impersonate `Exchange.owner()` and grant `setPositionAdministrator` and `setAdministrator` to a throwaway caller;
+    - for **every** live position of every market (paginate past the first 200), batch `liquidations(descs, false)` and decode `CantLiquidatePosAboveMMR` and `PositionLiquidated`.
+  - **Fixtures:** write `packages/core/test/fixtures/g4-truth-<chainId>.json` with per position: inputs (`perpId`, `positionType`, `pricePNS`, `priceResiduePNSQ16`, `lotLNS`, `depositCNS`, `premiumPnlCNS`, `priceDecimals`, `lotDecimals`, `maintHdths`) and the contract's `liqPricePNS`.
+  - Write a summary JSON (date, counts, exact-match %) for U9.
+  - If `anvil` is missing, prompt the human to install Foundry (`curl -L https://foundry.paradigm.xyz | bash && foundryup`).
+- **Pass:**
+  - The command exits 0 on both chains.
+  - The coverage bar from G4 step b is met: at least 600 positions, at least 4 markets per chain, at least 100 shorts, at least 100 with premium, and at least 50 with residue.
+  - Fixtures and the summary are written.
+  - A second run reproduces the same pass result.
+  - No real network receives a transaction: assert the sender's nonce on the real RPC is unchanged.
+- **Evidence:** `pnpm --filter @lifeline/cli exec vitest run test/gate-4-fork.test.ts` passed 7. `pnpm cli gate:4 --fork` exited 0 twice. The second run wrote 912 positions, 19 markets, 297 shorts, 781 with nonzero premium, 374 with nonzero residue, and `exactMatchPct` 100. Testnet block 68477876 had 202 positions across 8 markets. Mainnet block 110829088 had 710 positions across 11 markets. The real owner nonce stayed 1 and the throwaway caller nonce stayed 0. Fixtures are `packages/core/test/fixtures/g4-truth-10143.json`, `g4-truth-143.json`, and `g4-fork-summary.json`.
+
+#### [ ] U1 Exact contract liquidation rule in the core
+- **Type:** AGENT · **Depends on:** U2 (fixtures) · **Amends:** C1, C3, C4, C6, and PRD §5.3
+- **Why:** The radar, the crash simulator, the dry run, and the keeper all must use the contract's own number. A one-tick conservative rounding also means Lifeline never underestimates risk.
+- **Do:**
+  - Add `liquidationPricePNS(position, market)` implementing the rule in G4's planner finding: raw entry, `premiumPnlCNS` subtracted, MMR at raw entry, conservative tick rounding.
+  - Route every liquidation price, distance, at-risk flag, "could protect now," crash outcome, dry run, and evaluator decision through it.
+  - Keep the unrounded function only as an internal helper.
+  - Add the dex-sdk vectors from `crates/sdk/src/state/position.rs` tests, all with entry 100, size 10, deposit 100, mm 20:
+    - liquidation: long 95 → 100 after paying 5 per unit; short 105 → 100; long receiving funding goes to 90 and short to 110;
+    - bankruptcy: 90, 95, 110, 105, 85, 115.
+  - Add a fixture test asserting a **100% exact tick match** on both U2 fixtures.
+  - Fix PRD §5.3 (formula, premium sign, rounding, calibration gates) as a factual correction, logged in §9.
+- **Pass:**
+  - All vectors pass.
+  - Fixture tests pass at 100% exact on 600 or more positions.
+  - Every existing core, worker, and CLI test still passes.
+  - The C1 PRD demo example still passes at its tolerances.
+- **Evidence:**
+
+#### [ ] U15 Aggressive twins on volatile markets (time-sensitive)
+- **Type:** AGENT · **Depends on:** P3, W4
+- **Why:** "The unprotected twin was liquidated by Perpl's own engine while its protected twin survived" is the single most convincing proof for judges. Testnet's liquidator is active (G5 counted 272 liquidations), but it needs volatility and time.
+- **Do:**
+  - Rank testnet markets by recent mark variance. Sample `getPerpetualInfoV2.markPNS` over 30 minutes, or use HyperSync trade or mark events if that's cheaper.
+  - Open **two more twin pairs** today on the two most volatile markets (candidates MON, PUMP, NEAR, ZEC) at the highest leverage allowed, alternating sides.
+  - Register them with the protected leg on a house mandate of 4%/6% and a 300 budget; the unprotected leg gets none.
+- **Pass:**
+  - Both pairs are open with entries within 0.1% of each other.
+  - `pool:register` succeeds, and `/twins` (W8) lists 6 pairs.
+  - The volatility ranking is logged in §9.
+- **Evidence:**
+
+#### [ ] U3 Demo-fire guarantee: arming always produces a visible top-up
+- **Type:** AGENT · **Depends on:** W7 · **Amends:** W6, A7
+- **Why:** This prevents the main failure mode. If the price moved in a claimed position's favor, its distance sits above the default 4% trigger, arming returns `ABOVE_TRIGGER`, and the judge sees nothing happen. That costs every prize.
+- **Do:**
+  1. **Demo band for claims.** `/claim` first picks positions whose distance is in [house target, 3.5%]. Otherwise it picks the closest above the house trigger.
+  2. **Arm defaults from live distance.**
+     - `trigger = max(4%, roundUp(distance, 0.5%) + 1%)` and `target = trigger + 2%`, clamped to C5's limits.
+     - The UI shows: "Your position is X% from liquidation. Lifeline will act below Y% and restore Z%."
+  3. **When the user lowers the trigger below the current distance,** show "Armed: Lifeline will act when distance falls below Y%." Add a clearly labeled "Test Lifeline now" button that re-signs with the trigger just above the current distance. That's an honest, user-initiated test.
+- **Pass:**
+  - Over **20 consecutive claim → accept → arm cycles** on testnet (test-owner path), **20 of 20** produce a confirmed top-up with `distAfter` inside the W5 tolerance.
+  - A property test of the default computation covers distances from 1.5% to 15%.
+  - The UI test shows the explanatory copy.
+- **Evidence:**
+
+#### [ ] U4 Pool inventory: demo band, both sides, recycling of unaccepted claims
+- **Type:** AGENT · **Depends on:** U3 · **Amends:** P2, W6, D3
+- **Why:** Judges arrive throughout the review window. An empty or out-of-band pool degrades the demo to sandbox mode.
+- **Do:**
+  - **`pnpm cli pool:refill --target 30 --per-side 12 --in-band 10`** creates accounts until there are at least 30 available, at least 12 on each side, and at least 10 inside the demo band. It's idempotent.
+  - Positions that drift above 6% are flagged `reserve` and offered last.
+  - **Recycling (in the Durable Object alarm, at most once per 60 s):**
+    - A claim that isn't accepted within 10 minutes is cancelled. The pool owner calls `transferOwnership(address(0))`, which overwrites `pendingOwner` under `Ownable2Step`; verify `pendingOwner() == 0`.
+    - The position then returns to `available` with its house mandate intact.
+- **Pass:**
+  - **Forced test:** claim without accepting, advance the timeout in a test, and confirm `pendingOwner` is 0 and the status is `available`.
+  - A second claim of the same position works.
+  - `pool:refill` reaches all three targets, and a re-run sends nothing.
+- **Evidence:**
+
+#### [ ] U5 Ops signals, scheduled runner, and MON budget
+- **Type:** AGENT, plus **HUMAN** decision · **Depends on:** U4 · **Amends:** W1, D4, D3
+- **Why:** The product must stay demoable for the whole judging period with no one watching it.
+- **Do:**
+  - **Health signals.** `/health` adds `sponsorMon`, `operatorMon`, `poolAvailable`, `poolInBand`, `poolBySide`, and `low`. `low` is true when the sponsor has under 3 MON, the operator under 1 MON, available under 10, or in-band under 5.
+    - D4's UptimeRobot keyword monitor must also alert on `"low":true`.
+  - **Scheduled runner** (prompt the human first). Recommend a GitHub Actions cron every 30 minutes on a private repository (free minutes) that runs `pool:refill`, `faucet:ausd`, and `status`, with **testnet-only** role keys in GitHub encrypted secrets.
+    - If the human declines, log it in §9 and document a manual daily runbook step instead.
+  - **MON budget,** recomputed from G7's measured costs: about 0.286 MON per pool account, about 0.097 per claim (drip plus gas), and about 0.025 per top-up.
+    - For 40 accounts, 100 claims, and 400 top-ups that's about 31 MON.
+    - Prompt the S0.4 top-up for the shortfall before D3.
+- **Pass:**
+  - The new `/health` fields are present.
+  - A forced low condition flips `low:true`.
+  - The scheduled job has one green run, or the decline is logged with the runbook step added.
+  - `pnpm cli status` shows enough MON for the budget above.
+- **Evidence:**
+
+#### [ ] U7 HyperSync budget: incremental history cache
+- **Type:** AGENT · **Depends on:** C8 · **Amends:** A3
+- **Why:** C8 and G4 already hit HyperSync 429s. Judges' traffic must never turn the history (which drives the Envio bounty) into errors.
+- **Do:**
+  - Build liquidation history incrementally: one full backfill, then a 60-second tail refresh from a stored block cursor.
+  - Store aggregates plus the cursor in the Worker Durable Object (an admin-only refresh route) or a durable Vercel cache. Your call; log it.
+  - Honor rate-limit reset headers with backoff.
+  - On error, serve the last good data with `stale:true`.
+- **Pass:**
+  - 100 concurrent `/api/liquidations` requests produce at most 1 HyperSync request per 60 s (counter).
+  - A simulated 429 yields stale data with no 5xx.
+  - Totals still equal the sum of the rows.
+- **Evidence:**
+
+#### [ ] U8 Money-left-on-table metrics
+- **Type:** AGENT · **Depends on:** U1, U7 · **Amends:** A4, A6
+- **Why:** It turns risk into dollars, which is the sharpest Perpl Analytics angle and the strongest Track 1 pitch line.
+- **Do:**
+  - Read `getLiquidationInfo(perpId)` for the split: `liqUserAmtPer100K`, `liqInsAmtPer100K`, and `liqProtocolAmtPer100K`.
+  - **Verify the event semantics on 5 recent liquidations:** check that the user share plus the insurance and protocol shares reconstruct the residual within 1 CNS. Use `accAmountCNS` and `AccountLiquidationCredit` or transfer events in the same transaction as needed, and log the method in §9.
+  - **Show:**
+    - **Radar headline:** "Liquidation penalties paid in 30 days: $X. Avoidable with the account's own idle AUSD: $Y."
+    - **At-risk band:** "Penalty at stake now: $W" (the insurance and protocol share × MMR over at-risk positions).
+    - **Risk card:** "If liquidated now you'd forfeit about $Z."
+- **Pass:**
+  - Unit tests on the split.
+  - The 5-event reconciliation passes.
+  - Totals reconcile with the per-event sums.
+  - The values render on Radar and in the risk card.
+- **Evidence:**
+
+#### [ ] U9 "Contract-exact" badge and methodology page
+- **Type:** AGENT · **Depends on:** U1, U2, A1 · **Amends:** A4, A10, H9
+- **Why:** It's credibility the judges can check themselves, for Perpl Analytics and Track 1.
+- **Do:**
+  - When `CALIBRATED=true`, replace "est." everywhere with a **"Contract-exact"** badge that links to `/methodology`.
+  - That page shows the exact rule, the latest `gate:4 --fork` summary (date, positions, markets, shorts, premium and residue counts, exact-match %), the script path, and how to reproduce it locally.
+- **Pass:**
+  - The page renders from the committed U2 summary JSON.
+  - The badge is hidden when `CALIBRATED=false` (test both states).
+- **Evidence:**
+
+#### [ ] U10 Perpl public API enrichment (server-side, off the critical path)
+- **Type:** AGENT · **Depends on:** A2 · **Amends:** A4
+- **Why:** It strengthens the "Best use of Perpl's API" case ($5k) without risking H3.
+- **Do:**
+  - Server routes fetch Perpl `GET /api/v1/pub/context` (market display names, fees, max leverage) and candles (a 24-hour mark sparkline per market, and data for U14).
+  - Pin these routes to a non-US Vercel region (for example `fra1` or `sin1`) and confirm Perpl serves it.
+  - Cache for 5 minutes.
+  - Every field has an onchain fallback.
+  - Nothing is fetched from the browser.
+- **Pass:**
+  - With the Perpl API reachable, names and sparklines render.
+  - With the Perpl API blocked (mock or abort), Radar renders fully from onchain data and A7 still passes.
+  - The browser network log shows zero `*.perpl.xyz` requests.
+- **Evidence:**
+
+#### [ ] U13 Saves ledger: proof that Lifeline actually saved positions
+- **Type:** AGENT · **Depends on:** U1, W5, C8 · **Amends:** A4, A8
+- **Why:** "N positions survived a move that would have liquidated them" is the demo's wow line, provable from chain data. It serves Track 1, Grand Champion, and the Perpl API bounty.
+- **Do:**
+  - For every confirmed top-up, store the exact pre-top-up liquidation price.
+  - Watch later marks. If the mark crosses that pre-top-up price while the position is still open (no `PositionLiquidated`), record a **save**: top-up transaction, crossing block, and the margin added.
+  - Show a live "Saves" counter and list on Radar, on Twins, and in `/judges`.
+- **Pass:**
+  - Unit tests on synthetic mark paths: save, no save, and liquidated anyway.
+  - Each live save links to its top-up transaction and crossing block.
+  - The counter shows 0 honestly when there are none.
+- **Evidence:**
+
+#### [ ] U16 Public risk endpoint
+- **Type:** AGENT · **Depends on:** U1, A3
+- **Why:** It's an infrastructure give-back that Perpl integrators can call, which strengthens the Perpl API and Analytics stories.
+- **Do:**
+  - `GET /api/v1/risk/:address?chain=` returns JSON with the contract-exact liquidation price, distance, free balance, Lifeline dry run, and penalty at stake.
+  - CORS open, 60 requests per minute per IP.
+  - Documented in README and on `/judges`.
+- **Pass:** Values equal `/api/account` for the same address, the rate limit returns 429 when exceeded, and the docs example `curl` works.
+- **Evidence:**
+
+#### [ ] U6 End-to-end strategy for Privy flows
+- **Type:** AGENT, plus **HUMAN** (one real-Privy run per D5 cycle) · **Depends on:** A7 · **Amends:** A7 and D5 pass checks
+- **Why:** G2 proved headless Playwright can't create a Privy guest wallet, so A7 and D5 as written can't pass automatically.
+- **Do:**
+  1. Try Playwright **headed** Chromium with a persistent context.
+  2. If Privy still won't initialize, add an `E2E_WALLET=test` build flag that swaps the wallet adapter for a test signer using `TEST_OWNER_PK` from a local-only env. Everything else in the flow stays identical.
+     - A build check must fail if the test adapter is present in a production bundle.
+  3. Each D5 cycle is **3 automated runs plus 1 human run** with a real Privy guest. Prompt it like G2-H, and the agent verifies the human run onchain.
+- **Pass:**
+  - 3 automated runs are green.
+  - The production bundle grep shows no test adapter.
+  - The human run is confirmed with its transaction hashes.
+- **Evidence:**
+
+#### [ ] U12 Anti-abuse on `/claim` (Cloudflare Turnstile, free)
+- **Type:** AGENT, plus **HUMAN** · **Depends on:** W6, A7
+- **Why:** Guest accounts cost nothing to mint, so a script could drain the pool before judges arrive. That would turn the Privy and Track 1 demo into a sandbox fallback.
+- **Human step:** In the Cloudflare dashboard, create a free Turnstile widget (managed or invisible mode) for the production domain and localhost. Put `TURNSTILE_SITE_KEY` (public) and `TURNSTILE_SECRET` in `secrets/services.env`.
+- **Do:** Require a Turnstile token on `/claim` and `/sandbox/arm`, verify it server-side in the Worker, and keep the existing rate limits.
+- **Pass:**
+  - A missing or invalid token returns 403.
+  - A normal flow shows no visible challenge in Chrome and Safari.
+  - Rate limits are still enforced.
+- **Evidence:**
+
+#### [ ] U11 Judge guide and bounty evidence pack
+- **Type:** AGENT · **Depends on:** D5 · **Amends:** R1, R2
+- **Why:** Bounty judges skim. Mapping each written requirement to a live, clickable proof raises the odds on every bounty.
+- **Do:** Build a `/judges` page and a README "Bounty map." For each targeted bounty (Perpl API, Perpl Analytics/Risk, Envio, Privy, plus MetaMask, Nansen, and CRE if done), give:
+  - the requirement in one line;
+  - how Lifeline meets it;
+  - the code path;
+  - a one-click live proof, such as a real top-up transaction, the HyperSync-backed history endpoint, the Privy guest plus EIP-712 plus transaction flow, `/methodology`, the saves ledger, or the risk API.
+
+  Add a 90-second "judge path" with deep links: a pre-filled lookup of a real at-risk mainnet account, the claim button, and the twins panel.
+- **Pass:** Every claim has a working link (an automated link check), and the human reviews the page in R2.
+- **Evidence:**
+
+#### [ ] U14 Replay a recent real mainnet liquidation (replaces X5)
+- **Type:** AGENT · **Depends on:** U1, U2, U10 · **Supersedes:** X5
+- **Why:** It's a real person's real loss, shown with what Lifeline would have done. That's the strongest storytelling beat for the video and Track 1.
+- **Constraint:** The public mainnet RPC serves only recent state. Block 110,000,000 (about 816k blocks back) was readable; 105,000,000 was not. Use a liquidation from the last 3 days.
+- **Do:**
+  - Fork mainnet locally at block N−1 of a recent `PositionLiquidated` and read the exact position and account state.
+  - The exact rule must equal the event's `liqPricePNS`.
+  - Sample the mark path over the hours before (onchain per-block samples or Perpl candles, server-side).
+  - Mark the block where Lifeline would have acted at 4%/6%, and the AUSD it would have used from the account's idle balance.
+  - **Precompute and store as static JSON,** so the page never needs archive access at runtime.
+- **Pass:**
+  - The replayed event matches to the exact tick.
+  - The page renders from the stored JSON.
+  - The "would act" block is the first sampled block below the trigger.
 - **Evidence:**
 
 ---
@@ -1118,7 +1407,8 @@ Each item must keep every hard rule and must not regress D5. Re-run D5 after eac
 
 The core is done when all of these hold:
 
-- Every task in Phases 0–7 is `[x]`, or `[-]` with a logged reason. No `[!]` remains.
+- Every task in Phases 0–7 and every U-task in §7A is `[x]`, or `[-]` with a logged reason. No `[!]` remains.
+- G4 is `[x]` and `CALIBRATED=true`, backed by a 100% exact tick match in `gate:4 --fork`.
 - D5 has passed 3 consecutive times on production.
 - Every hard rule in §2.1 holds. Specifically:
   - H3: no browser requests go to `*.perpl.xyz`.
@@ -1185,3 +1475,11 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - W7 | disarm is an EIP-191 personal signature, separate from the EIP-712 mandate | the backlog leaves the disarm encoding open | message `lifeline-disarm:<proxy>:<nonce>`
 - W7 | the arm route stays undeployed until the W5 hour finishes | a worker deploy opens an alarm gap larger than 10 s | test owner accepted `0xe3929EB4` via `0xbca91b70` and is `owner()`
 - W5 | alarm timestamps stay in the isolate, and `health_state` is updated only when the error changes | each tick inserted a row, deleted a row, and updated health, and `lifeline-gate3` inserted another row every 2 s; that reached 90% of the 100,000 daily rows-written cap | after the cut, `/health` `ticksLast10m` is 3 and gate3 returns `{"stopped":true}`
+- G4 (planner) | the contract-truth fork check replaces historical replay as gate step b | lifecycle replay from events misses collateralized PnL, premium settlement, collateral decreases, partial liquidations, and residue, which explains the 10.7% median; on a local fork `liquidations(…, false)` emits the contract's own `liqPricePNS` via `CantLiquidatePosAboveMMR` | `docs/reference/g4-fork-*-result.txt`
+- G4 (planner) | the exact rule is: raw `pricePNS` entry (residue ignored), `premiumPnlCNS` subtracted (positive = received), MMR at raw entry, ceil to tick for longs and floor for shorts | variant comparison: `raw:cons` exact on 152/152 testnet and 542/542 mainnet; the SDK effective-entry form without rounding was within 1 tick on only 130/152 and 419/542 | probe run on 2026-10-05 against forks at testnet 68,465,119 and mainnet 110,816,351
+- G4 (planner) | the core already subtracts `premiumPnlCNS` with the right sign; only conservative tick rounding is missing for exactness | `packages/core/src/math/liquidation.ts` gap = mmr − deposit − funding; `radar/snapshot.ts` passes `premiumPnlCNS` as funding | U1
+- U14 (planner) | the public mainnet RPC serves only recent state | `getPositionIds` at block 110,000,000 succeeded; at 105,000,000 it returned "Block requested not found" | the replay must use a liquidation from the last ~3 days
+- X5 (planner) | descoped in favor of U14 | the fork-at-N−1 method is exact, while event reconstruction is not | G4 finding
+- U2 | anvil starts with `--quiet` and `--disable-block-gas-limit` | this anvil build rejects `--silent`, and it rejects `--gas-limit` together with `--disable-block-gas-limit` | `anvil --help`; `gate:4 --fork` exit 0
+- U2 | a liquidation batch that returns no price event is split and retried | one mainnet pass saw UNI with 14 live positions and 0 events; later passes priced that market | final second run UNI 13 of 13, `exactMatchPct` 100
+- U2 | fixtures keep positions that emit `CantLiquidatePosAboveMMR` or `PositionLiquidated` | a few live positions emit neither, as in the reference probe | second run 912 priced positions, coverage bar met, real nonces unchanged

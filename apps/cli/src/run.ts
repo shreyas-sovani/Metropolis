@@ -32,7 +32,7 @@ export async function run(argv: readonly string[]): Promise<number> {
     console.log("  gate:1");
     console.log("  gate:2 handoff <guest>");
     console.log("  gate:2 check <proxy> <guest> <signature> <token>");
-    console.log("  gate:4");
+    console.log("  gate:4 [--fork] [--chain 10143|143|both]");
     console.log("  gate:5");
     console.log("  gate:6");
     console.log("  gate:7");
@@ -50,7 +50,7 @@ export async function run(argv: readonly string[]): Promise<number> {
   if (command === "secrets:sync-worker") return secretsSyncWorker(workspaceRoot());
   if (command === "gate:1") return gate1();
   if (command === "gate:2") return gate2(argv.slice(1));
-  if (command === "gate:4") return gate4();
+  if (command === "gate:4") return gate4(workspaceRoot(), argv.slice(1));
   if (command === "gate:5") return gate5();
   if (command === "gate:6") return gate6();
   if (command === "gate:7") return gate7();

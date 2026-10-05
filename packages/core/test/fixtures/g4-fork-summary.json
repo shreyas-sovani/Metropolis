@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-05",
+  "positions": 912,
+  "markets": 19,
+  "shorts": 297,
+  "withPremium": 781,
+  "withResidue": 374,
+  "exactMatchPct": 100,
+  "chains": [
+    {
+      "chainId": 10143,
+      "blockNumber": "68477876",
+      "positions": 202,
+      "markets": 8,
+      "shorts": 56,
+      "withPremium": 185,
+      "withResidue": 69,
+      "exact": 202,
+      "exactMatchPct": 100
+    },
+    {
+      "chainId": 143,
+      "blockNumber": "110829088",
+      "positions": 710,
+      "markets": 11,
+      "shorts": 241,
+      "withPremium": 596,
+      "withResidue": 305,
+      "exact": 710,
+      "exactMatchPct": 100
+    }
+  ]
+}
