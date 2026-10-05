@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), and Phase 3 (P1–P3) are done. **G4** is in progress: the UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label. Next is W1.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), Phase 3 (P1–P3), and W1 are done. **G4** is in progress: the UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label. The historical scan is running again from the checkpoint. Next is W2.
 
 ---
 
@@ -654,7 +654,7 @@ The human can prepare these in advance.
 
 ### Phase 4: Worker and Durable Object (`apps/worker`)
 
-#### [ ] W1 Scaffold, secrets, health
+#### [x] W1 Scaffold, secrets, health
 - **Type:** AGENT · **Depends on:** G3 · **PRD:** §5.1, §5.5, §5.7
 - **Do:**
   - Turn the G3 prototype into the real Worker: a router, one `Lifeline` Durable Object (SQLite), and secret bindings (§4.3).
@@ -665,7 +665,7 @@ The human can prepare these in advance.
   - `wrangler deploy` succeeds.
   - `curl <worker>/health` returns valid JSON with `degraded:false`.
   - `wrangler secret list` shows every required name, and the secret sync prints no values.
-- **Evidence:**
+- **Evidence:** `wrangler deploy` uploaded `lifeline` version `322ad00c-6819-4152-a172-b3e791803586`. `curl https://lifeline.lifeline-shreyas.workers.dev/health` returned `{"lastAlarmAt":null,"ticksLast10m":0,"degraded":false,"paused":false,"poolAvailable":0,"version":"1"}`. `pnpm cli secrets:sync-worker` printed only `secret <name> set` for all eight names. `wrangler secret list` shows `OPERATOR_PK`, `POOL_OWNER_PK`, `SPONSOR_PK`, `ADMIN_SECRET`, `PRIVY_APP_ID`, `PRIVY_VERIFICATION_KEY`, `RPC_URLS_TESTNET`, and `LIFELINE_PAUSED`.
 
 #### [ ] W2 Privy access-token verification
 - **Type:** AGENT · **Depends on:** W1, G2 · **PRD:** §5.4
@@ -1167,3 +1167,5 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - P2 | the sponsor sent 0.5 MON to the pool owner and 0.5 MON to the maker before the three creates | both sat on their floors and measured gas would have crossed them | `0x6e93def2` and `0xcde8034b`, status 1, gas 36000
 - P3 | SOL is perp 48, so the ETH fallback stayed unused | `listPerps` returned a SOL market and both SOL pairs filled | entries 12079/12081 and 12064/12062
 - P3 | the sponsor sent the pool owner only the MON still above the 3 MON floor | topping up to 5 MON would have broken the sponsor floor | partial `0xf362ef64` of 0.559593068 MON
+- W1 | the product Worker is `lifeline` and the G3 soak Worker `lifeline-gate3` stays deployed | the production name was kept free during the gate | `https://lifeline.lifeline-shreyas.workers.dev/health` `degraded:false`
+- W1 | `degraded` is false until an alarm stores an error | a fresh Durable Object has no ticks, and the pass check requires `degraded:false` | health JSON above, `poolAvailable` 0

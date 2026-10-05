@@ -1,13 +1,13 @@
-name = "lifeline-gate3"
+name = "lifeline"
 account_id = "00a236b4c4343ac5632817f03e253bd3"
 main = "src/index.ts"
 compatibility_date = "2026-01-01"
 compatibility_flags = ["nodejs_compat"]
 
 [[durable_objects.bindings]]
-name = "KEEPER"
-class_name = "Keeper"
+name = "LIFELINE"
+class_name = "Lifeline"
 
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["Keeper"]
+new_sqlite_classes = ["Lifeline"]

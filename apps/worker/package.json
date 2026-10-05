@@ -9,6 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@lifeline/core": "workspace:^",
     "viem": "^2.57.2"
   },
   "devDependencies": {
