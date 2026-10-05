@@ -12,4 +12,5 @@ export {
   rpcUrls,
   type ChainId,
 } from "./chains.js";
+export { CALIBRATED } from "./calibration.js";
 export { GAS_LIMITS } from "./gas.js";

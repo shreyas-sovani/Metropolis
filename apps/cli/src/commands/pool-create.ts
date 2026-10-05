@@ -14,7 +14,6 @@ import {
   createAccountTx,
   delegatedAccountAbi,
   delegatedAccountFactoryAbi,
-  distanceE6,
   erc20Abi,
   exchangeAbi,
   execOrderTx,
@@ -22,9 +21,8 @@ import {
   factoryDomain,
   functionSelector,
   iocOpenTx,
-  liquidationPriceMicro,
+  contractDistanceE6,
   listPerps,
-  lotToScaled,
   orderDesc,
   postOnlyMakerTx,
   priceToMicro,
@@ -620,21 +618,23 @@ async function checkAccount(args: {
     address: args.exchange,
     abi: exchangeAbi,
     functionName: "getMarginFractions",
-    args: [BigInt(account.perpId), position.lotLNS],
+    args: [BigInt(account.perpId), 0n],
   });
-  const mmf = maintHdths(fractions) / 100n;
-  const side = position.positionType === 0 ? 1n : -1n;
-  const distance = distanceE6(
-    side,
-    priceToMicro(book.markPNS, book.priceDecimals),
-    liquidationPriceMicro({
-      side,
-      entryMicro: priceToMicro(position.pricePNS, book.priceDecimals),
-      lot: lotToScaled(position.lotLNS, book.lotDecimals),
-      depositMicro: position.depositCNS,
-      fundingMicro: 0n,
-      mmf,
-    }),
+  const hdths = maintHdths(fractions);
+  const distance = contractDistanceE6(
+    {
+      positionType: position.positionType,
+      pricePNS: position.pricePNS,
+      lotLNS: position.lotLNS,
+      depositCNS: position.depositCNS,
+      premiumPnlCNS: position.premiumPnlCNS,
+    },
+    {
+      priceDecimals: book.priceDecimals,
+      lotDecimals: book.lotDecimals,
+      maintHdths: hdths,
+    },
+    book.markPNS,
   );
   const band = distanceBand(args.market);
   const inBand = distance >= band.minE6 && distance <= band.maxE6;
@@ -784,7 +784,17 @@ async function readPosition(client: PublicClient, exchange: Address, perpId: big
     abi: exchangeAbi,
     functionName: "getPositionV2",
     args: [perpId, accountId],
-  })) as readonly [{ positionType: number; lotLNS: bigint; depositCNS: bigint; pricePNS: bigint }, bigint, boolean];
+  })) as readonly [
+    {
+      positionType: number;
+      lotLNS: bigint;
+      depositCNS: bigint;
+      pricePNS: bigint;
+      premiumPnlCNS: bigint;
+    },
+    bigint,
+    boolean,
+  ];
   return result[0];
 }
 

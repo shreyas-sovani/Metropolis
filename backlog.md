@@ -15,8 +15,8 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W6, and U2 are done. W7 is in progress.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: the contract's exact liquidation rule is verified to the tick on 694 of 694 live positions. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2 is done. The next item is U1, which closes G4 with those fixtures.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W6, U2, and U1 are done. W7 is in progress. The §7A order's next item is U15.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2 and U1 are done. The next item is U15.
 
 ---
 
@@ -489,7 +489,7 @@ The human can prepare these in advance.
 - **Fallback:** If guest wallets can't send transactions, try Privy email login (still Privy) and log it in §9. If both fail, mark `[!]` and ask the human, offering sandbox-only mode as the option.
 - **Evidence:** Headless create never returned a wallet, so G2-H completed it at `http://localhost:3000/dev/gate-privy` with wallet UI suppressed. Guest `0x435371A37dE781A03F1881bEEb127E2A6079BFdf`. Drip `0x866c823f` status 1. Proxy `0x36DF02ca0E9B1644e181342A795556a66eB28b10`. Accept `0xfcda838d` status success, gas 108076. `owner()` is the guest. Mandate signature recovers to the guest. Access token verifies as ES256. `pnpm cli gate:2 check` printed `ownerOk=true sigOk=true tokenOk=true`.
 
-#### [~] G4 Liquidation-price calibration
+#### [x] G4 Liquidation-price calibration
 - **Type:** AGENT, plus **HUMAN** (G4-H, already done) · **Depends on:** C1, G5, G6, **U1, U2** · **PRD:** §5.3 calibration gates
 - **Planner finding (verified, read this first):**
   - **The historical check failed because of the method, not the math.** Replaying a position's lifecycle from events misses state the contract keeps: collateralized PnL on increases, premium settlement, collateral decreases, partial liquidations, and price residue. That's where the 10.7% median came from.
@@ -524,7 +524,7 @@ The human can prepare these in advance.
   - Step c is already passed.
   - Then set `CALIBRATED=true`, which swaps the "est." label for the "contract-exact" badge (U9).
 - **Fallback:** If any position mismatches, print it with all inputs, then compare the entry/residue variants and the rounding direction exactly as the reference probe does. Don't loosen the pass bar without logging why in §9.
-- **Evidence:** Step a passes in C1. Step c: the Perpl testnet UI showed 83650.6 for calibration account `0xE928c690D27326bc561A2d07fad3dFAca4815ed6` (id 821, BTC long, lot 100, entryPNS 860220, depositCNS 5734800). With funding 0 and MMF 25 ours is 83728.08. |83728.08 − 83650.6| / 83650.6 = 0.0926%, within 0.1%. Step b: the resumed scan walked from the checkpoint to block 108,000,000 and exited 1. It still reconstructed 8 liquidations. Median relative error was 0.106726 with funding positive and 0.107222 with funding negative. The best, 10.67%, is above the 0.1% bar. `CALIBRATED` stays false. This gate blocks only the "est." label removal.
+- **Evidence:** Step a passes in C1 and the U1 dex-sdk vectors. Step c: the Perpl testnet UI showed 83650.6 for calibration account `0xE928c690D27326bc561A2d07fad3dFAca4815ed6` (id 821, BTC long, lot 100, entryPNS 860220, depositCNS 5734800). With funding 0 and MMF 25 ours is 83728.08. |83728.08 − 83650.6| / 83650.6 = 0.0926%, within 0.1%. Step b: `pnpm cli gate:4 --fork` exited 0 twice on 2026-10-05 with `exactMatchPct` 100 (second run: 912 positions, testnet block 68477876, mainnet block 110829088). `pnpm --filter @lifeline/core exec vitest run test/g4-fixtures.test.ts` matches `liquidationPricePNS` to every fixture tick, 912 positions. `CALIBRATED=true` in `packages/core/src/config/calibration.ts`. Historical replay stays informational.
 
 ### Phase 2: Core library (`packages/core`)
 
@@ -1187,7 +1187,7 @@ These tasks come from a review of the build's progress against the prize targets
   - No real network receives a transaction: assert the sender's nonce on the real RPC is unchanged.
 - **Evidence:** `pnpm --filter @lifeline/cli exec vitest run test/gate-4-fork.test.ts` passed 7. `pnpm cli gate:4 --fork` exited 0 twice. The second run wrote 912 positions, 19 markets, 297 shorts, 781 with nonzero premium, 374 with nonzero residue, and `exactMatchPct` 100. Testnet block 68477876 had 202 positions across 8 markets. Mainnet block 110829088 had 710 positions across 11 markets. The real owner nonce stayed 1 and the throwaway caller nonce stayed 0. Fixtures are `packages/core/test/fixtures/g4-truth-10143.json`, `g4-truth-143.json`, and `g4-fork-summary.json`.
 
-#### [ ] U1 Exact contract liquidation rule in the core
+#### [x] U1 Exact contract liquidation rule in the core
 - **Type:** AGENT · **Depends on:** U2 (fixtures) · **Amends:** C1, C3, C4, C6, and PRD §5.3
 - **Why:** The radar, the crash simulator, the dry run, and the keeper all must use the contract's own number. A one-tick conservative rounding also means Lifeline never underestimates risk.
 - **Do:**
@@ -1204,7 +1204,7 @@ These tasks come from a review of the build's progress against the prize targets
   - Fixture tests pass at 100% exact on 600 or more positions.
   - Every existing core, worker, and CLI test still passes.
   - The C1 PRD demo example still passes at its tolerances.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/core test` passed 43 tests, including the dex-sdk entry-100 vectors and a 912-position fixture match. `pnpm --filter @lifeline/cli test` passed 25. `pnpm --filter @lifeline/worker test` passed 19. The docs example still liquidates at 94000. Radar assembly, the crash simulator, and `evaluate` take distance from `liquidationPricePNS`. PRD §5.3 now states the premium sign, raw entry, and conservative tick rounding.
 
 #### [ ] U15 Aggressive twins on volatile markets (time-sensitive)
 - **Type:** AGENT · **Depends on:** P3, W4
@@ -1483,3 +1483,6 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - U2 | anvil starts with `--quiet` and `--disable-block-gas-limit` | this anvil build rejects `--silent`, and it rejects `--gas-limit` together with `--disable-block-gas-limit` | `anvil --help`; `gate:4 --fork` exit 0
 - U2 | a liquidation batch that returns no price event is split and retried | one mainnet pass saw UNI with 14 live positions and 0 events; later passes priced that market | final second run UNI 13 of 13, `exactMatchPct` 100
 - U2 | fixtures keep positions that emit `CantLiquidatePosAboveMMR` or `PositionLiquidated` | a few live positions emit neither, as in the reference probe | second run 912 priced positions, coverage bar met, real nonces unchanged
+- U1 | `liquidationPricePNS` is the product rule: raw `pricePNS`, premium subtracted, maintenance at lot 0, ceil for longs and floor for shorts | a one-tick conservative price is what the contract emits | fixture test exact on 912 positions; dex-sdk entry-100 vectors pass
+- U1 | bankruptcy drops the maintenance term and keeps the same tick rounding | the dex-sdk tests separate liquidation from bankruptcy | long base 90, pay 95, receive 85; short base 110, pay 105, receive 115
+- G4 | `CALIBRATED=true` | step b is the fork fixture match, and the historical median is no longer a gate | `packages/core/src/config/calibration.ts`; UI check stays 0.0926%

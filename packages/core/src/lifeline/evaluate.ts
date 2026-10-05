@@ -2,9 +2,10 @@ import {
   COOLDOWN_BLOCKS,
   DISTANCE_SCALE,
   MIN_ACTION_MICRO,
+  contractDistanceE6,
   desiredDepositMicro,
-  distanceE6,
-  liquidationPriceMicro,
+  type ContractMarket,
+  type ContractPosition,
 } from "../math/liquidation.js";
 import type { MandateMessage } from "./mandate.js";
 
@@ -26,12 +27,19 @@ export interface EvalPosition {
   markPriceValid: boolean;
   open: boolean;
   side: 1n | -1n;
+  positionType: number;
   entryMicro: bigint;
   lot: bigint;
   depositMicro: bigint;
   fundingMicro: bigint;
   mmf: bigint;
   markMicro: bigint;
+  pricePNS: bigint;
+  lotLNS: bigint;
+  priceDecimals: number;
+  lotDecimals: number;
+  maintHdths: bigint;
+  markPNS: bigint;
 }
 
 export interface EvalAccount {
@@ -43,6 +51,23 @@ export interface EvalAccount {
 export type Evaluation =
   | { action: "topUp"; amountCNS: bigint; distBefore: bigint; distTarget: bigint }
   | { action: "skip"; reason: SkipReason };
+
+export function evalQuote(position: EvalPosition): { position: ContractPosition; market: ContractMarket } {
+  return {
+    position: {
+      positionType: position.positionType,
+      pricePNS: position.pricePNS,
+      lotLNS: position.lotLNS,
+      depositCNS: position.depositMicro,
+      premiumPnlCNS: position.fundingMicro,
+    },
+    market: {
+      priceDecimals: position.priceDecimals,
+      lotDecimals: position.lotDecimals,
+      maintHdths: position.maintHdths,
+    },
+  };
+}
 
 function skip(reason: SkipReason): Evaluation {
   return { action: "skip", reason };
@@ -65,18 +90,8 @@ export function evaluate(
   if (!position || !position.markPriceValid || position.markMicro <= 0n) return skip("MARK_INVALID");
   if (!position.open || position.lot <= 0n) return skip("NO_POSITION");
 
-  const distBefore = distanceE6(
-    position.side,
-    position.markMicro,
-    liquidationPriceMicro({
-      side: position.side,
-      entryMicro: position.entryMicro,
-      lot: position.lot,
-      depositMicro: position.depositMicro,
-      fundingMicro: position.fundingMicro,
-      mmf: position.mmf,
-    }),
-  );
+  const quote = evalQuote(position);
+  const distBefore = contractDistanceE6(quote.position, quote.market, position.markPNS);
   const trigger = (BigInt(mandate.triggerBps) * DISTANCE_SCALE) / 10_000n;
   if (distBefore >= trigger) return skip("ABOVE_TRIGGER");
   if (lastActionBlock !== null && nowBlock - lastActionBlock < COOLDOWN_BLOCKS) return skip("COOLDOWN");

@@ -6,11 +6,10 @@ import {
   TESTNET_ID,
   buildMandate,
   desiredDepositMicro,
-  distanceE6,
   evaluate,
   exchangeAbi,
   increasePositionCollateralTx,
-  liquidationPriceMicro,
+  contractDistanceE6,
   lotToScaled,
   monDripTx,
   openChain,
@@ -303,6 +302,7 @@ interface MarketScale {
   priceDecimals: number;
   lotDecimals: number;
   mmf: bigint;
+  maintHdths: bigint;
 }
 
 function marginHdths(raw: unknown): bigint {
@@ -334,7 +334,7 @@ async function readMarkets(client: PublicClient, exchange: Address, perpIds: str
         address: exchange,
         abi: exchangeAbi,
         functionName: "getMarginFractions" as const,
-        args: [BigInt(id), 1n] as const,
+        args: [BigInt(id), 0n] as const,
       },
     ]),
     allowFailure: false,
@@ -347,6 +347,7 @@ async function readMarkets(client: PublicClient, exchange: Address, perpIds: str
       priceDecimals: Number(info.priceDecimals),
       lotDecimals: Number(info.lotDecimals),
       mmf: hdths / 100n,
+      maintHdths: hdths,
     });
   });
   return markets;
@@ -383,12 +384,19 @@ function toEvalPosition(
     markPriceValid: read.markValid,
     open: read.position.lotLNS > 0n,
     side,
+    positionType: read.position.positionType,
     entryMicro: priceToMicro(read.position.pricePNS, market.priceDecimals),
     lot: lotToScaled(read.position.lotLNS, market.lotDecimals),
     depositMicro: read.position.depositCNS,
     fundingMicro: read.position.premiumPnlCNS,
     mmf: market.mmf,
     markMicro: priceToMicro(read.markPNS, market.priceDecimals),
+    pricePNS: read.position.pricePNS,
+    lotLNS: read.position.lotLNS,
+    priceDecimals: market.priceDecimals,
+    lotDecimals: market.lotDecimals,
+    maintHdths: market.maintHdths,
+    markPNS: read.markPNS,
   };
 }
 
@@ -457,17 +465,20 @@ export async function takeNonce(sql: Sql, client: PublicClient, name: string, ad
 }
 
 export function distanceOf(position: EvalPosition): bigint {
-  return distanceE6(
-    position.side,
-    position.markMicro,
-    liquidationPriceMicro({
-      side: position.side,
-      entryMicro: position.entryMicro,
-      lot: position.lot,
-      depositMicro: position.depositMicro,
-      fundingMicro: position.fundingMicro,
-      mmf: position.mmf,
-    }),
+  return contractDistanceE6(
+    {
+      positionType: position.positionType,
+      pricePNS: position.pricePNS,
+      lotLNS: position.lotLNS,
+      depositCNS: position.depositMicro,
+      premiumPnlCNS: position.fundingMicro,
+    },
+    {
+      priceDecimals: position.priceDecimals,
+      lotDecimals: position.lotDecimals,
+      maintHdths: position.maintHdths,
+    },
+    position.markPNS,
   );
 }
 

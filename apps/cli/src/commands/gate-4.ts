@@ -19,6 +19,7 @@ import {
   TESTNET_ID,
   bookPricePNS,
   erc20Abi,
+  liquidationMicroFromContract,
   liquidationPriceMicro,
   orderDesc,
   paginateLogs,
@@ -535,7 +536,17 @@ async function openCalibration(root: string): Promise<number> {
     abi: exchangeAbi,
     functionName: "getPositionV2",
     args: [PERP_BTC, accountId],
-  })) as readonly [{ lotLNS: bigint; depositCNS: bigint; pricePNS: bigint; positionType: number }, bigint, boolean];
+  })) as readonly [
+    {
+      lotLNS: bigint;
+      depositCNS: bigint;
+      pricePNS: bigint;
+      positionType: number;
+      premiumPnlCNS: bigint;
+    },
+    bigint,
+    boolean,
+  ];
   const info = (await client.readContract({
     address: exchange,
     abi: exchangeAbi,
@@ -546,22 +557,24 @@ async function openCalibration(root: string): Promise<number> {
     address: exchange,
     abi: exchangeAbi,
     functionName: "getMarginFractions",
-    args: [PERP_BTC, position[0].lotLNS],
+    args: [PERP_BTC, 0n],
   })) as readonly bigint[];
-  const mmf = (fractions[1] ?? 0n) / 100n;
+  const maintHdths = fractions[1] ?? 0n;
   const priceDecimals = Number(info.priceDecimals);
   const lotDecimals = Number(info.lotDecimals);
-  const liq = liquidationPriceMicro({
-    side: position[0].positionType === 0 ? 1n : -1n,
-    entryMicro: toMicroPrice(position[0].pricePNS, priceDecimals),
-    lot: toLot(position[0].lotLNS, lotDecimals),
-    depositMicro: position[0].depositCNS,
-    fundingMicro: 0n,
-    mmf,
-  });
+  const liq = liquidationMicroFromContract(
+    {
+      positionType: position[0].positionType,
+      pricePNS: position[0].pricePNS,
+      lotLNS: position[0].lotLNS,
+      depositCNS: position[0].depositCNS,
+      premiumPnlCNS: position[0].premiumPnlCNS,
+    },
+    { priceDecimals, lotDecimals, maintHdths },
+  );
   const shown = Number(liq) / Number(MICRO);
   console.log(
-    `calibrationAccount=${accountId} side=${position[0].positionType} lot=${position[0].lotLNS} entryPNS=${position[0].pricePNS} depositCNS=${position[0].depositCNS} markPNS=${info.markPNS} ours=${shown.toFixed(2)} mmf=${mmf}`,
+    `calibrationAccount=${accountId} side=${position[0].positionType} lot=${position[0].lotLNS} entryPNS=${position[0].pricePNS} depositCNS=${position[0].depositCNS} markPNS=${info.markPNS} ours=${shown.toFixed(2)} maintHdths=${maintHdths}`,
   );
   console.log(`address ${getAddress(calibration.address)}`);
   return position[0].lotLNS > 0n ? 0 : 1;

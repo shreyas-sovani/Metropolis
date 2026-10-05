@@ -206,18 +206,19 @@ None of these fields are indexed, so every log is decoded.
 | Symbol | Meaning |
 |---|---|
 | s | +1 for a long, −1 for a short |
-| Pₑ | entry, = `pricePNS` / 10^priceDecimals |
+| Pₑ | raw entry, = `pricePNS` / 10^priceDecimals. `priceResiduePNSQ16` is ignored |
 | L | lot, = `lotLNS` / 10^lotDecimals |
 | D | deposit, = `depositCNS` / 1e6 |
-| F | funding owed, = `premiumPnlCNS` / 1e6 (sign to be calibrated) |
+| F | funding, = `premiumPnlCNS` / 1e6. Positive means funding received |
 | MMF | `perpMaintMarginFracHdths` / 100; for example, 25 means 4% |
 | Pₘ | mark price |
 
 **Formulas:**
 
 ```
-MMR           = Pₑ · L / MMF
+MMR           = Pₑ · L / MMF          (MMF from getMarginFractions(perpId, 0))
 Liquidation   P_liq = Pₑ + s · (MMR − D − F) / L
+P_liq tick    long: ceil(P_liq · 10^priceDecimals); short: floor
 Distance      d = s · (Pₘ − P_liq) / Pₘ
 ```
 
@@ -243,9 +244,11 @@ The action is skipped if `add` < 5 AUSD. There's a 3-block cooldown per position
 
 **Calibration gates,** which must pass before values drop the "est." label:
 
-1. a unit test on the docs example;
-2. a match to the Perpl testnet UI's liquidation price for our own positions, within 0.1%;
-3. a spot check against historical `PositionLiquidated.liqPricePNS`.
+1. a unit test on the docs example, plus the dex-sdk entry-100 vectors;
+2. `liquidationPricePNS` matches Perpl's own `liqPricePNS` from `gate:4 --fork` on every fixture position (100% of ticks);
+3. a match to the Perpl testnet UI's liquidation price for our own positions, within 0.1%.
+
+Historical event replay is not a gate. It misses premium settlement and residue, so it cannot reproduce the contract price.
 
 ### 5.4 Wallet and account layer
 

@@ -2,15 +2,19 @@ import { describe, expect, it } from "vitest";
 import { replayPosition } from "../src/math/replay.js";
 import {
   MICRO,
+  bankruptcyPricePNS,
   bucketIndex,
   couldProtectNow,
   distanceE6,
   isAtRisk,
   isDust,
   liquidationPriceMicro,
+  liquidationPricePNS,
   lotFromNotional,
   maintenanceMargin,
   sizeTopUp,
+  type ContractMarket,
+  type ContractPosition,
 } from "../src/math/index.js";
 
 const sideLong = 1n as const;
@@ -34,7 +38,36 @@ function demoPosition(depositDollars = 100n) {
   };
 }
 
+const sdkMarket: ContractMarket = { priceDecimals: 0, lotDecimals: 0, maintHdths: 2_000n };
+
+function sdkPosition(positionType: number, premiumDollars: bigint): ContractPosition {
+  return {
+    positionType,
+    pricePNS: 100n,
+    lotLNS: 10n,
+    depositCNS: 100n * MICRO,
+    premiumPnlCNS: premiumDollars * MICRO,
+  };
+}
+
 describe("liquidation math", () => {
+  it("matches the dex-sdk entry-100 vectors to the tick", () => {
+    const pay = -5n * 10n;
+    const receive = 5n * 10n;
+    expect(liquidationPricePNS(sdkPosition(0, 0n), sdkMarket)).toBe(95n);
+    expect(liquidationPricePNS(sdkPosition(0, pay), sdkMarket)).toBe(100n);
+    expect(liquidationPricePNS(sdkPosition(1, 0n), sdkMarket)).toBe(105n);
+    expect(liquidationPricePNS(sdkPosition(1, pay), sdkMarket)).toBe(100n);
+    expect(liquidationPricePNS(sdkPosition(0, receive), sdkMarket)).toBe(90n);
+    expect(liquidationPricePNS(sdkPosition(1, receive), sdkMarket)).toBe(110n);
+    expect(bankruptcyPricePNS(sdkPosition(0, 0n), sdkMarket)).toBe(90n);
+    expect(bankruptcyPricePNS(sdkPosition(0, pay), sdkMarket)).toBe(95n);
+    expect(bankruptcyPricePNS(sdkPosition(1, 0n), sdkMarket)).toBe(110n);
+    expect(bankruptcyPricePNS(sdkPosition(1, pay), sdkMarket)).toBe(105n);
+    expect(bankruptcyPricePNS(sdkPosition(0, receive), sdkMarket)).toBe(85n);
+    expect(bankruptcyPricePNS(sdkPosition(1, receive), sdkMarket)).toBe(115n);
+  });
+
   it("matches the docs example exactly", () => {
     const entryMicro = 100_000n * MICRO;
     const lot = lotFromNotional(entryMicro, entryMicro);

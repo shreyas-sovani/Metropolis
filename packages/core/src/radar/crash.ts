@@ -1,7 +1,8 @@
 import {
+  contractDistanceE6,
   desiredDepositMicro,
-  distanceE6,
-  liquidationPriceMicro,
+  type ContractMarket,
+  type ContractPosition,
 } from "../math/liquidation.js";
 import type { CompactPosition } from "./schema.js";
 
@@ -40,28 +41,20 @@ export function simulate(
     const depositMicro = BigInt(position.depositMicro);
     const fundingMicro = BigInt(position.fundingMicro);
     const mmf = BigInt(position.mmf);
-    const markMicro = (BigInt(position.markMicro) * (10_000n + bps)) / 10_000n;
-    if (entryMicro <= 0n || lot <= 0n || mmf <= 0n || markMicro <= 0n) continue;
-    const side = position.side === 1 ? 1n : -1n;
-    const liq = liquidationPriceMicro({
-      side,
-      entryMicro,
-      lot,
-      depositMicro,
-      fundingMicro,
-      mmf,
-    });
-    if (distanceE6(side, markMicro, liq) > 0n) continue;
+    const markPNS = (BigInt(position.markPNS) * (10_000n + bps)) / 10_000n;
+    if (entryMicro <= 0n || lot <= 0n || mmf <= 0n || markPNS <= 0n) continue;
+    const quote = compactQuote(position);
+    if (contractDistanceE6(quote.position, quote.market, markPNS) > 0n) continue;
     const notional = BigInt(position.notionalMicro);
     liquidatedCount += 1;
     liquidatedNotional += notional;
     const desired = desiredDepositMicro({
-      side,
+      side: position.side === 1 ? 1n : -1n,
       entryMicro,
       lot,
       fundingMicro,
       mmf,
-      markMicro,
+      markMicro: (BigInt(position.markMicro) * (10_000n + bps)) / 10_000n,
       targetBps: 100n,
     });
     const need = desired > depositMicro ? desired - depositMicro : 0n;
@@ -75,5 +68,22 @@ export function simulate(
     shockPct,
     liquidated: { count: liquidatedCount, notionalMicro: liquidatedNotional },
     saved: { count: savedCount, notionalMicro: savedNotional },
+  };
+}
+
+function compactQuote(position: CompactPosition): { position: ContractPosition; market: ContractMarket } {
+  return {
+    position: {
+      positionType: position.positionType,
+      pricePNS: BigInt(position.pricePNS),
+      lotLNS: BigInt(position.lotLNS),
+      depositCNS: BigInt(position.depositMicro),
+      premiumPnlCNS: BigInt(position.fundingMicro),
+    },
+    market: {
+      priceDecimals: position.priceDecimals,
+      lotDecimals: position.lotDecimals,
+      maintHdths: BigInt(position.maintHdths),
+    },
   };
 }

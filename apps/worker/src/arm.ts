@@ -3,10 +3,11 @@ import {
   TESTNET_ID,
   buildMandate,
   delegatedAccountAbi,
-  distanceE6,
+  contractDistanceE6,
+  evalQuote,
   evaluate,
   increasePositionCollateralTx,
-  liquidationPriceMicro,
+  liquidationMicroFromContract,
   openChain,
   recoverSigner,
   validateMandate,
@@ -129,7 +130,7 @@ export async function armPosition(
   if (!state || decision.action === "skip") {
     return Response.json({ skipped: true, reason: decision.action === "skip" ? decision.reason : "MARK_INVALID" });
   }
-  const liqBefore = liquidationPriceMicro(state.position);
+  const liqBefore = liquidationMicroFromContract(evalQuote(state.position).position, evalQuote(state.position).market);
   const built = increasePositionCollateralTx(message.account, BigInt(pool.perp_id), decision.amountCNS);
   const operator = privateKeyToAccount(env.OPERATOR_PK as Hex);
   const nonce = await takeNonce(sql, client, "operator", operator.address);
@@ -160,8 +161,12 @@ export async function armPosition(
     decision.distBefore.toString(),
   );
   const after = await readAccountState(env, { proxy: message.account, account_id: pool.account_id, perp_id: pool.perp_id });
-  const liqAfter = after ? liquidationPriceMicro(after.position) : liqBefore;
-  const distAfter = after ? distanceE6(after.position.side, after.position.markMicro, liqAfter) : decision.distBefore;
+  const afterQuote = after ? evalQuote(after.position) : null;
+  const liqAfter = afterQuote ? liquidationMicroFromContract(afterQuote.position, afterQuote.market) : liqBefore;
+  const distAfter =
+    after && afterQuote
+      ? contractDistanceE6(afterQuote.position, afterQuote.market, after.position.markPNS)
+      : decision.distBefore;
   if (after) {
     sql.exec("UPDATE actions SET dist_after = ? WHERE tx_hash = ?", distAfter.toString(), hash);
     sql.exec("UPDATE mandates SET budget_used_cns = ? WHERE proxy = ?", decision.amountCNS.toString(), message.account);

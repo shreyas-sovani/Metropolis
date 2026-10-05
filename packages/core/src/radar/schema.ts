@@ -6,6 +6,7 @@ const signed = z.string().regex(/^-?\d+$/);
 export const compactPositionSchema = z.object({
   perpId: z.number().int().nonnegative(),
   side: z.union([z.literal(1), z.literal(-1)]),
+  positionType: z.union([z.literal(0), z.literal(1)]),
   entryMicro: micro,
   lot: micro,
   depositMicro: micro,
@@ -14,6 +15,12 @@ export const compactPositionSchema = z.object({
   markMicro: micro,
   idleMicro: micro,
   notionalMicro: micro,
+  pricePNS: micro,
+  lotLNS: micro,
+  priceDecimals: z.number().int().nonnegative(),
+  lotDecimals: z.number().int().nonnegative(),
+  maintHdths: micro,
+  markPNS: micro,
 });
 
 export const atRiskSchema = z.object({

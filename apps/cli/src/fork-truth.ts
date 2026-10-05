@@ -1,6 +1,6 @@
-import { MAINNET_ID, TESTNET_ID, type ChainId } from "@lifeline/core";
+import { MAINNET_ID, TESTNET_ID, liquidationPricePNS, type ChainId } from "@lifeline/core";
 
-/** Contract-truth liquidation price in price-native units. Raw entry, premium subtracted, conservative tick. */
+/** Contract-truth liquidation price. Delegates to the core rule so the fork summary cannot drift. */
 export function contractLiqPNS(input: {
   positionType: number;
   pricePNS: bigint;
@@ -11,35 +11,20 @@ export function contractLiqPNS(input: {
   lotDecimals: number;
   maintHdths: bigint;
 }): bigint {
-  if (input.positionType !== 0 && input.positionType !== 1) {
-    throw new Error(`positionType ${input.positionType}`);
-  }
-  if (input.lotLNS <= 0n) throw new Error("lot must be positive");
-  if (input.maintHdths <= 0n) throw new Error("maint hundredths must be positive");
-  if (input.priceDecimals < 0 || input.lotDecimals < 0) throw new Error("decimals must be non-negative");
-  const long = input.positionType === 0;
-  const sign = long ? 1n : -1n;
-  const micro = 1_000_000n;
-  const scale = 10n ** BigInt(input.priceDecimals + input.lotDecimals);
-  const den = input.maintHdths * micro * input.lotLNS;
-  const collateral = input.depositCNS + input.premiumPnlCNS;
-  const num =
-    input.pricePNS * den +
-    sign * input.pricePNS * 100n * micro * input.lotLNS -
-    sign * collateral * scale * input.maintHdths;
-  return long ? divCeil(num, den) : divFloor(num, den);
-}
-
-export function divFloor(numerator: bigint, denominator: bigint): bigint {
-  if (denominator <= 0n) throw new Error("denominator must be positive");
-  if (numerator >= 0n) return numerator / denominator;
-  return -((-numerator + denominator - 1n) / denominator);
-}
-
-export function divCeil(numerator: bigint, denominator: bigint): bigint {
-  if (denominator <= 0n) throw new Error("denominator must be positive");
-  if (numerator >= 0n) return (numerator + denominator - 1n) / denominator;
-  return -(-numerator / denominator);
+  return liquidationPricePNS(
+    {
+      positionType: input.positionType,
+      pricePNS: input.pricePNS,
+      lotLNS: input.lotLNS,
+      depositCNS: input.depositCNS,
+      premiumPnlCNS: input.premiumPnlCNS,
+    },
+    {
+      priceDecimals: input.priceDecimals,
+      lotDecimals: input.lotDecimals,
+      maintHdths: input.maintHdths,
+    },
+  );
 }
 
 /** Reject anything except a local HTTP fork. Writes never go to a public RPC. */

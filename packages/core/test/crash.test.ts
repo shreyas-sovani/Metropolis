@@ -11,6 +11,7 @@ function row(partial: {
   return {
     perpId: partial.perpId ?? 1,
     side: 1,
+    positionType: 0,
     entryMicro: (100n * MICRO).toString(),
     lot: LOT_SCALE.toString(),
     depositMicro: partial.depositMicro.toString(),
@@ -19,6 +20,12 @@ function row(partial: {
     markMicro: (100n * MICRO).toString(),
     idleMicro: partial.idleMicro.toString(),
     notionalMicro: (100n * MICRO).toString(),
+    pricePNS: "100",
+    lotLNS: "1",
+    priceDecimals: 0,
+    lotDecimals: 0,
+    maintHdths: "2500",
+    markPNS: "100",
   };
 }
 

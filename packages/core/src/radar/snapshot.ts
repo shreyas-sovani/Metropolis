@@ -9,14 +9,16 @@ import { readExchangeSnapshot, type MarketSnapshot, type PerpInfo } from "../cha
 import {
   DISTANCE_SCALE,
   bucketIndex,
-  couldProtectNow,
-  distanceE6,
+  contractDistanceE6,
+  desiredDepositMicro,
   isAtRisk,
   isDust,
-  liquidationPriceMicro,
+  liquidationPricePNS,
   lotToScaled,
   notionalMicro,
   priceToMicro,
+  type ContractMarket,
+  type ContractPosition,
 } from "../math/index.js";
 import { radarId } from "./anonymize.js";
 import { radarSnapshotSchema, type CompactPosition, type RadarSnapshot } from "./schema.js";
@@ -37,6 +39,7 @@ export interface DraftPosition {
   accountId: bigint;
   accountAddr: Address | null;
   side: 1 | -1;
+  positionType: number;
   entryMicro: bigint;
   lot: bigint;
   depositMicro: bigint;
@@ -45,6 +48,12 @@ export interface DraftPosition {
   markMicro: bigint;
   notionalMicro: bigint;
   idleMicro: bigint | null;
+  pricePNS: bigint;
+  lotLNS: bigint;
+  priceDecimals: number;
+  lotDecimals: number;
+  maintHdths: bigint;
+  markPNS: bigint;
 }
 
 function dec(value: bigint): string {
@@ -72,16 +81,11 @@ export function assembleSnapshot(draft: SnapshotDraft): RadarSnapshot {
     for (const position of market.positions) {
       if (isDust(position.entryMicro, position.lot)) continue;
       openInterest = addMicro(openInterest, position.notionalMicro);
-      const liq = liquidationPriceMicro({
-        side: position.side === 1 ? 1n : -1n,
-        entryMicro: position.entryMicro,
-        lot: position.lot,
-        depositMicro: position.depositMicro,
-        fundingMicro: position.fundingMicro,
-        mmf: position.mmf,
-      });
-      const distance = distanceE6(position.side === 1 ? 1n : -1n, position.markMicro, liq);
-      const offset = ((liq - position.markMicro) * DISTANCE_SCALE) / position.markMicro;
+      const quote = contractQuote(position);
+      const liqPNS = liquidationPricePNS(quote.position, quote.market);
+      const distance = contractDistanceE6(quote.position, quote.market, position.markPNS);
+      const liqMicro = priceToMicro(liqPNS, position.priceDecimals);
+      const offset = ((liqMicro - position.markMicro) * DISTANCE_SCALE) / position.markMicro;
       const index = bucketIndex(offset);
       if (index !== null) {
         const side = sideName(position.side);
@@ -103,6 +107,13 @@ export function assembleSnapshot(draft: SnapshotDraft): RadarSnapshot {
         markMicro: dec(position.markMicro),
         idleMicro: dec(idleMicro),
         notionalMicro: dec(position.notionalMicro),
+        positionType: position.positionType === 0 ? 0 : 1,
+        pricePNS: dec(position.pricePNS),
+        lotLNS: dec(position.lotLNS),
+        priceDecimals: position.priceDecimals,
+        lotDecimals: position.lotDecimals,
+        maintHdths: dec(position.maintHdths),
+        markPNS: dec(position.markPNS),
       });
       if (!isAtRisk(distance)) continue;
       const free = position.idleMicro ?? 0n;
@@ -111,16 +122,17 @@ export function assembleSnapshot(draft: SnapshotDraft): RadarSnapshot {
         idleAccounts.add(accountKey);
         idle += free;
       }
-      const protectNow = couldProtectNow({
+      const desired = desiredDepositMicro({
         side: position.side === 1 ? 1n : -1n,
         entryMicro: position.entryMicro,
         lot: position.lot,
-        depositMicro: position.depositMicro,
         fundingMicro: position.fundingMicro,
         mmf: position.mmf,
         markMicro: position.markMicro,
-        idleMicro: free,
+        targetBps: 600n,
       });
+      const need = desired - position.depositMicro;
+      const protectNow = need > 0n && free >= need;
       if (protectNow) protect += 1;
       const leverage = position.depositMicro > 0n ? (position.notionalMicro * 100n) / position.depositMicro : 0n;
       atRisk.push({
@@ -195,6 +207,23 @@ export function assembleSnapshot(draft: SnapshotDraft): RadarSnapshot {
   });
 }
 
+function contractQuote(position: DraftPosition): { position: ContractPosition; market: ContractMarket } {
+  return {
+    position: {
+      positionType: position.positionType,
+      pricePNS: position.pricePNS,
+      lotLNS: position.lotLNS,
+      depositCNS: position.depositMicro,
+      premiumPnlCNS: position.fundingMicro,
+    },
+    market: {
+      priceDecimals: position.priceDecimals,
+      lotDecimals: position.lotDecimals,
+      maintHdths: position.maintHdths,
+    },
+  };
+}
+
 function sideOf(positionType: number): 1 | -1 {
   if (positionType === POSITION_LONG) return 1;
   if (positionType === POSITION_SHORT) return -1;
@@ -227,29 +256,32 @@ async function marginByMarket(
       address: exchange,
       abi: exchangeAbi,
       functionName: "getMarginFractions" as const,
-      args: [BigInt(market.info.perpId), 1n] as const,
+      args: [BigInt(market.info.perpId), 0n] as const,
     })),
     allowFailure: false,
   });
   markets.forEach((market, index) => {
-    const mmf = marginHdths(rows[index]) / 100n;
-    if (mmf <= 0n) throw new Error(`perp ${market.info.perpId} maintenance fraction is 0`);
-    fractions.set(market.info.perpId, mmf);
+    const hdths = marginHdths(rows[index]);
+    if (hdths <= 0n) throw new Error(`perp ${market.info.perpId} maintenance fraction is 0`);
+    fractions.set(market.info.perpId, hdths);
   });
   return fractions;
 }
 
-function draftPosition(info: PerpInfo, position: PositionNode, mmf: bigint): DraftPosition | null {
+function draftPosition(info: PerpInfo, position: PositionNode, maintHdths: bigint): DraftPosition | null {
   if (position.lotLNS <= 0n) return null;
   const entryMicro = priceToMicro(position.pricePNS, info.priceDecimals);
   const lot = lotToScaled(position.lotLNS, info.lotDecimals);
   const markMicro = priceToMicro(info.markPNS, info.priceDecimals);
   if (entryMicro <= 0n || lot <= 0n || markMicro <= 0n) return null;
   if (isDust(entryMicro, lot)) return null;
+  const mmf = maintHdths / 100n;
+  if (mmf <= 0n) return null;
   return {
     accountId: position.accountId,
     accountAddr: null,
     side: sideOf(position.positionType),
+    positionType: position.positionType,
     entryMicro,
     lot,
     depositMicro: position.depositCNS,
@@ -258,6 +290,12 @@ function draftPosition(info: PerpInfo, position: PositionNode, mmf: bigint): Dra
     markMicro,
     notionalMicro: notionalMicro(entryMicro, lot),
     idleMicro: null,
+    pricePNS: position.pricePNS,
+    lotLNS: position.lotLNS,
+    priceDecimals: info.priceDecimals,
+    lotDecimals: info.lotDecimals,
+    maintHdths,
+    markPNS: info.markPNS,
   };
 }
 
@@ -277,9 +315,9 @@ export async function buildSnapshot(
   const drafts: DraftMarket[] = markets.map((market) => ({
     info: market.info,
     positions: market.positions.flatMap((position) => {
-      const mmf = fractions.get(market.info.perpId);
-      if (!mmf) return [];
-      const draft = draftPosition(market.info, position, mmf);
+      const maintHdths = fractions.get(market.info.perpId);
+      if (!maintHdths) return [];
+      const draft = draftPosition(market.info, position, maintHdths);
       return draft ? [draft] : [];
     }),
   }));
@@ -287,15 +325,8 @@ export async function buildSnapshot(
   const atRiskIds = new Set<bigint>();
   for (const market of drafts) {
     for (const position of market.positions) {
-      const liq = liquidationPriceMicro({
-        side: position.side === 1 ? 1n : -1n,
-        entryMicro: position.entryMicro,
-        lot: position.lot,
-        depositMicro: position.depositMicro,
-        fundingMicro: position.fundingMicro,
-        mmf: position.mmf,
-      });
-      const distance = distanceE6(position.side === 1 ? 1n : -1n, position.markMicro, liq);
+      const quote = contractQuote(position);
+      const distance = contractDistanceE6(quote.position, quote.market, position.markPNS);
       if (isAtRisk(distance)) atRiskIds.add(position.accountId);
     }
   }
