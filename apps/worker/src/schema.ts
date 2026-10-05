@@ -88,6 +88,19 @@ const STEPS: { version: number; apply: (sql: Sql) => void }[] = [
       addColumn(sql, "pool", "pair_id", "pair_id TEXT NOT NULL DEFAULT ''");
     },
   },
+  {
+    version: 4,
+    apply(sql) {
+      addColumn(sql, "actions", "reason", "reason TEXT NOT NULL DEFAULT ''");
+      sql.exec(`CREATE TABLE IF NOT EXISTS keeper_stats (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        max_gap_ms INTEGER NOT NULL DEFAULT 0,
+        nonce_errors INTEGER NOT NULL DEFAULT 0,
+        started_at INTEGER
+      )`);
+      sql.exec(`INSERT OR IGNORE INTO keeper_stats (id, max_gap_ms, nonce_errors, started_at) VALUES (1, 0, 0, NULL)`);
+    },
+  },
 ];
 
 export function migrate(sql: Sql): number[] {

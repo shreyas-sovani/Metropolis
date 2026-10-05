@@ -6,6 +6,7 @@ import {
   HOUSE_BUDGET_CNS,
   HOUSE_EXPIRY_SEC,
   HOUSE_MAX_PER_ACTION_CNS,
+  breachTerms,
   houseMandate,
   parseRegistrations,
 } from "../src/house.js";
@@ -37,6 +38,10 @@ describe("house mandates", () => {
       message: pool,
     });
     expect(await recoverSigner(pool, signature)).toBe(account.address);
+  });
+
+  it("places a breach trigger above the current distance", () => {
+    expect(breachTerms(27_000n)).toEqual({ triggerBps: 320, targetBps: 520 });
   });
 
   it("rejects a registration entry with a bad proxy", () => {

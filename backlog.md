@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), Phase 3 (P1–P3), and W1–W4 are done. **G4** is in progress: the UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label. The historical scan is running again from the checkpoint. Next is W5.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), Phase 3 (P1–P3), and W1–W4 are done. **G4** is in progress: the UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label. **W5** is in its one-hour soak with 10 armed accounts, restarted after the extra pool accounts were registered. **W6** is in progress and its live drips are waiting on sponsor MON.
 
 ---
 
@@ -692,7 +692,7 @@ The human can prepare these in advance.
   - Unprotected twins return 404.
 - **Evidence:** `pnpm --filter @lifeline/worker exec vitest run test/house.test.ts test/register.test.ts test/schema.test.ts` passed. `wrangler deploy` uploaded `lifeline` version `97e2bde4-bd47-430c-bf6a-1cfad5aad5b1`. `pnpm cli pool:register` exit 0 twice: `registered 11 mandates 7`. Three pool accounts at 1.5%/2.5% and four protected twins at 4%/6%, budget `300000000`, each signature recovered to pool owner `0xC417c69e72d3531f736353BA16A1eA365DD2f056`, which matches `owner()`. Unprotected `0xfBcABCde`, `0x9F8FD580`, `0x2817a172`, and `0xbE9282D7` returned 404. `GET /health` returned `poolAvailable:3`.
 
-#### [ ] W5 Keeper alarm loop
+#### [~] W5 Keeper alarm loop
 - **Type:** AGENT · **Depends on:** W4, C6, C7 · **PRD:** §F6, §5.5
 - **Do:**
   - Every 2 s: load active mandates, batch-read positions and accounts with Multicall3, evaluate, and send at most one top-up per position per tick, serialized through the operator key with local nonce tracking.
@@ -705,9 +705,9 @@ The human can prepare these in advance.
   - **Forced breach:** use the admin route to temporarily arm a canary mandate with a trigger above the current distance. A confirmed top-up must land within 2 ticks plus 2 blocks.
   - The distance after a top-up is within [target − 0.2%, target + 0.5%], unless a cap bound it; capped results carry a `capped` reason.
   - No transaction type other than `increasePositionCollateral` is ever sent (check the `actions` table and the explorer).
-- **Evidence:**
+- **Evidence:** In progress. Keeper version `1e147efe-97ee-46dd-b46b-da55cd487d96`. Confirmed `increasePositionCollateral` only: `0x96442cfb` 20094 → 60604, `0xe99c0d38` 33749 → 59318, forced breach `0x1fbf4b1b` on `0xb4C851B0` 31699 → 56599 then the house mandate returned to 150/250. `pool:create --count 6 --market BTC` created the three extra accounts and printed `done 6/6`, then exited 1 because the breached account is outside the 2.0–3.5% band (`distanceE6=57618`). `pool:register` then reported `registered 14 mandates 10`. Soak reset at `startedAt` 1791213417528 with `armed` 10, `nonceErrors` 0, `pending` 0. The hour is still running.
 
-#### [ ] W6 `POST /claim`
+#### [~] W6 `POST /claim`
 - **Type:** AGENT · **Depends on:** W2, W4 · **PRD:** §F4
 - **Do:**
   - Verify the token and enforce the rate limits.
@@ -720,7 +720,7 @@ The human can prepare these in advance.
   - A 4th claim from the same IP within an hour returns 429.
   - An empty pool returns 503 with `{sandbox:true}`.
   - p50 latency is ≤ 3 s over 5 claims.
-- **Evidence:**
+- **Evidence:** In progress. `pnpm --filter @lifeline/worker exec vitest run test/claim.test.ts test/claim-http.test.ts` passed. Selection prefers the closest BTC position above 1.5%. An empty pool returns 503 `{sandbox:true}`. A repeat user is 409 and a fourth IP claim is 429 in the gate. Live drips are not sent: the sponsor holds about 3.0007 MON, and five drips of 0.08 would cross the 3 MON floor. The route returns 503 `{error:"sponsor floor"}` in that case.
 
 #### [ ] W7 `POST /arm`, `/disarm`, `/mandate/:proxy`
 - **Type:** AGENT · **Depends on:** W6, C5, C6 · **PRD:** §F5, §F7
@@ -1176,3 +1176,7 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - W4 | `pool.json` has no leverage, so registration uses the market cap (BTC 1500, ETH 1200) | P2 targets those caps | `planEntries` test
 - W4 | twins use status `twin` or `unprotected`, and re-registration leaves an active mandate in place | a claim must not hand out a twin, and a later user mandate must stay | `/health` `poolAvailable` 3; second `pool:register` stayed at 11 registered and 7 mandates
 - W4 | migration 3 adds `market`, `role`, and `pair_id` | the twins panel needs the pair, and claim needs to tell a twin from the pool | schema selftest versions `[1, 2, 3]`
+- W5 | three more BTC accounts bring the armed set to 10, and the soak clock restarts after that register | the pass needs the whole hour at 10 or more armed accounts | `pool:register` `registered 14 mandates 10`; reset `armed` 10 at `startedAt` 1791213417528
+- W5 | `pool:create` can exit 1 after a successful create when an older account leaves the distance band | the forced breach left `0xb4C851B0` at distance 57618 | log line `inBand=false`, and `done 6/6`
+- W6 | a test claim is the admin secret plus the same wallet proof and a caller-supplied user id | five latency claims need five user ids, and one Privy guest is one user | empty `POST /claim` returned 503 `{sandbox:true}`
+- W6 | the 0.08 MON drip is refused when it would put the sponsor under 3 MON | the sponsor is on its floor | route returns 503 `{error:"sponsor floor"}` before sending

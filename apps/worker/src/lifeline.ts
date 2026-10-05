@@ -1,12 +1,13 @@
 import { DurableObject } from "cloudflare:workers";
-import { mandateDomain, mandateTypes, type MandateMessage } from "@lifeline/core";
+import { type MandateMessage } from "@lifeline/core";
 import { getAddress, type Address, type Hex } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
 import { coreEvaluator } from "./adapter.js";
 import { healthReport, pausedFlag, WORKER_VERSION } from "./health.js";
-import { parseRegistrations } from "./house.js";
+import { parseRegistrations, signMandate } from "./house.js";
 import { registerPool } from "./register.js";
 import { crudRoundTrip, migrate } from "./schema.js";
+import { claimPosition, readClaimant } from "./claim.js";
+import { armBreach, noteGap, resetSoak, runKeeper, soakReport } from "./tick.js";
 
 const ALARM_MS = 2_000;
 const WINDOW_MS = 10 * 60 * 1000;
@@ -35,8 +36,10 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     let error: string | null = null;
     try {
       if (typeof coreEvaluator() !== "function") throw new Error("core missing");
+      noteGap(this.ctx.storage.sql, started);
       this.ctx.storage.sql.exec("INSERT INTO ticks (at) VALUES (?)", started);
       this.ctx.storage.sql.exec("DELETE FROM ticks WHERE at < ?", started - WINDOW_MS);
+      await runKeeper(this.ctx.storage.sql, this.env, started);
       this.ctx.storage.sql.exec("UPDATE health_state SET last_error = NULL WHERE id = 1");
     } catch (caught) {
       error = caught instanceof Error ? caught.message.slice(0, 180) : "error";
@@ -57,7 +60,11 @@ export class Lifeline extends DurableObject<LifelineEnv> {
         return Response.json({ ok: false, error: message }, { status: 500 });
       }
     }
+    if (url.pathname === "/claim" && request.method === "POST") return this.claim(request);
     if (url.pathname === "/admin/pool" && request.method === "POST") return this.register(request);
+    if (url.pathname === "/admin/breach" && request.method === "POST") return this.breach(request);
+    if (url.pathname === "/admin/soak" && request.method === "GET") return this.soak(request);
+    if (url.pathname === "/admin/soak/reset" && request.method === "POST") return this.soakReset(request);
     const mandatePath = /^\/mandate\/(0x[0-9a-fA-F]{40})$/.exec(url.pathname);
     if (mandatePath?.[1] && request.method === "GET") return this.mandate(mandatePath[1]);
     if (url.pathname !== "/health") return new Response("lifeline", { status: 404 });
@@ -96,17 +103,54 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     }
   }
 
+  private async claim(request: Request): Promise<Response> {
+    const claimant = await readClaimant(request, this.env);
+    if (claimant instanceof Response) return claimant;
+    try {
+      return await claimPosition(this.ctx.storage.sql, this.env, claimant, Date.now());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "error";
+      return Response.json({ error: message.slice(0, 180) }, { status: 500 });
+    }
+  }
+
+  private async breach(request: Request): Promise<Response> {
+    if (!this.admin(request)) {
+      await request.body?.cancel();
+      return Response.json({ error: "unauthorized" }, { status: 401 });
+    }
+    let proxy: Address | undefined;
+    try {
+      const body = (await request.json()) as { proxy?: string };
+      if (!body.proxy) return Response.json({ error: "proxy" }, { status: 400 });
+      proxy = getAddress(body.proxy);
+    } catch {
+      return Response.json({ error: "proxy" }, { status: 400 });
+    }
+    try {
+      const terms = await armBreach(this.ctx.storage.sql, this.env, proxy, BigInt(Math.floor(Date.now() / 1000)));
+      return Response.json({ proxy, ...terms });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "error";
+      return Response.json({ error: message }, { status: 500 });
+    }
+  }
+
+  private soak(request: Request): Response {
+    if (!this.admin(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
+    return Response.json(soakReport(this.ctx.storage.sql));
+  }
+
+  private soakReset(request: Request): Response {
+    if (!this.admin(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
+    resetSoak(this.ctx.storage.sql, Date.now());
+    return Response.json(soakReport(this.ctx.storage.sql));
+  }
+
   private async signHouse(message: MandateMessage): Promise<{ owner: Address; sig: Hex }> {
     const key = this.env.POOL_OWNER_PK;
     if (!/^0x[0-9a-fA-F]{64}$/.test(key)) throw new Error("pool owner key missing");
-    const account = privateKeyToAccount(key as Hex);
-    const sig = await account.signTypedData({
-      domain: mandateDomain(),
-      types: mandateTypes,
-      primaryType: "Mandate",
-      message,
-    });
-    return { owner: account.address, sig };
+    return signMandate(key, message);
   }
 
   private mandate(proxyParam: string): Response {

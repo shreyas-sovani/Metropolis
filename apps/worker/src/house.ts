@@ -1,5 +1,6 @@
-import { getAddress, type Address } from "viem";
-import { buildMandate, type MandateMessage } from "@lifeline/core";
+import { getAddress, type Address, type Hex } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { buildMandate, mandateDomain, mandateTypes, type MandateMessage } from "@lifeline/core";
 
 /** 150 AUSD, the user per-action cap from PRD §F5. */
 export const HOUSE_MAX_PER_ACTION_CNS = 150_000_000n;
@@ -53,6 +54,33 @@ export function houseMandate(input: {
     expiry: input.nowSec + HOUSE_EXPIRY_SEC,
     nonce: 0n,
   });
+}
+
+export async function signMandate(
+  privateKey: string,
+  message: MandateMessage,
+): Promise<{ owner: Address; sig: Hex }> {
+  if (!/^0x[0-9a-fA-F]{64}$/.test(privateKey)) throw new Error("pool owner key missing");
+  const account = privateKeyToAccount(privateKey as Hex);
+  const sig = await account.signTypedData({
+    domain: mandateDomain(),
+    types: mandateTypes,
+    primaryType: "Mandate",
+    message,
+  });
+  return { owner: account.address, sig };
+}
+
+/** Trigger sits above the current distance so the next keeper tick must top up. */
+export function breachTerms(distanceE6: bigint): { triggerBps: number; targetBps: number } {
+  const current = Number(distanceE6 / 100n);
+  let trigger = current + 50;
+  if (trigger < 1) trigger = 1;
+  if (trigger > 1800) trigger = 1800;
+  let target = trigger + 200;
+  if (target > 2000) target = 2000;
+  if (target <= trigger) trigger = target - 1;
+  return { triggerBps: trigger, targetBps: target };
 }
 
 export function serializeMandate(message: MandateMessage): string {

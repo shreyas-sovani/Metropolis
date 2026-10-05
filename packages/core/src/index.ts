@@ -44,6 +44,7 @@ export {
   MIN_ACTION_MICRO,
   bucketIndex,
   couldProtectNow,
+  desiredDepositMicro,
   distanceE6,
   isAtRisk,
   isDust,

@@ -16,7 +16,16 @@ const handler: ExportedHandler<Env> = {
     if (url.pathname === "/session" && request.method === "GET") {
       return session(request, env);
     }
-    if (url.pathname === "/schema/selftest" || url.pathname === "/admin/pool") {
+    if (url.pathname === "/claim" && request.method === "POST") {
+      return stub.fetch(request);
+    }
+    if (
+      url.pathname === "/schema/selftest" ||
+      url.pathname === "/admin/pool" ||
+      url.pathname === "/admin/breach" ||
+      url.pathname === "/admin/soak" ||
+      url.pathname === "/admin/soak/reset"
+    ) {
       return stub.fetch(request);
     }
     if (request.method === "GET" && /^\/mandate\/0x[0-9a-fA-F]{40}$/.test(url.pathname)) {
