@@ -8,6 +8,7 @@ import { gate6 } from "./commands/gate-6.js";
 import { gate7 } from "./commands/gate-7.js";
 import { gate8 } from "./commands/gate-8.js";
 import { fundMon } from "./commands/fund-mon.js";
+import { poolCreate } from "./commands/pool-create.js";
 import { keysGenerate } from "./commands/keys-generate.js";
 import { status } from "./commands/status.js";
 import { verifyAddresses } from "./commands/verify-addresses.js";
@@ -21,6 +22,7 @@ export async function run(argv: readonly string[]): Promise<number> {
     console.log("  status [--floor ROLE:MON|AUSD:AMOUNT]");
     console.log("  fund:mon [--kill-after-broadcast]");
     console.log("  faucet:ausd [--kill-after-broadcast]");
+    console.log("  pool:create --count N --market BTC|ETH");
     console.log("  gate:1");
     console.log("  gate:2 handoff <guest>");
     console.log("  gate:2 check <proxy> <guest> <signature> <token>");
@@ -36,6 +38,7 @@ export async function run(argv: readonly string[]): Promise<number> {
   if (command === "status") return status(workspaceRoot(), argv.slice(1));
   if (command === "fund:mon") return fundMon(workspaceRoot(), argv.slice(1));
   if (command === "faucet:ausd") return faucetAusd(workspaceRoot(), argv.slice(1));
+  if (command === "pool:create") return poolCreate(workspaceRoot(), argv.slice(1));
   if (command === "gate:1") return gate1();
   if (command === "gate:2") return gate2(argv.slice(1));
   if (command === "gate:4") return gate4();
