@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), P1, and P2 are done. **G4** is in progress: the UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label. Next is P3.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), and Phase 3 (P1–P3) are done. **G4** is in progress: the UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label. Next is W1.
 
 ---
 
@@ -639,7 +639,7 @@ The human can prepare these in advance.
   - The maker's net position is within ±1 position size of flat.
 - **Evidence:** `pnpm cli pool:create --count 3 --market BTC` exit 0. Testnet BTC is perp 16. Leverage from `getMarginFractions` capped at 1500. Three proxies, owner the pool owner, operator set, sides short/long/short: `0xb4C851B0`, `0xe3929EB4`, `0x3e8214A1`. Each lot 1743. Free AUSD 299.35, 298.73, 299.35. Distances on the rerun 2.460%, 2.864%, 2.460%, inside 2.0–3.5%. All six operator calls reverted, and `operatorAllowlist` reads false for `0x4d8dc985`, `0x39435dac`, `0x171a5b81`, `0xbbac6c95`, `0xbad4a01f`, `0x7962f910`. Maker net lot 1543 versus position size 1743. Re-run printed `pool:create nothing new` and created no transactions.
 
-#### [ ] P3 Twins: `twins:create`
+#### [x] P3 Twins: `twins:create`
 - **Type:** AGENT · **Depends on:** P2 · **PRD:** §F8
 - **Do:**
   - Open pairs at the same time and leverage: BTC 15× long and short, and SOL 10× long and short (or the allowed maximum).
@@ -650,7 +650,7 @@ The human can prepare these in advance.
   - Each has an open position and correct ownership.
   - Unprotected twins have no mandate (verified after W4).
 - **Fallback:** If SOL liquidity is thin, use self-match. If that fails, use ETH and log it in §9.
-- **Evidence:**
+- **Evidence:** `pnpm cli twins:create` exit 0. Four pairs, each owned by the pool owner with the operator set. BTC perp 16 at 15×, SOL perp 48 at 10×. Protected then unprotected: btc-long `0x92fa4337` / `0xfBcABCde` entries 861139 and 861290; btc-short `0x0eCa93D0` / `0x9F8FD580` both 861194; sol-long `0x45Afff08` / `0x2817a172` entries 12079 and 12081; sol-short `0x49975921` / `0xbE9282D7` entries 12064 and 12062. Every pair is inside 0.1%. SOL filled, so ETH was not used. House mandates are not stored until W4; the unprotected legs are flagged in `cli-state/twins.json`. Re-run created no transactions.
 
 ### Phase 4: Worker and Durable Object (`apps/worker`)
 
@@ -1165,3 +1165,5 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - P1 | `fund:mon` and `faucet:ausd` use `GAS_LIMITS` and resume an in-flight checkpoint instead of sending it again | Monad charges the gas limit, and a crash after broadcast would otherwise pay the same top-up twice | killed after operator `0xa65c83a0`; resume skipped that send; second `fund:mon` sent nothing; `status --floor SPONSOR:MON:1000000` exited 1
 - P2 | the first pool side reduces the maker, and the book is used only when self-match would add to the maker | the maker was already short from G6, so three self-matched longs would leave two lots of exposure | maker net lot 1543 against size 1743; sides short, long, short
 - P2 | the sponsor sent 0.5 MON to the pool owner and 0.5 MON to the maker before the three creates | both sat on their floors and measured gas would have crossed them | `0x6e93def2` and `0xcde8034b`, status 1, gas 36000
+- P3 | SOL is perp 48, so the ETH fallback stayed unused | `listPerps` returned a SOL market and both SOL pairs filled | entries 12079/12081 and 12064/12062
+- P3 | the sponsor sent the pool owner only the MON still above the 3 MON floor | topping up to 5 MON would have broken the sponsor floor | partial `0xf362ef64` of 0.559593068 MON

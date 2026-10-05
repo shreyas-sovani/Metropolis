@@ -20,6 +20,9 @@ function countJsonArray(file: string): number {
   if (!existsSync(file)) return 0;
   const parsed: unknown = JSON.parse(readFileSync(file, "utf8"));
   if (Array.isArray(parsed)) return parsed.length;
+  if (parsed && typeof parsed === "object" && "pairs" in parsed && Array.isArray(parsed.pairs)) {
+    return parsed.pairs.length;
+  }
   if (parsed && typeof parsed === "object") return Object.keys(parsed).length;
   return 0;
 }
