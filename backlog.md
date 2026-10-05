@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, and Phase 2 (C1–C8) are done. **G4** is in progress: the UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), and P1 are done. **G4** is in progress: the UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label. Next is P2.
 
 ---
 
@@ -616,13 +616,13 @@ The human can prepare these in advance.
 
 ### Phase 3: Provisioning CLI (`apps/cli`)
 
-#### [ ] P1 Faucet and funding commands, hardened
+#### [x] P1 Faucet and funding commands, hardened
 - **Type:** AGENT · **Depends on:** S0.5, G7 · **PRD:** §5.9
 - **Do:** Harden `faucet:ausd`, `fund:mon`, and `status`: use the measured gas limits, resume after interruption, and show `LOW:` warnings against the floors in §4.3.
 - **Pass:**
   - Killing a run midway and re-running it reaches the targets without duplicate overspend (see the balance deltas).
   - `status` exits non-zero when a floor is breached (test this by setting a temporarily high floor).
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/cli test` passed, including an in-flight top-up that is not sent twice. `fund:mon --kill-after-broadcast` sent operator +0.120518814 MON `0xa65c83a0` and stopped. Resume waited for that receipt (status 1, gas 36000) and did not send the operator again; it sent pool owner +1.342906602 `0x36dea485` and maker +0.288709368 `0x04703e91`, both status 1 at gas limit 36000. A second `fund:mon` printed `nothing to send`. Balances: operator 4.8794→5.0000, pool owner 0.6570→2.0000, maker 0.2112→0.5000, sponsor 11.4834→9.7203. `faucet:ausd` used no new drip (`targets met`). `status --floor SPONSOR:MON:1000000` printed `LOW: SPONSOR MON 9.7203 < 1000000.0000` and exited 1. Plain `status` then exited 0 with no `LOW:` lines.
 
 #### [ ] P2 Pool provisioning: `pool:create`
 - **Type:** AGENT · **Depends on:** G1, G6, C7 · **PRD:** §5.9
@@ -1162,3 +1162,4 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - C5 | the mandate has no extra message field | PRD §F5 already puts version `1` in the EIP-712 domain | sign/recover matches that domain
 - C6 | `PAUSED` and `EXPIRED` are checked before mark and position state | a kill switch must not size a top-up | unit tests cover every skip reason
 - C8 | the 30-day window is `blocks/sec` measured over the last 5,000 blocks, times 30 days | Monad's block time is not a hard-coded constant | live history from block 102159198 returned in 2186 ms
+- P1 | `fund:mon` and `faucet:ausd` use `GAS_LIMITS` and resume an in-flight checkpoint instead of sending it again | Monad charges the gas limit, and a crash after broadcast would otherwise pay the same top-up twice | killed after operator `0xa65c83a0`; resume skipped that send; second `fund:mon` sent nothing; `status --floor SPONSOR:MON:1000000` exited 1

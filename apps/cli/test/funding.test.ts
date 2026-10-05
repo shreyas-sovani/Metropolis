@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  AUSD_TARGETS,
   AUSD_UNIT,
   MON_TARGETS,
   SPONSOR_FLOOR,
   WEI,
   floorBreaches,
+  nextFaucetRole,
+  parseFloorSpec,
   planMonSends,
+  remainingMonSends,
   targetShortfalls,
+  type AusdRole,
   type Holdings,
   type MonRole,
   type Role,
@@ -75,6 +80,39 @@ describe("planMonSends", () => {
   });
 });
 
+describe("resume", () => {
+  it("does not send the in-flight top-up again", () => {
+    const balances = monBalances({ OPERATOR: 4n * WEI });
+    const first = planMonSends({ sponsor: 20n * WEI, balances, gasCost: 0n });
+    expect(first[0]).toEqual({ role: "OPERATOR", amount: WEI });
+    const second = remainingMonSends({
+      sponsor: 20n * WEI,
+      balances,
+      gasCost: 0n,
+      inFlight: { role: "OPERATOR", amount: WEI },
+    });
+    expect(second.some((send) => send.role === "OPERATOR")).toBe(false);
+    const after = monBalances({ ...balances, OPERATOR: 5n * WEI });
+    const third = planMonSends({ sponsor: 19n * WEI, balances: after, gasCost: 0n });
+    expect(third.some((send) => send.role === "OPERATOR")).toBe(false);
+    const spent = (first[0]?.amount ?? 0n) + third.filter((send) => send.role === "OPERATOR").reduce((sum, send) => sum + send.amount, 0n);
+    expect(spent).toBe(WEI);
+  });
+
+  it("holds the next faucet drip while one is in flight", () => {
+    const balances = {
+      POOL_OWNER: 0n,
+      MAKER: 0n,
+      CALIBRATION: 0n,
+      TEST_OWNER: 0n,
+    } satisfies Record<AusdRole, bigint>;
+    expect(nextFaucetRole(balances, null)).toBe("POOL_OWNER");
+    expect(nextFaucetRole(balances, "POOL_OWNER")).toBeNull();
+    balances.POOL_OWNER = AUSD_TARGETS.POOL_OWNER;
+    expect(nextFaucetRole(balances, null)).toBe("MAKER");
+  });
+});
+
 describe("status lines", () => {
   it("prints LOW under a floor and SHORT under a target", () => {
     const state = holdings(
@@ -84,5 +122,13 @@ describe("status lines", () => {
     expect(floorBreaches(state).some((line) => line.startsWith("LOW: OPERATOR MON"))).toBe(true);
     expect(floorBreaches(state).some((line) => line.startsWith("LOW: MAKER AUSD"))).toBe(true);
     expect(targetShortfalls(state).some((line) => line.startsWith("SHORT: POOL_OWNER"))).toBe(true);
+  });
+
+  it("exits non-zero when a temporary floor is above the balance", () => {
+    const state = holdings({ SPONSOR: 12n * WEI, OPERATOR: 5n * WEI, POOL_OWNER: 2n * WEI, MAKER: WEI });
+    const override = parseFloorSpec("SPONSOR:MON:1000000");
+    const lines = floorBreaches(state, [override]);
+    expect(lines.some((line) => line.startsWith("LOW: SPONSOR MON"))).toBe(true);
+    expect(lines.length > 0).toBe(true);
   });
 });

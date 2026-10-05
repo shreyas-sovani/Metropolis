@@ -113,16 +113,78 @@ export interface Holdings {
   ausd: Record<Role, bigint>;
 }
 
-export function floorBreaches(holdings: Holdings): string[] {
+export interface InFlightMon {
+  role: MonRole;
+  amount: bigint;
+}
+
+/** Plan the sends still required. An in-flight transfer counts as already received. */
+export function remainingMonSends(input: {
+  sponsor: bigint;
+  balances: Record<MonRole, bigint>;
+  gasCost: bigint;
+  inFlight?: InFlightMon | null;
+  floor?: bigint;
+}): MonSend[] {
+  const balances = { ...input.balances };
+  let sponsor = input.sponsor;
+  const inFlight = input.inFlight;
+  if (inFlight && inFlight.amount > 0n) {
+    balances[inFlight.role] += inFlight.amount;
+    sponsor -= inFlight.amount + input.gasCost;
+  }
+  return planMonSends({
+    sponsor,
+    balances,
+    gasCost: input.gasCost,
+    floor: input.floor,
+  });
+}
+
+export function nextFaucetRole(
+  balances: Record<AusdRole, bigint>,
+  inFlight: AusdRole | null,
+): AusdRole | null {
+  if (inFlight) return null;
+  return AUSD_ROLES.find((role) => balances[role] < AUSD_TARGETS[role]) ?? null;
+}
+
+export interface FloorOverride {
+  role: Role;
+  asset: "MON" | "AUSD";
+  amount: bigint;
+}
+
+/** `ROLE:MON:12.5` or `ROLE:AUSD:5000`, in whole tokens. */
+export function parseFloorSpec(spec: string): FloorOverride {
+  const [role, asset, raw] = spec.split(":");
+  if (!role || !ALL_ROLES.includes(role as Role)) throw new Error(`bad floor role in ${spec}`);
+  if (asset !== "MON" && asset !== "AUSD") throw new Error(`bad floor asset in ${spec}`);
+  if (!raw || !/^\d+(\.\d+)?$/.test(raw)) throw new Error(`bad floor amount in ${spec}`);
+  const [whole, frac = ""] = raw.split(".");
+  const decimals = asset === "MON" ? 18 : 6;
+  const fraction = (frac ?? "").padEnd(decimals, "0").slice(0, decimals);
+  const scale = 10n ** BigInt(decimals);
+  const amount = BigInt(whole ?? "0") * scale + BigInt(fraction === "" ? "0" : fraction);
+  return { role: role as Role, asset, amount };
+}
+
+export function floorBreaches(holdings: Holdings, overrides: readonly FloorOverride[] = []): string[] {
+  const monFloors: Partial<Record<Role, bigint>> = { ...MON_FLOORS };
+  const ausdFloors: Partial<Record<Role, bigint>> = { ...AUSD_FLOORS };
+  for (const override of overrides) {
+    if (override.asset === "MON") monFloors[override.role] = override.amount;
+    else ausdFloors[override.role] = override.amount;
+  }
   const lines: string[] = [];
   for (const role of ALL_ROLES) {
-    const monFloor = MON_FLOORS[role];
+    const monFloor = monFloors[role];
     if (monFloor !== undefined && holdings.mon[role] < monFloor) {
       lines.push(
         `LOW: ${role} MON ${formatUnits(holdings.mon[role], 18, 4)} < ${formatUnits(monFloor, 18, 4)}`,
       );
     }
-    const ausdFloor = AUSD_FLOORS[role];
+    const ausdFloor = ausdFloors[role];
     if (ausdFloor !== undefined && holdings.ausd[role] < ausdFloor) {
       lines.push(
         `LOW: ${role} AUSD ${formatUnits(holdings.ausd[role], 6, 2)} < ${formatUnits(ausdFloor, 6, 2)}`,

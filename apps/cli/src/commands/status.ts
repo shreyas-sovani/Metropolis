@@ -7,7 +7,9 @@ import {
   ALL_ROLES,
   floorBreaches,
   formatUnits,
+  parseFloorSpec,
   targetShortfalls,
+  type FloorOverride,
   type Holdings,
   type Role,
 } from "../funding.js";
@@ -22,7 +24,23 @@ function countJsonArray(file: string): number {
   return 0;
 }
 
-export async function status(root = workspaceRoot()): Promise<number> {
+function floorOverrides(argv: readonly string[]): FloorOverride[] {
+  const specs: FloorOverride[] = [];
+  for (let index = 0; index < argv.length; index += 1) {
+    if (argv[index] !== "--floor") continue;
+    const spec = argv[index + 1];
+    if (!spec) throw new Error("--floor needs ROLE:ASSET:AMOUNT");
+    specs.push(parseFloorSpec(spec));
+    index += 1;
+  }
+  return specs;
+}
+
+export async function status(root = workspaceRoot(), argv: readonly string[] = []): Promise<number> {
+  const overrides = floorOverrides(argv);
+  for (const override of overrides) {
+    console.log(`floor override ${override.role} ${override.asset} ${formatUnits(override.amount, override.asset === "MON" ? 18 : 6, 4)}`);
+  }
   const roles = loadRoles(root);
   const client = testnetPublicClient();
   const { ausd } = testnetContracts();
@@ -49,7 +67,7 @@ export async function status(root = workspaceRoot()): Promise<number> {
   console.log(`twins=${twins}`);
 
   const holdings: Holdings = { mon, ausd: ausdBal };
-  const lows = floorBreaches(holdings);
+  const lows = floorBreaches(holdings, overrides);
   const shorts = targetShortfalls(holdings);
   for (const line of lows) console.log(line);
   for (const line of shorts) {

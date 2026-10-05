@@ -1,3 +1,4 @@
+import { workspaceRoot } from "./commands/keys-generate.js";
 import { faucetAusd } from "./commands/faucet-ausd.js";
 import { gate1 } from "./commands/gate-1.js";
 import { gate2 } from "./commands/gate-2.js";
@@ -17,9 +18,9 @@ export async function run(argv: readonly string[]): Promise<number> {
     console.log("lifeline cli");
     console.log("  verify:addresses");
     console.log("  keys:generate");
-    console.log("  status");
-    console.log("  fund:mon");
-    console.log("  faucet:ausd");
+    console.log("  status [--floor ROLE:MON|AUSD:AMOUNT]");
+    console.log("  fund:mon [--kill-after-broadcast]");
+    console.log("  faucet:ausd [--kill-after-broadcast]");
     console.log("  gate:1");
     console.log("  gate:2 handoff <guest>");
     console.log("  gate:2 check <proxy> <guest> <signature> <token>");
@@ -32,9 +33,9 @@ export async function run(argv: readonly string[]): Promise<number> {
   }
   if (command === "verify:addresses") return verifyAddresses();
   if (command === "keys:generate") return keysGenerate();
-  if (command === "status") return status();
-  if (command === "fund:mon") return fundMon();
-  if (command === "faucet:ausd") return faucetAusd();
+  if (command === "status") return status(workspaceRoot(), argv.slice(1));
+  if (command === "fund:mon") return fundMon(workspaceRoot(), argv.slice(1));
+  if (command === "faucet:ausd") return faucetAusd(workspaceRoot(), argv.slice(1));
   if (command === "gate:1") return gate1();
   if (command === "gate:2") return gate2(argv.slice(1));
   if (command === "gate:4") return gate4();
