@@ -154,3 +154,80 @@ export async function readExchangeSnapshot(
     numPositions,
   }));
 }
+
+/** Markets discovered from `getPerpetualExistsBitmap`. No hard-coded list. */
+export async function listPerps(client: PublicClient, exchange: Address): Promise<PerpInfo[]> {
+  const bitmap = (await client.readContract({
+    address: exchange,
+    abi: exchangeAbi,
+    functionName: "getPerpetualExistsBitmap",
+  })) as readonly bigint[];
+  const perpIds = perpIdsFromBitmap(bitmap);
+  if (perpIds.length === 0) return [];
+  const infos = await client.multicall({
+    contracts: perpIds.map((id) => ({
+      address: exchange,
+      abi: exchangeAbi,
+      functionName: "getPerpetualInfoV2" as const,
+      args: [BigInt(id)] as const,
+    })),
+    allowFailure: false,
+  });
+  return perpIds.map((perpId, index) => {
+    const info = infos[index];
+    if (!info) throw new Error(`missing perp info ${perpId}`);
+    return asInfo(perpId, info as InfoRaw);
+  });
+}
+
+/** One market: info plus paged `getPositionsV2`. */
+export async function readMarket(
+  client: PublicClient,
+  exchange: Address,
+  perpId: number,
+): Promise<MarketSnapshot> {
+  const packed = await client.multicall({
+    contracts: [
+      {
+        address: exchange,
+        abi: exchangeAbi,
+        functionName: "getPerpetualInfoV2" as const,
+        args: [BigInt(perpId)] as const,
+      },
+      {
+        address: exchange,
+        abi: exchangeAbi,
+        functionName: "getPositionIds" as const,
+        args: [BigInt(perpId)] as const,
+      },
+    ],
+    allowFailure: false,
+  });
+  const info = asInfo(perpId, packed[0] as InfoRaw);
+  const ids = packed[1] as readonly [bigint, bigint];
+  const positions: PositionNode[] = [];
+  let numPositions = 0n;
+  let cursor = ids[0];
+  let pages = 0;
+  while (cursor !== 0n) {
+    pages += 1;
+    if (pages > MAX_PAGES) throw new Error(`perp ${perpId} exceeded ${MAX_PAGES} position pages`);
+    const page = (await client.readContract({
+      address: exchange,
+      abi: exchangeAbi,
+      functionName: "getPositionsV2",
+      args: [BigInt(perpId), cursor, POSITION_PAGE_SIZE],
+    })) as readonly [PositionNode[], bigint, bigint, boolean];
+    const sliced = slicePositionPage(page[0], page[1]);
+    positions.push(...sliced.positions.map(asPosition));
+    numPositions += page[1];
+    cursor = sliced.nextNodeId;
+  }
+  return {
+    info,
+    startNodeId: ids[0],
+    endNodeId: ids[1],
+    positions,
+    numPositions,
+  };
+}

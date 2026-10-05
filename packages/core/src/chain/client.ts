@@ -3,7 +3,11 @@ import { ADDRESSES } from "../config/addresses.js";
 import { CHAINS, type ChainId } from "../config/chains.js";
 
 /** Read client: public RPC fallback, Multicall3 from PRD §5.2. */
-export function createReadClient(chainId: ChainId, urls: readonly string[]): PublicClient {
+export function createReadClient(
+  chainId: ChainId,
+  urls: readonly string[],
+  timeout = 20_000,
+): PublicClient {
   const first = urls[0];
   if (!first) throw new Error(`no RPC urls for chain ${chainId}`);
   const base = CHAINS[chainId];
@@ -16,7 +20,7 @@ export function createReadClient(chainId: ChainId, urls: readonly string[]): Pub
       },
     },
     transport: fallback(
-      urls.map((url) => http(url, { timeout: 20_000, retryCount: 1 })),
+      urls.map((url) => http(url, { timeout, retryCount: 1 })),
     ),
     batch: { multicall: { batchSize: 128, wait: 0 } },
   });
