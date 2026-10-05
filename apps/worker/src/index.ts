@@ -9,15 +9,17 @@ interface Env extends LifelineEnv {
 const handler: ExportedHandler<Env> = {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const stub = env.LIFELINE.get(env.LIFELINE.idFromName("lifeline"));
     if (url.pathname === "/health") {
-      const stub = env.LIFELINE.get(env.LIFELINE.idFromName("lifeline"));
       return stub.fetch(new Request(new URL("/health", request.url)));
     }
     if (url.pathname === "/session" && request.method === "GET") {
       return session(request, env);
     }
-    if (url.pathname === "/schema/selftest") {
-      const stub = env.LIFELINE.get(env.LIFELINE.idFromName("lifeline"));
+    if (url.pathname === "/schema/selftest" || url.pathname === "/admin/pool") {
+      return stub.fetch(request);
+    }
+    if (request.method === "GET" && /^\/mandate\/0x[0-9a-fA-F]{40}$/.test(url.pathname)) {
       return stub.fetch(request);
     }
     return new Response("lifeline", { status: 404 });

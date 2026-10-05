@@ -24,7 +24,7 @@ describe("schema migrations", () => {
     const secondBody = (await second.json()) as { ok?: boolean; versions?: number[]; error?: string };
     expect(first.status, firstBody.error).toBe(200);
     expect(second.status, secondBody.error).toBe(200);
-    expect(firstBody).toEqual({ ok: true, versions: [1, 2] });
+    expect(firstBody).toEqual({ ok: true, versions: [1, 2, 3] });
     expect(secondBody.versions).toEqual(firstBody.versions);
   }, 60_000);
 });

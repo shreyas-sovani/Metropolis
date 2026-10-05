@@ -9,6 +9,7 @@ import { gate7 } from "./commands/gate-7.js";
 import { gate8 } from "./commands/gate-8.js";
 import { fundMon } from "./commands/fund-mon.js";
 import { poolCreate } from "./commands/pool-create.js";
+import { poolRegister } from "./commands/pool-register.js";
 import { twinsCreate } from "./commands/twins-create.js";
 import { keysGenerate } from "./commands/keys-generate.js";
 import { secretsSyncWorker } from "./commands/secrets-sync-worker.js";
@@ -25,6 +26,7 @@ export async function run(argv: readonly string[]): Promise<number> {
     console.log("  fund:mon [--kill-after-broadcast]");
     console.log("  faucet:ausd [--kill-after-broadcast]");
     console.log("  pool:create --count N --market BTC|ETH");
+    console.log("  pool:register [--url URL]");
     console.log("  twins:create");
     console.log("  secrets:sync-worker");
     console.log("  gate:1");
@@ -43,6 +45,7 @@ export async function run(argv: readonly string[]): Promise<number> {
   if (command === "fund:mon") return fundMon(workspaceRoot(), argv.slice(1));
   if (command === "faucet:ausd") return faucetAusd(workspaceRoot(), argv.slice(1));
   if (command === "pool:create") return poolCreate(workspaceRoot(), argv.slice(1));
+  if (command === "pool:register") return poolRegister(workspaceRoot(), argv.slice(1));
   if (command === "twins:create") return twinsCreate(workspaceRoot());
   if (command === "secrets:sync-worker") return secretsSyncWorker(workspaceRoot());
   if (command === "gate:1") return gate1();

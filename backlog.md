@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), Phase 3 (P1–P3), W1, W2, and W3 are done. **G4** is in progress: the UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label. The historical scan is running again from the checkpoint. Next is W4.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), Phase 3 (P1–P3), and W1–W4 are done. **G4** is in progress: the UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label. The historical scan is running again from the checkpoint. Next is W5.
 
 ---
 
@@ -681,7 +681,7 @@ The human can prepare these in advance.
 - **Pass:** Migrations are idempotent (applying twice is a no-op), and a round-trip CRUD test passes in `wrangler dev`.
 - **Evidence:** `pnpm --filter @lifeline/worker exec vitest run test/schema.test.ts` passed in wrangler dev. Two `POST /schema/selftest` calls both returned `{ok:true, versions:[1,2]}`. The round trip inserted, read, updated, and deleted `pool`, `claims`, `mandates`, `actions`, `keys`, and `health`.
 
-#### [ ] W4 Pool registration and house mandates
+#### [x] W4 Pool registration and house mandates
 - **Type:** AGENT · **Depends on:** W3, P2, P3 · **PRD:** §5.9 step 6, §F4, §F8
 - **Do:**
   - `POST /admin/pool` (admin secret) registers entries, and `pnpm cli pool:register` pushes `cli-state` into it.
@@ -690,7 +690,7 @@ The human can prepare these in advance.
   - The registered count matches `cli-state`.
   - `GET /mandate/:proxy` returns a house mandate for each pool account and protected twin, whose signature recovers to the pool owner.
   - Unprotected twins return 404.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/worker exec vitest run test/house.test.ts test/register.test.ts test/schema.test.ts` passed. `wrangler deploy` uploaded `lifeline` version `97e2bde4-bd47-430c-bf6a-1cfad5aad5b1`. `pnpm cli pool:register` exit 0 twice: `registered 11 mandates 7`. Three pool accounts at 1.5%/2.5% and four protected twins at 4%/6%, budget `300000000`, each signature recovered to pool owner `0xC417c69e72d3531f736353BA16A1eA365DD2f056`, which matches `owner()`. Unprotected `0xfBcABCde`, `0x9F8FD580`, `0x2817a172`, and `0xbE9282D7` returned 404. `GET /health` returned `poolAvailable:3`.
 
 #### [ ] W5 Keeper alarm loop
 - **Type:** AGENT · **Depends on:** W4, C6, C7 · **PRD:** §F6, §5.5
@@ -1171,3 +1171,8 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - W1 | `degraded` is false until an alarm stores an error | a fresh Durable Object has no ticks, and the pass check requires `degraded:false` | health JSON above, `poolAvailable` 0
 - W2 | the embedded wallet is proven with a signed nonce, not read from an unverified header | Privy access tokens carry `sub`, `iss` `privy.io`, `aud`, and `exp`, and not the wallet | unit test rejects a signature bound to a different user id; guest `GET /session` returned 200
 - W3 | schema versions live in `schema_migrations` and columns are added only when missing | the gate Durable Object already had a narrower `pool` table | second selftest returned the same versions `[1, 2]`
+- W4 | a pool house mandate is 1.5%/2.5%, cap 150 AUSD, budget 300 AUSD, expiry now plus 29 days, nonce 0 | PRD §F4 sets the distances, a pool account keeps about 300 AUSD free, the user cap is 150 AUSD, and validation rejects an expiry past 30 days | `GET /mandate/0xb4C851B0` returned trigger 150, target 250, budget `300000000`, kind `house`
+- W4 | a protected twin is 4%/6% with the same cap and a 300 AUSD budget, and an unprotected twin has no row | PRD §F8 | four protected signatures recovered to `0xC417c69e`; four unprotected GETs returned 404
+- W4 | `pool.json` has no leverage, so registration uses the market cap (BTC 1500, ETH 1200) | P2 targets those caps | `planEntries` test
+- W4 | twins use status `twin` or `unprotected`, and re-registration leaves an active mandate in place | a claim must not hand out a twin, and a later user mandate must stay | `/health` `poolAvailable` 3; second `pool:register` stayed at 11 registered and 7 mandates
+- W4 | migration 3 adds `market`, `role`, and `pair_id` | the twins panel needs the pair, and claim needs to tell a twin from the pool | schema selftest versions `[1, 2, 3]`

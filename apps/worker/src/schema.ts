@@ -80,6 +80,14 @@ const STEPS: { version: number; apply: (sql: Sql) => void }[] = [
       sql.exec(`CREATE INDEX IF NOT EXISTS actions_proxy ON actions (proxy)`);
     },
   },
+  {
+    version: 3,
+    apply(sql) {
+      addColumn(sql, "pool", "market", "market TEXT NOT NULL DEFAULT ''");
+      addColumn(sql, "pool", "role", "role TEXT NOT NULL DEFAULT 'pool'");
+      addColumn(sql, "pool", "pair_id", "pair_id TEXT NOT NULL DEFAULT ''");
+    },
+  },
 ];
 
 export function migrate(sql: Sql): number[] {

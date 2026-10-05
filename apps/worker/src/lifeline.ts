@@ -1,6 +1,11 @@
 import { DurableObject } from "cloudflare:workers";
+import { mandateDomain, mandateTypes, type MandateMessage } from "@lifeline/core";
+import { getAddress, type Address, type Hex } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { coreEvaluator } from "./adapter.js";
 import { healthReport, pausedFlag, WORKER_VERSION } from "./health.js";
+import { parseRegistrations } from "./house.js";
+import { registerPool } from "./register.js";
 import { crudRoundTrip, migrate } from "./schema.js";
 
 const ALARM_MS = 2_000;
@@ -44,9 +49,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
   override async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/schema/selftest") {
-      if (!this.env.ADMIN_SECRET || request.headers.get("x-admin-secret") !== this.env.ADMIN_SECRET) {
-        return Response.json({ error: "unauthorized" }, { status: 401 });
-      }
+      if (!this.admin(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
       try {
         return Response.json(crudRoundTrip(this.ctx.storage.sql));
       } catch (error) {
@@ -54,10 +57,83 @@ export class Lifeline extends DurableObject<LifelineEnv> {
         return Response.json({ ok: false, error: message }, { status: 500 });
       }
     }
+    if (url.pathname === "/admin/pool" && request.method === "POST") return this.register(request);
+    const mandatePath = /^\/mandate\/(0x[0-9a-fA-F]{40})$/.exec(url.pathname);
+    if (mandatePath?.[1] && request.method === "GET") return this.mandate(mandatePath[1]);
     if (url.pathname !== "/health") return new Response("lifeline", { status: 404 });
     const alarm = await this.ctx.storage.getAlarm();
     if (alarm === null) await this.ctx.storage.setAlarm(Date.now() + 50);
     return Response.json(this.report());
+  }
+
+  private admin(request: Request): boolean {
+    return Boolean(this.env.ADMIN_SECRET) && request.headers.get("x-admin-secret") === this.env.ADMIN_SECRET;
+  }
+
+  private async register(request: Request): Promise<Response> {
+    if (!this.admin(request)) {
+      await request.body?.cancel();
+      return Response.json({ error: "unauthorized" }, { status: 401 });
+    }
+    let entries;
+    try {
+      entries = parseRegistrations(await request.json());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "bad request";
+      return Response.json({ error: message }, { status: 400 });
+    }
+    try {
+      const counts = await registerPool(
+        this.ctx.storage.sql,
+        entries,
+        (message) => this.signHouse(message),
+        BigInt(Math.floor(Date.now() / 1000)),
+      );
+      return Response.json(counts);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "error";
+      return Response.json({ error: message }, { status: 500 });
+    }
+  }
+
+  private async signHouse(message: MandateMessage): Promise<{ owner: Address; sig: Hex }> {
+    const key = this.env.POOL_OWNER_PK;
+    if (!/^0x[0-9a-fA-F]{64}$/.test(key)) throw new Error("pool owner key missing");
+    const account = privateKeyToAccount(key as Hex);
+    const sig = await account.signTypedData({
+      domain: mandateDomain(),
+      types: mandateTypes,
+      primaryType: "Mandate",
+      message,
+    });
+    return { owner: account.address, sig };
+  }
+
+  private mandate(proxyParam: string): Response {
+    let proxy: Address;
+    try {
+      proxy = getAddress(proxyParam);
+    } catch {
+      return Response.json({ error: "proxy" }, { status: 400 });
+    }
+    const row = this.ctx.storage.sql
+      .exec(
+        "SELECT owner, typed_data, sig, active, budget_used_cns, kind FROM mandates WHERE proxy = ?",
+        proxy,
+      )
+      .toArray()[0] as
+      | { owner: string; typed_data: string; sig: string; active: number; budget_used_cns: string; kind: string }
+      | undefined;
+    if (!row || Number(row.active) !== 1) return Response.json({ error: "not found" }, { status: 404 });
+    return Response.json({
+      proxy,
+      owner: row.owner,
+      kind: row.kind,
+      active: true,
+      budgetUsedCNS: row.budget_used_cns,
+      typedData: JSON.parse(row.typed_data) as unknown,
+      sig: row.sig,
+    });
   }
 
   private report() {
