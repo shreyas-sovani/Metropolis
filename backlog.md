@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), Phase 3 (P1–P3), and W1–W4 are done. **G4** is in progress: the UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label. **W5** is in its one-hour soak with 10 armed accounts, restarted after the extra pool accounts were registered. **W6** is in progress and its live drips are waiting on sponsor MON.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), Phase 3 (P1–P3), and W1–W4 and W6 are done. **G4** is in progress: the UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label. **W5** is in its one-hour soak with 10 armed accounts (`startedAt` 1791213417528). Next code that can land without a worker deploy is W7; deploying it restarts the soak clock.
 
 ---
 
@@ -707,7 +707,7 @@ The human can prepare these in advance.
   - No transaction type other than `increasePositionCollateral` is ever sent (check the `actions` table and the explorer).
 - **Evidence:** In progress. Keeper version `1e147efe-97ee-46dd-b46b-da55cd487d96`. Confirmed `increasePositionCollateral` only: `0x96442cfb` 20094 → 60604, `0xe99c0d38` 33749 → 59318, forced breach `0x1fbf4b1b` on `0xb4C851B0` 31699 → 56599 then the house mandate returned to 150/250. `pool:create --count 6 --market BTC` created the three extra accounts and printed `done 6/6`, then exited 1 because the breached account is outside the 2.0–3.5% band (`distanceE6=57618`). `pool:register` then reported `registered 14 mandates 10`. Soak reset at `startedAt` 1791213417528 with `armed` 10, `nonceErrors` 0, `pending` 0. The hour is still running.
 
-#### [~] W6 `POST /claim`
+#### [x] W6 `POST /claim`
 - **Type:** AGENT · **Depends on:** W2, W4 · **PRD:** §F4
 - **Do:**
   - Verify the token and enforce the rate limits.
@@ -720,7 +720,7 @@ The human can prepare these in advance.
   - A 4th claim from the same IP within an hour returns 429.
   - An empty pool returns 503 with `{sandbox:true}`.
   - p50 latency is ≤ 3 s over 5 claims.
-- **Evidence:** In progress. `pnpm --filter @lifeline/worker exec vitest run test/claim.test.ts test/claim-http.test.ts` passed. Selection prefers the closest BTC position above 1.5%. An empty pool returns 503 `{sandbox:true}`. A repeat user is 409 and a fourth IP claim is 429 in the gate. Live drips are not sent: the sponsor holds about 3.0007 MON, and five drips of 0.08 would cross the 3 MON floor. The route returns 503 `{error:"sponsor floor"}` in that case.
+- **Evidence:** Sponsor after the 20 MON transfer was `MON=22.9978`. `fund:mon` sent the operator +0.103301928 MON `0x95d90464`. Five live claims to `TEST_OWNER` `0x1bdD3ceeb704FF0881F77dEd498eDeB1dC011682` returned 200 in 1185, 977, 787, 707, and 720 ms, p50 787. The first claim `0xe3929EB4` (account 830, BTC, distance 20769) set `pendingOwner` to that wallet and raised its MON by 0.08 (`drip` `0x6d4e7558`, `transferOwnership` `0x700139c2`). The house mandate stayed `kind:house`. The same user again returned 409. The fourth claim from IP `203.0.113.10` returned 429. Empty pool 503 `{sandbox:true}` is the wrangler check in `test/claim-http.test.ts`. One pool position remains available. `/health` after the claims: `degraded:false`, `poolAvailable:1`.
 
 #### [ ] W7 `POST /arm`, `/disarm`, `/mandate/:proxy`
 - **Type:** AGENT · **Depends on:** W6, C5, C6 · **PRD:** §F5, §F7
@@ -1179,4 +1179,5 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - W5 | three more BTC accounts bring the armed set to 10, and the soak clock restarts after that register | the pass needs the whole hour at 10 or more armed accounts | `pool:register` `registered 14 mandates 10`; reset `armed` 10 at `startedAt` 1791213417528
 - W5 | `pool:create` can exit 1 after a successful create when an older account leaves the distance band | the forced breach left `0xb4C851B0` at distance 57618 | log line `inBand=false`, and `done 6/6`
 - W6 | a test claim is the admin secret plus the same wallet proof and a caller-supplied user id | five latency claims need five user ids, and one Privy guest is one user | empty `POST /claim` returned 503 `{sandbox:true}`
-- W6 | the 0.08 MON drip is refused when it would put the sponsor under 3 MON | the sponsor is on its floor | route returns 503 `{error:"sponsor floor"}` before sending
+- W6 | the 0.08 MON drip is refused when it would put the sponsor under 3 MON | the sponsor was on its floor before the 20 MON transfer | route returns 503 `{error:"sponsor floor"}` before sending
+- W6 | five latency claims share the test-owner wallet and use distinct user ids, with the admin secret gating that path | the pass needs five claims, one user, and an IP limit of three | p50 787 ms; first `pendingOwner` is the test owner; MON +0.08; repeat 409; fourth same-IP claim 429
