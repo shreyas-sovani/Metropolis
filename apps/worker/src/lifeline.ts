@@ -6,6 +6,7 @@ import { healthReport, pausedFlag, WORKER_VERSION } from "./health.js";
 import { parseRegistrations, signMandate } from "./house.js";
 import { registerPool } from "./register.js";
 import { crudRoundTrip, migrate } from "./schema.js";
+import { armPosition, disarmPosition, mandateFromBody } from "./arm.js";
 import { claimPosition, readClaimant } from "./claim.js";
 import { armBreach, noteGap, resetSoak, runKeeper, soakReport } from "./tick.js";
 
@@ -61,6 +62,8 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       }
     }
     if (url.pathname === "/claim" && request.method === "POST") return this.claim(request);
+    if (url.pathname === "/arm" && request.method === "POST") return this.arm(request);
+    if (url.pathname === "/disarm" && request.method === "POST") return this.disarm(request);
     if (url.pathname === "/admin/pool" && request.method === "POST") return this.register(request);
     if (url.pathname === "/admin/breach" && request.method === "POST") return this.breach(request);
     if (url.pathname === "/admin/soak" && request.method === "GET") return this.soak(request);
@@ -100,6 +103,36 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     } catch (error) {
       const message = error instanceof Error ? error.message : "error";
       return Response.json({ error: message }, { status: 500 });
+    }
+  }
+
+  private async arm(request: Request): Promise<Response> {
+    const claimant = await readClaimant(request, this.env);
+    if (claimant instanceof Response) return claimant;
+    try {
+      const body = (await request.json()) as { mandate?: Parameters<typeof mandateFromBody>[0]; signature?: Hex };
+      if (!body.mandate || !body.signature) return Response.json({ error: "mandate" }, { status: 400 });
+      return await armPosition(this.ctx.storage.sql, this.env, claimant, { mandate: body.mandate, signature: body.signature }, Date.now());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "error";
+      return Response.json({ error: message.slice(0, 180) }, { status: 400 });
+    }
+  }
+
+  private async disarm(request: Request): Promise<Response> {
+    const claimant = await readClaimant(request, this.env);
+    if (claimant instanceof Response) return claimant;
+    try {
+      const body = (await request.json()) as { proxy?: string; nonce?: string; signature?: Hex };
+      if (!body.proxy || !body.nonce || !body.signature) return Response.json({ error: "disarm" }, { status: 400 });
+      return await disarmPosition(this.ctx.storage.sql, this.env, claimant, {
+        proxy: body.proxy,
+        nonce: body.nonce,
+        signature: body.signature,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "error";
+      return Response.json({ error: message.slice(0, 180) }, { status: 400 });
     }
   }
 

@@ -101,6 +101,16 @@ const STEPS: { version: number; apply: (sql: Sql) => void }[] = [
       sql.exec(`INSERT OR IGNORE INTO keeper_stats (id, max_gap_ms, nonce_errors, started_at) VALUES (1, 0, 0, NULL)`);
     },
   },
+  {
+    version: 5,
+    apply(sql) {
+      sql.exec(`CREATE TABLE IF NOT EXISTS mandate_nonces (
+        proxy TEXT NOT NULL,
+        nonce TEXT NOT NULL,
+        PRIMARY KEY (proxy, nonce)
+      )`);
+    },
+  },
 ];
 
 export function migrate(sql: Sql): number[] {

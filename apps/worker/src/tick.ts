@@ -133,7 +133,6 @@ export async function runKeeper(sql: Sql, env: LifelineEnv, nowMs: number): Prom
   const block = await client.getBlockNumber();
   const nowSec = BigInt(Math.floor(nowMs / 1000));
   const operator = keyAccount(env.OPERATOR_PK, "operator");
-  let nonce = await operatorNonce(sql, client, operator.address);
   const wallet = createWalletClient({
     account: operator,
     chain: CHAINS[TESTNET_ID],
@@ -167,13 +166,14 @@ export async function runKeeper(sql: Sql, env: LifelineEnv, nowMs: number): Prom
     const capped = isCapped(decision.amountCNS, evalPosition, mandate);
     const built = increasePositionCollateralTx(getAddress(row.proxy), BigInt(row.perp_id), decision.amountCNS);
     try {
+      const nonce = await takeNonce(sql, client, "operator", operator.address);
       const hash = await wallet.sendTransaction({
         account: operator,
         chain: wallet.chain,
         to: built.to,
         data: built.data,
         gas: built.gas,
-        nonce: Number(nonce),
+        nonce,
         value: built.value,
       });
       sql.exec(
@@ -186,8 +186,6 @@ export async function runKeeper(sql: Sql, env: LifelineEnv, nowMs: number): Prom
         decision.distBefore.toString(),
         capped ? "capped" : "",
       );
-      sql.exec("UPDATE keys SET next_nonce = ? WHERE name = 'operator'", Number(nonce + 1n));
-      nonce += 1n;
       pending.add(key);
       console.log(`top-up ${row.proxy} ${row.perp_id} ${decision.amountCNS} ${hash}`);
     } catch (error) {
@@ -214,16 +212,6 @@ function isCapped(amount: bigint, position: EvalPosition | null, mandate: Mandat
   });
   const raw = desired > position.depositMicro ? desired - position.depositMicro : 0n;
   return amount < raw;
-}
-
-async function operatorNonce(sql: Sql, client: PublicClient, address: Address): Promise<bigint> {
-  const row = sql.exec("SELECT next_nonce FROM keys WHERE name = 'operator'").toArray()[0] as
-    | { next_nonce?: number }
-    | undefined;
-  if (row?.next_nonce !== undefined) return BigInt(row.next_nonce);
-  const count = await client.getTransactionCount({ address, blockTag: "pending" });
-  sql.exec("INSERT INTO keys (name, next_nonce) VALUES ('operator', ?)", count);
-  return BigInt(count);
 }
 
 function lastActionBlock(sql: Sql, proxy: string, perpId: string): bigint | null {
@@ -427,6 +415,28 @@ export async function readDistances(
     out.set(getAddress(row.proxy), distanceOf(toEvalPosition(position, market)));
   }
   return out;
+}
+
+export async function readAccountState(
+  env: LifelineEnv,
+  row: { proxy: string; account_id: string; perp_id: string },
+): Promise<{ position: EvalPosition; freeCNS: bigint; block: bigint } | null> {
+  const chain = openChain(TESTNET_ID, { urls: urlsOf(env), timeout: 8_000 });
+  const accounts = await chain.readAccounts([BigInt(row.account_id)]);
+  const exchange = ADDRESSES[TESTNET_ID].exchange;
+  const positions = await readPositions(chain.client, exchange, [
+    { ...row, role: "pool", typed_data: "", budget_used_cns: "0", active: 1 },
+  ]);
+  const markets = await readMarkets(chain.client, exchange, [row.perp_id]);
+  const market = markets.get(row.perp_id);
+  const position = positions.get(`${row.proxy}:${row.perp_id}`);
+  if (!market || !position) return null;
+  const block = await chain.client.getBlockNumber();
+  return {
+    position: toEvalPosition(position, market),
+    freeCNS: accounts[0]?.freeCNS ?? 0n,
+    block,
+  };
 }
 
 export async function takeNonce(sql: Sql, client: PublicClient, name: string, address: Address): Promise<number> {

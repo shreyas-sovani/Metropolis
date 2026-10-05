@@ -19,6 +19,9 @@ const handler: ExportedHandler<Env> = {
     if (url.pathname === "/claim" && request.method === "POST") {
       return stub.fetch(request);
     }
+    if ((url.pathname === "/arm" || url.pathname === "/disarm") && request.method === "POST") {
+      return stub.fetch(request);
+    }
     if (
       url.pathname === "/schema/selftest" ||
       url.pathname === "/admin/pool" ||

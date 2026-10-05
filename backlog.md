@@ -722,7 +722,7 @@ The human can prepare these in advance.
   - p50 latency is ≤ 3 s over 5 claims.
 - **Evidence:** Sponsor after the 20 MON transfer was `MON=22.9978`. `fund:mon` sent the operator +0.103301928 MON `0x95d90464`. Five live claims to `TEST_OWNER` `0x1bdD3ceeb704FF0881F77dEd498eDeB1dC011682` returned 200 in 1185, 977, 787, 707, and 720 ms, p50 787. The first claim `0xe3929EB4` (account 830, BTC, distance 20769) set `pendingOwner` to that wallet and raised its MON by 0.08 (`drip` `0x6d4e7558`, `transferOwnership` `0x700139c2`). The house mandate stayed `kind:house`. The same user again returned 409. The fourth claim from IP `203.0.113.10` returned 429. Empty pool 503 `{sandbox:true}` is the wrangler check in `test/claim-http.test.ts`. One pool position remains available. `/health` after the claims: `degraded:false`, `poolAvailable:1`.
 
-#### [ ] W7 `POST /arm`, `/disarm`, `/mandate/:proxy`
+#### [~] W7 `POST /arm`, `/disarm`, `/mandate/:proxy`
 - **Type:** AGENT · **Depends on:** W6, C5, C6 · **PRD:** §F5, §F7
 - **Do:**
   - `/arm` verifies the token, validates the mandate (C5), and checks the signer equals `owner()` by `eth_call`. It then stores the mandate, retires the house mandate, evaluates immediately, and if needed sends and waits for the top-up.
@@ -734,7 +734,7 @@ The human can prepare these in advance.
   - A mandate signed by a non-owner returns 403.
   - A replayed nonce returns 409.
   - After disarm, a forced breach produces no action.
-- **Evidence:**
+- **Evidence:** In progress, not deployed. The route is local so the W5 soak clock stays intact. `POST /arm` checks the EIP-712 signer against `owner()`, stores a user mandate, and retires the house mandate. Disarm is EIP-191 `lifeline-disarm:<proxy>:<nonce>`. The test owner accepted `0xe3929EB4` in `0xbca91b70` and is now `owner()`. Live arm trials wait for the soak hour to finish.
 
 #### [ ] W8 `GET /twins` and sandbox mode
 - **Type:** AGENT · **Depends on:** W5, C8 · **PRD:** §F8, §F4 fallback
@@ -1181,3 +1181,5 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - W6 | a test claim is the admin secret plus the same wallet proof and a caller-supplied user id | five latency claims need five user ids, and one Privy guest is one user | empty `POST /claim` returned 503 `{sandbox:true}`
 - W6 | the 0.08 MON drip is refused when it would put the sponsor under 3 MON | the sponsor was on its floor before the 20 MON transfer | route returns 503 `{error:"sponsor floor"}` before sending
 - W6 | five latency claims share the test-owner wallet and use distinct user ids, with the admin secret gating that path | the pass needs five claims, one user, and an IP limit of three | p50 787 ms; first `pendingOwner` is the test owner; MON +0.08; repeat 409; fourth same-IP claim 429
+- W7 | disarm is an EIP-191 personal signature, separate from the EIP-712 mandate | the backlog leaves the disarm encoding open | message `lifeline-disarm:<proxy>:<nonce>`
+- W7 | the arm route stays undeployed until the W5 hour finishes | a worker deploy opens an alarm gap larger than 10 s | test owner accepted `0xe3929EB4` via `0xbca91b70` and is `owner()`
