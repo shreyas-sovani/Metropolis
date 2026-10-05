@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
   ADDRESSES,
@@ -97,20 +97,16 @@ async function historical(root: string): Promise<number> {
   ]);
   const events = liqLogs.map((log) => decodePositionLiquidated(log));
   const wanted = new Set(events.map((event) => `${event.posAccountId}:${event.perpId}`));
-  console.error(`historical liquidations=${events.length} keys=${wanted.size}`);
-  const steps = new Map<string, LifecycleStep[]>();
-  const topics = [eventTopic0("PositionOpened")];
-  let cursor = 108_000_000;
-  const floor = 54_000_000;
-  while (cursor > floor && replayedCount(events, steps) < 20) {
-    const from = Math.max(floor, cursor - 1_000_000);
-    const page: HyperSyncLog[] = [];
-    for (const topic of topics) {
-      const fetched = await queryLogs(endpoint, token, exchange, from, cursor, [topic]);
-      for (const log of fetched) page.push(log);
-    }
+  console.error(`historical liquidations=${events.length} keys=${wanted.size} head=${head}`);
+  const saved = loadProgress(root);
+  const steps = saved.steps;
+  const topics = LIFECYCLE_EVENTS.map((name) => eventTopic0(name));
+  let from = saved.from;
+  const end = 108_000_000;
+  while (from < end) {
+    const page = await queryOnce(endpoint, token, exchange, from, end, topics);
     let kept = 0;
-    for (const log of page) {
+    for (const log of page.logs) {
       const step = stepFrom(log);
       if (!step || !wanted.has(step.key)) continue;
       const list = steps.get(step.key) ?? [];
@@ -118,8 +114,14 @@ async function historical(root: string): Promise<number> {
       steps.set(step.key, list);
       kept += 1;
     }
-    console.error(`chunk ${from}-${cursor} logs=${page.length} kept=${kept} ready=${replayedCount(events, steps)}`);
-    cursor = from;
+    from = page.next <= from ? from + 1 : Math.min(page.next, end);
+    saveProgress(root, from, steps);
+    console.error(
+      `scan at=${from} pageLogs=${page.logs.length} kept=${kept} ready=${replayedCount(events, steps)} budget=${page.remaining ?? "?"}`,
+    );
+    if (page.remaining !== undefined && page.cost !== undefined && page.remaining < page.cost) {
+      await sleep((page.resetSecs ?? 60) * 1000);
+    }
   }
 
   const client = createPublicClient({
@@ -205,13 +207,15 @@ async function queryOnce(
   fromBlock: number,
   toBlock: number,
   topics: string[],
-): Promise<{ logs: HyperSyncLog[]; next: number }> {
-  for (let attempt = 0; attempt < 8; attempt += 1) {
+): Promise<{ logs: HyperSyncLog[]; next: number; remaining?: number; cost?: number; resetSecs?: number }> {
+  for (;;) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60_000);
     let response: Response;
     try {
       response = await fetch(`${endpoint}/query`, {
         method: "POST",
-        signal: AbortSignal.timeout(25_000),
+        signal: controller.signal,
         headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
         body: JSON.stringify({
           from_block: fromBlock,
@@ -224,10 +228,14 @@ async function queryOnce(
       console.error(`hypersync timeout ${fromBlock}-${toBlock} ${error instanceof Error ? error.name : "error"}`);
       await sleep(3_000);
       continue;
+    } finally {
+      clearTimeout(timer);
     }
+    const limit = rateHeaders(response);
     if (response.status === 429) {
-      console.error(`hypersync 429 ${fromBlock}-${toBlock}`);
-      await sleep(8_000 + attempt * 4_000);
+      const wait = (limit.resetSecs ?? 60) + 1;
+      console.error(`hypersync 429 ${fromBlock} wait=${wait}s`);
+      await sleep(wait * 1000);
       continue;
     }
     if (!response.ok) throw new Error(`hypersync status ${response.status}`);
@@ -236,9 +244,65 @@ async function queryOnce(
       data?: { logs?: HyperSyncLog[] }[];
     };
     const logs = (body.data ?? []).flatMap((group) => group.logs ?? []);
-    return { logs, next: body.next_block ?? toBlock };
+    return { logs, next: body.next_block ?? toBlock, ...limit };
   }
-  throw new Error("hypersync status 429");
+}
+
+function rateHeaders(response: Response): { remaining?: number; cost?: number; resetSecs?: number } {
+  const remaining = Number(response.headers.get("x-ratelimit-remaining"));
+  const cost = Number(response.headers.get("x-ratelimit-cost"));
+  const resetSecs = Number(response.headers.get("x-ratelimit-reset"));
+  return {
+    remaining: Number.isFinite(remaining) ? remaining : undefined,
+    cost: Number.isFinite(cost) ? cost : undefined,
+    resetSecs: Number.isFinite(resetSecs) ? resetSecs : undefined,
+  };
+}
+
+function progressPath(root: string): string {
+  return path.join(root, "cli-state", "gate-4-progress.json");
+}
+
+function loadProgress(root: string): { from: number; steps: Map<string, LifecycleStep[]> } {
+  try {
+    const parsed = JSON.parse(readFileSync(progressPath(root), "utf8")) as {
+      from: number;
+      steps: Record<string, LifecycleStep[]>;
+    };
+    const steps = new Map<string, LifecycleStep[]>();
+    for (const [key, list] of Object.entries(parsed.steps)) {
+      steps.set(key, list.map(reviveStep));
+    }
+    return { from: parsed.from, steps };
+  } catch {
+    return { from: 54_000_000, steps: new Map() };
+  }
+}
+
+function saveProgress(root: string, from: number, steps: Map<string, LifecycleStep[]>): void {
+  const dir = path.join(root, "cli-state");
+  mkdirSync(dir, { recursive: true });
+  const encoded: Record<string, unknown[]> = {};
+  for (const [key, list] of steps) encoded[key] = list.map(freezeStep);
+  writeFileSync(progressPath(root), JSON.stringify({ from, steps: encoded }));
+}
+
+function freezeStep(step: LifecycleStep): Record<string, string | number> {
+  const out: Record<string, string | number> = { kind: step.kind, block: step.block, index: step.index };
+  for (const [key, value] of Object.entries(step)) {
+    if (key === "kind" || key === "block" || key === "index") continue;
+    out[key] = typeof value === "bigint" ? value.toString() : (value as number);
+  }
+  return out;
+}
+
+function reviveStep(raw: LifecycleStep): LifecycleStep {
+  const step = { ...raw } as Record<string, unknown>;
+  for (const key of Object.keys(step)) {
+    if (key === "kind" || key === "block" || key === "index" || key === "positionType") continue;
+    if (typeof step[key] === "string") step[key] = BigInt(step[key] as string);
+  }
+  return step as LifecycleStep;
 }
 
 function sleep(ms: number): Promise<void> {
