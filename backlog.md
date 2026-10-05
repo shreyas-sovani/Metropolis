@@ -667,13 +667,13 @@ The human can prepare these in advance.
   - `wrangler secret list` shows every required name, and the secret sync prints no values.
 - **Evidence:** `wrangler deploy` uploaded `lifeline` version `322ad00c-6819-4152-a172-b3e791803586`. `curl https://lifeline.lifeline-shreyas.workers.dev/health` returned `{"lastAlarmAt":null,"ticksLast10m":0,"degraded":false,"paused":false,"poolAvailable":0,"version":"1"}`. `pnpm cli secrets:sync-worker` printed only `secret <name> set` for all eight names. `wrangler secret list` shows `OPERATOR_PK`, `POOL_OWNER_PK`, `SPONSOR_PK`, `ADMIN_SECRET`, `PRIVY_APP_ID`, `PRIVY_VERIFICATION_KEY`, `RPC_URLS_TESTNET`, and `LIFELINE_PAUSED`.
 
-#### [ ] W2 Privy access-token verification
+#### [~] W2 Privy access-token verification
 - **Type:** AGENT · **Depends on:** W1, G2 · **PRD:** §5.4
 - **Do:** Middleware verifies the ES256 JWT using Web Crypto and `PRIVY_VERIFICATION_KEY`, checking issuer, audience (the app ID), and expiry. It resolves the Privy user ID and the embedded wallet address, either from token claims or from a client-supplied address checked against a signed nonce. Choose the most robust option and log it in §9.
 - **Pass:**
   - A real token from the G2 page is accepted.
   - Expired, tampered, and wrong-audience tokens each return 401.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/worker exec vitest run test/privy.test.ts` passed. Expired, tampered, and wrong-audience tokens return 401. A matching ES256 token is accepted and yields `sub`. Wallet addresses are accepted only when a signature over `lifeline:userId:address:nonce` recovers to that address, because Privy access tokens do not carry the embedded wallet. Deployed as `d56954e5-bd0c-4a58-b3e3-c055c1b3aa95` at `GET /session`. The real G2-page token is still required before this task is `[x]`.
 
 #### [ ] W3 Schema and migrations
 - **Type:** AGENT · **Depends on:** W1 · **PRD:** §5.5
@@ -1169,3 +1169,4 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - P3 | the sponsor sent the pool owner only the MON still above the 3 MON floor | topping up to 5 MON would have broken the sponsor floor | partial `0xf362ef64` of 0.559593068 MON
 - W1 | the product Worker is `lifeline` and the G3 soak Worker `lifeline-gate3` stays deployed | the production name was kept free during the gate | `https://lifeline.lifeline-shreyas.workers.dev/health` `degraded:false`
 - W1 | `degraded` is false until an alarm stores an error | a fresh Durable Object has no ticks, and the pass check requires `degraded:false` | health JSON above, `poolAvailable` 0
+- W2 | the embedded wallet is proven with a signed nonce, not read from an unverified header | Privy access tokens carry `sub`, `iss` `privy.io`, `aud`, and `exp`, and not the wallet | unit test rejects a signature bound to a different user id
