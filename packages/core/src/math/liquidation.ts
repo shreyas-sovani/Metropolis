@@ -13,6 +13,14 @@ export const BUCKET_STEP = 2_500n;
 export const BUCKET_MIN = -150_000n;
 export const BUCKET_MAX = 150_000n;
 
+export function priceToMicro(pricePNS: bigint, priceDecimals: number): bigint {
+  return (pricePNS * MICRO) / 10n ** BigInt(priceDecimals);
+}
+
+export function lotToScaled(lotLNS: bigint, lotDecimals: number): bigint {
+  return (lotLNS * LOT_SCALE) / 10n ** BigInt(lotDecimals);
+}
+
 export function lotFromNotional(entryMicro: bigint, notionalMicro: bigint): bigint {
   if (entryMicro <= 0n) throw new Error("entry must be positive");
   return (notionalMicro * LOT_SCALE) / entryMicro;

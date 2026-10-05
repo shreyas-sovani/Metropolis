@@ -13,7 +13,9 @@ export {
   distanceE6,
   liquidationPriceMicro,
   lotFromNotional,
+  lotToScaled,
   maintenanceMargin,
+  priceToMicro,
   notionalMicro,
   targetPriceMicro,
 } from "./liquidation.js";
