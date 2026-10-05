@@ -55,17 +55,20 @@ interface PendingRow {
   reason: string;
 }
 
-export function noteGap(sql: Sql, now: number) {
-  const previous = sql.exec("SELECT MAX(at) AS at FROM ticks").toArray()[0] as { at?: number | null } | undefined;
+export function noteGap(sql: Sql, now: number, prior: number | null, cached: { startedAt: number | null; maxGapMs: number } | null): { startedAt: number | null; maxGapMs: number } {
+  const stats = cached ?? loadGap(sql);
+  if (prior === null || stats.startedAt === null || prior < stats.startedAt) return stats;
+  const gap = now - prior;
+  if (gap <= stats.maxGapMs) return stats;
+  sql.exec("UPDATE keeper_stats SET max_gap_ms = ? WHERE id = 1", gap);
+  return { startedAt: stats.startedAt, maxGapMs: gap };
+}
+
+function loadGap(sql: Sql): { startedAt: number | null; maxGapMs: number } {
   const stats = sql.exec("SELECT started_at, max_gap_ms FROM keeper_stats WHERE id = 1").toArray()[0] as
     | { started_at?: number | null; max_gap_ms?: number }
     | undefined;
-  const prior = previous?.at ?? null;
-  const started = stats?.started_at ?? null;
-  if (prior === null || started === null || prior < started) return;
-  const gap = now - prior;
-  const max = Number(stats?.max_gap_ms ?? 0);
-  if (gap > max) sql.exec("UPDATE keeper_stats SET max_gap_ms = ? WHERE id = 1", gap);
+  return { startedAt: stats?.started_at ?? null, maxGapMs: Number(stats?.max_gap_ms ?? 0) };
 }
 
 export function storedMandate(proxy: Address, typed: string): MandateMessage {

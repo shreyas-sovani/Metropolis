@@ -25,6 +25,10 @@ export interface LifelineEnv {
 }
 
 export class Lifeline extends DurableObject<LifelineEnv> {
+  private ticks: number[] = [];
+  private knownError: string | null | undefined;
+  private gap: { startedAt: number | null; maxGapMs: number } | null = null;
+
   constructor(ctx: DurableObjectState, env: LifelineEnv) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
@@ -34,17 +38,19 @@ export class Lifeline extends DurableObject<LifelineEnv> {
 
   override async alarm(): Promise<void> {
     const started = Date.now();
+    const prior = this.ticks[this.ticks.length - 1] ?? null;
+    this.ticks.push(started);
+    const cutoff = started - WINDOW_MS;
+    while (this.ticks[0] !== undefined && this.ticks[0] < cutoff) this.ticks.shift();
     let error: string | null = null;
     try {
       if (typeof coreEvaluator() !== "function") throw new Error("core missing");
-      noteGap(this.ctx.storage.sql, started);
-      this.ctx.storage.sql.exec("INSERT INTO ticks (at) VALUES (?)", started);
-      this.ctx.storage.sql.exec("DELETE FROM ticks WHERE at < ?", started - WINDOW_MS);
+      this.gap = noteGap(this.ctx.storage.sql, started, prior, this.gap);
       await runKeeper(this.ctx.storage.sql, this.env, started);
-      this.ctx.storage.sql.exec("UPDATE health_state SET last_error = NULL WHERE id = 1");
+      this.rememberError(null);
     } catch (caught) {
       error = caught instanceof Error ? caught.message.slice(0, 180) : "error";
-      this.ctx.storage.sql.exec("UPDATE health_state SET last_error = ? WHERE id = 1", error);
+      this.rememberError(error);
     } finally {
       await this.ctx.storage.setAlarm(Date.now() + ALARM_MS);
     }
@@ -213,12 +219,17 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     });
   }
 
+  private rememberError(error: string | null) {
+    if (this.knownError === error) return;
+    this.knownError = error;
+    this.ctx.storage.sql.exec("UPDATE health_state SET last_error = ? WHERE id = 1", error);
+  }
+
   private report() {
     const now = Date.now();
-    const ticks = this.ctx.storage.sql
-      .exec("SELECT at FROM ticks WHERE at >= ? ORDER BY at", now - WINDOW_MS)
-      .toArray() as { at: number }[];
-    const last = ticks[ticks.length - 1];
+    const cutoff = now - WINDOW_MS;
+    const ticks = this.ticks.filter((at) => at >= cutoff);
+    const last = ticks[ticks.length - 1] ?? null;
     const state = this.ctx.storage.sql
       .exec("SELECT last_error FROM health_state WHERE id = 1")
       .toArray() as { last_error: string | null }[];
@@ -226,7 +237,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       .exec("SELECT COUNT(*) AS n FROM pool WHERE status = 'available'")
       .toArray() as { n: number }[];
     return healthReport({
-      lastAlarmAt: last?.at ?? null,
+      lastAlarmAt: last,
       ticksLast10m: ticks.length,
       lastError: state[0]?.last_error ?? null,
       paused: pausedFlag(this.env.LIFELINE_PAUSED),

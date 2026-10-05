@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), Phase 3 (P1–P3), and W1–W4 and W6 are done. **G4** finished its scan through block 108,000,000. The UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label. **W5** is in its one-hour soak with 10 armed accounts (`startedAt` 1791213417528). Next code that can land without a worker deploy is W7; deploying it restarts the soak clock.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), Phase 3 (P1–P3), and W1–W4 and W6 are done. **G4** finished its scan through block 108,000,000. The UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label. **W5** passed its hour. Next is the live W7 arm trial.
 
 ---
 
@@ -692,7 +692,7 @@ The human can prepare these in advance.
   - Unprotected twins return 404.
 - **Evidence:** `pnpm --filter @lifeline/worker exec vitest run test/house.test.ts test/register.test.ts test/schema.test.ts` passed. `wrangler deploy` uploaded `lifeline` version `97e2bde4-bd47-430c-bf6a-1cfad5aad5b1`. `pnpm cli pool:register` exit 0 twice: `registered 11 mandates 7`. Three pool accounts at 1.5%/2.5% and four protected twins at 4%/6%, budget `300000000`, each signature recovered to pool owner `0xC417c69e72d3531f736353BA16A1eA365DD2f056`, which matches `owner()`. Unprotected `0xfBcABCde`, `0x9F8FD580`, `0x2817a172`, and `0xbE9282D7` returned 404. `GET /health` returned `poolAvailable:3`.
 
-#### [~] W5 Keeper alarm loop
+#### [x] W5 Keeper alarm loop
 - **Type:** AGENT · **Depends on:** W4, C6, C7 · **PRD:** §F6, §5.5
 - **Do:**
   - Every 2 s: load active mandates, batch-read positions and accounts with Multicall3, evaluate, and send at most one top-up per position per tick, serialized through the operator key with local nonce tracking.
@@ -705,7 +705,7 @@ The human can prepare these in advance.
   - **Forced breach:** use the admin route to temporarily arm a canary mandate with a trigger above the current distance. A confirmed top-up must land within 2 ticks plus 2 blocks.
   - The distance after a top-up is within [target − 0.2%, target + 0.5%], unless a cap bound it; capped results carry a `capped` reason.
   - No transaction type other than `increasePositionCollateral` is ever sent (check the `actions` table and the explorer).
-- **Evidence:** In progress. Keeper version `1e147efe-97ee-46dd-b46b-da55cd487d96`. Confirmed `increasePositionCollateral` only: `0x96442cfb` 20094 → 60604, `0xe99c0d38` 33749 → 59318, forced breach `0x1fbf4b1b` on `0xb4C851B0` 31699 → 56599 then the house mandate returned to 150/250. `pool:create --count 6 --market BTC` created the three extra accounts and printed `done 6/6`, then exited 1 because the breached account is outside the 2.0–3.5% band (`distanceE6=57618`). `pool:register` then reported `registered 14 mandates 10`. Soak reset at `startedAt` 1791213417528 with `armed` 10, `nonceErrors` 0, `pending` 0. The hour is still running.
+- **Evidence:** Soak from `startedAt` 1791213417528 ran 139 minutes with `armed` 10, `nonceErrors` 0, `pending` 0, `maxGapMs` 6497. Five confirmed actions, all `increasePositionCollateral`: `0x96442cfb` 20094 → 60604, `0xe99c0d38` 33749 → 59318, breach `0x1fbf4b1b` 31699 → 56599, `0x5dc1f61e` 39596 → 60000, `0xd44d55a8` 14981 → 25326. The per-tick SQLite writes are removed in version `470e20d7-a04a-4c1c-b5ff-b64f63a6d7a2`; `/health` then showed `ticksLast10m` 3 from memory. `lifeline-gate3` version `551e22e2-06a4-442b-934e-a2bec960323a` no longer reschedules its alarm.
 
 #### [x] W6 `POST /claim`
 - **Type:** AGENT · **Depends on:** W2, W4 · **PRD:** §F4
@@ -1184,3 +1184,4 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - W6 | five latency claims share the test-owner wallet and use distinct user ids, with the admin secret gating that path | the pass needs five claims, one user, and an IP limit of three | p50 787 ms; first `pendingOwner` is the test owner; MON +0.08; repeat 409; fourth same-IP claim 429
 - W7 | disarm is an EIP-191 personal signature, separate from the EIP-712 mandate | the backlog leaves the disarm encoding open | message `lifeline-disarm:<proxy>:<nonce>`
 - W7 | the arm route stays undeployed until the W5 hour finishes | a worker deploy opens an alarm gap larger than 10 s | test owner accepted `0xe3929EB4` via `0xbca91b70` and is `owner()`
+- W5 | alarm timestamps stay in the isolate, and `health_state` is updated only when the error changes | each tick inserted a row, deleted a row, and updated health, and `lifeline-gate3` inserted another row every 2 s; that reached 90% of the 100,000 daily rows-written cap | after the cut, `/health` `ticksLast10m` is 3 and gate3 returns `{"stopped":true}`

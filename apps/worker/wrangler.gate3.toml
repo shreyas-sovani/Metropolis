@@ -1,0 +1,12 @@
+name = "lifeline-gate3"
+account_id = "00a236b4c4343ac5632817f03e253bd3"
+main = "src/gate3-stop.ts"
+compatibility_date = "2026-01-01"
+
+[[durable_objects.bindings]]
+name = "KEEPER"
+class_name = "Keeper"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Keeper"]
