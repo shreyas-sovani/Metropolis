@@ -16,6 +16,10 @@ const handler: ExportedHandler<Env> = {
     if (url.pathname === "/session" && request.method === "GET") {
       return session(request, env);
     }
+    if (url.pathname === "/schema/selftest") {
+      const stub = env.LIFELINE.get(env.LIFELINE.idFromName("lifeline"));
+      return stub.fetch(request);
+    }
     return new Response("lifeline", { status: 404 });
   },
 };

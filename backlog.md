@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), Phase 3 (P1–P3), and W1 are done. **G4** is in progress: the UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label. The historical scan is running again from the checkpoint. Next is W2.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, Phase 2 (C1–C8), Phase 3 (P1–P3), W1, W2, and W3 are done. **G4** is in progress: the UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label. The historical scan is running again from the checkpoint. Next is W4.
 
 ---
 
@@ -675,11 +675,11 @@ The human can prepare these in advance.
   - Expired, tampered, and wrong-audience tokens each return 401.
 - **Evidence:** `pnpm --filter @lifeline/worker exec vitest run test/privy.test.ts` passed. Expired, tampered, and wrong-audience tokens return 401. The guest token from the gate page, stored in `secrets/w2-token`, verified locally and `GET /session` returned 200 for user `did:privy:cmuubqhla00h80cl2otqo1oke` with `address` null. Wallet proof stays a signed nonce because the access token has no wallet claim.
 
-#### [ ] W3 Schema and migrations
+#### [x] W3 Schema and migrations
 - **Type:** AGENT · **Depends on:** W1 · **PRD:** §5.5
 - **Do:** Create the `pool`, `claims`, `mandates`, `actions`, `keys`, and `health` tables, plus any indexes you need, with migrations versioned in code.
 - **Pass:** Migrations are idempotent (applying twice is a no-op), and a round-trip CRUD test passes in `wrangler dev`.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/worker exec vitest run test/schema.test.ts` passed in wrangler dev. Two `POST /schema/selftest` calls both returned `{ok:true, versions:[1,2]}`. The round trip inserted, read, updated, and deleted `pool`, `claims`, `mandates`, `actions`, `keys`, and `health`.
 
 #### [ ] W4 Pool registration and house mandates
 - **Type:** AGENT · **Depends on:** W3, P2, P3 · **PRD:** §5.9 step 6, §F4, §F8
@@ -1169,4 +1169,5 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - P3 | the sponsor sent the pool owner only the MON still above the 3 MON floor | topping up to 5 MON would have broken the sponsor floor | partial `0xf362ef64` of 0.559593068 MON
 - W1 | the product Worker is `lifeline` and the G3 soak Worker `lifeline-gate3` stays deployed | the production name was kept free during the gate | `https://lifeline.lifeline-shreyas.workers.dev/health` `degraded:false`
 - W1 | `degraded` is false until an alarm stores an error | a fresh Durable Object has no ticks, and the pass check requires `degraded:false` | health JSON above, `poolAvailable` 0
-- W2 | the embedded wallet is proven with a signed nonce, not read from an unverified header | Privy access tokens carry `sub`, `iss` `privy.io`, `aud`, and `exp`, and not the wallet | unit test rejects a signature bound to a different user id
+- W2 | the embedded wallet is proven with a signed nonce, not read from an unverified header | Privy access tokens carry `sub`, `iss` `privy.io`, `aud`, and `exp`, and not the wallet | unit test rejects a signature bound to a different user id; guest `GET /session` returned 200
+- W3 | schema versions live in `schema_migrations` and columns are added only when missing | the gate Durable Object already had a narrower `pool` table | second selftest returned the same versions `[1, 2]`

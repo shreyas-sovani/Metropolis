@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { coreEvaluator } from "./adapter.js";
 import { healthReport, pausedFlag, WORKER_VERSION } from "./health.js";
+import { crudRoundTrip, migrate } from "./schema.js";
 
 const ALARM_MS = 2_000;
 const WINDOW_MS = 10 * 60 * 1000;
@@ -20,25 +21,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
   constructor(ctx: DurableObjectState, env: LifelineEnv) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
-      this.ctx.storage.sql.exec(`
-        CREATE TABLE IF NOT EXISTS ticks (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          at INTEGER NOT NULL
-        )
-      `);
-      this.ctx.storage.sql.exec(`
-        CREATE TABLE IF NOT EXISTS health_state (
-          id INTEGER PRIMARY KEY CHECK (id = 1),
-          last_error TEXT
-        )
-      `);
-      this.ctx.storage.sql.exec(`
-        CREATE TABLE IF NOT EXISTS pool (
-          proxy TEXT PRIMARY KEY,
-          status TEXT NOT NULL
-        )
-      `);
-      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO health_state (id, last_error) VALUES (1, NULL)");
+      migrate(this.ctx.storage.sql);
     });
   }
 
@@ -60,6 +43,17 @@ export class Lifeline extends DurableObject<LifelineEnv> {
 
   override async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname === "/schema/selftest") {
+      if (!this.env.ADMIN_SECRET || request.headers.get("x-admin-secret") !== this.env.ADMIN_SECRET) {
+        return Response.json({ error: "unauthorized" }, { status: 401 });
+      }
+      try {
+        return Response.json(crudRoundTrip(this.ctx.storage.sql));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "error";
+        return Response.json({ ok: false, error: message }, { status: 500 });
+      }
+    }
     if (url.pathname !== "/health") return new Response("lifeline", { status: 404 });
     const alarm = await this.ctx.storage.getAlarm();
     if (alarm === null) await this.ctx.storage.setAlarm(Date.now() + 50);
