@@ -1,4 +1,16 @@
 export {
+  blocksForDays,
+  filterLifelineActions,
+  idleAtLiquidation,
+  lifelineActions,
+  liquidationHistory,
+  summarizeLiquidations,
+  type LifelineAction,
+  type LiquidationHistory,
+  type LiquidationRow,
+  type MarketScale,
+} from "./analytics.js";
+export {
   firstExchangeLogBlock,
   paginateLogs,
   queryHyperSync,

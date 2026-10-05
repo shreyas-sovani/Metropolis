@@ -15,7 +15,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0 and gates G5, G8, G6, G1, G7, G3, and G2 are done. C1 is done. **G4** is in progress: the UI check passed and the historical median did not, so `CALIBRATED` stays false.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, and G2, and Phase 2 (C1–C8) are done. **G4** is in progress: the UI check passed and the historical median did not, so `CALIBRATED` stays false. That blocks only the "est." label.
 
 ---
 
@@ -500,7 +500,7 @@ The human can prepare these in advance.
   - For step b, the median relative error is ≤ 0.1% over the events checked. If fewer than 5 events exist, log that and rely on a and c.
   - When all of this passes, flip the config flag `CALIBRATED=true`, which removes the "est." labels (H9).
 - **Fallback:** If the error is above 0.1%, investigate funding sign, maintenance-fraction scaling, and lot or price decimals. Until it passes, keep "est." labels and continue the other work; this gate blocks only the label removal.
-- **Evidence:** Step a passes in C1. Step c: the Perpl testnet UI showed 83650.6 for calibration account `0xE928c690D27326bc561A2d07fad3dFAca4815ed6` (id 821, BTC long, lot 100, entryPNS 860220, depositCNS 5734800). With funding 0 and MMF 25 ours is 83728.08. |83728.08 − 83650.6| / 83650.6 = 0.0926%, within 0.1%. Step b: 8 of 115 recent liquidations could be tied to a `PositionOpened` while walking back to block 54,000,000. Median relative error was 0.1388 using the event funding as positive and 0.1293 using it as negative. Both are above 0.1%. Those positions' lots had changed since the open (for example open lot 144 versus liquidated lot 11059), and paging `PositionIncreased` with the other lifecycle events hits HyperSync 429 before a full replay finishes. `CALIBRATED` stays false.
+- **Evidence:** Step a passes in C1. Step c: the Perpl testnet UI showed 83650.6 for calibration account `0xE928c690D27326bc561A2d07fad3dFAca4815ed6` (id 821, BTC long, lot 100, entryPNS 860220, depositCNS 5734800). With funding 0 and MMF 25 ours is 83728.08. |83728.08 − 83650.6| / 83650.6 = 0.0926%, within 0.1%. Step b: 8 of 115 recent liquidations could be tied to a `PositionOpened` while walking back to block 54,000,000. Median relative error was 0.1388 using the event funding as positive and 0.1293 using it as negative. Both are above 0.1%. Those positions' lots had changed since the open (for example open lot 144 versus liquidated lot 11059). The historical scan now checkpoints `cli-state/gate-4-progress.json` and waits out HyperSync 429s using the rate-limit reset header. `CALIBRATED` stays false. This gate blocks only the "est." label removal.
 
 ### Phase 2: Core library (`packages/core`)
 
@@ -519,7 +519,7 @@ The human can prepare these in advance.
   - Line coverage of `src/math` is ≥ 95%.
 - **Evidence:** `pnpm --filter @lifeline/core exec vitest run test/math.test.ts` passed 7 tests. Docs example is exact (MMR 4000, P_liq 94000). PRD demo is within the allowed dollar and AUSD tolerances. v8 line coverage of `src/math` is 100%.
 
-#### [ ] C2 Chain readers
+#### [x] C2 Chain readers
 - **Type:** AGENT · **Depends on:** G8 · **PRD:** §5.2
 - **Do:**
   - Turn the G8 readers into a library API: `listPerps`, `readMarket`, `readAllPositions`, `readAccounts(ids)`, `readAccountByAddr`, `readPositionsForAccount`.
@@ -529,9 +529,9 @@ The human can prepare these in advance.
   - Integration tests on mainnet and testnet return at least one market and positions.
   - The open-interest equality from G8 holds.
   - With the primary RPC replaced by a dead URL, calls still succeed through the fallback.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/core exec vitest run test/live.test.ts -t "live chain readers"` passed. Mainnet and testnet each returned markets. Every market's long and short lot sums equaled open interest, and each position count equaled `numPositions`. Testnet account 816 still has an open BTC position (perp 16). With `http://127.0.0.1:9` first and a 1.5 s timeout, `listPerps` still returned mainnet markets through the public RPC fallback.
 
-#### [ ] C3 Radar snapshot builder
+#### [x] C3 Radar snapshot builder
 - **Type:** AGENT · **Depends on:** C1, C2 · **PRD:** §F1, §5.3, §5.7
 - **Do:**
   - `buildSnapshot(chainId)` returns, per market: mark, open interest, buckets (long below, short above), and the at-risk list (anonymized ID = first 8 hex of `keccak(RADAR_SALT, chainId, accountId)`).
@@ -544,9 +544,9 @@ The human can prepare these in advance.
   - Headline totals equal the sum over markets.
   - No raw account address or ID appears in the snapshot JSON (grep test).
   - The build finishes in ≤ 6 s cold.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/core exec vitest run test/live.test.ts -t "validates a mainnet snapshot"` passed. Cold build was 1963 ms, 17 markets, 611 non-dust positions. The zod schema parsed. Headline open interest, position count, at-risk count, and idle balance each equaled the sum across markets. The JSON contained no `0x` account address.
 
-#### [ ] C4 Crash simulator (pure, runs in the browser)
+#### [x] C4 Crash simulator (pure, runs in the browser)
 - **Type:** AGENT · **Depends on:** C3 · **PRD:** §F2
 - **Do:** `simulate(snapshotPositions, market, shockPct)` returns liquidated count and notional, and saved count and notional, using the §2.2 "saved" rule. The result is labeled first-order.
 - **Pass:**
@@ -554,9 +554,9 @@ The human can prepare these in advance.
   - Liquidated notional is monotonic: never decreases as the shock grows.
   - A 0% shock liquidates 0.
   - It runs in ≤ 20 ms for 1,000 positions in a Node benchmark.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/core exec vitest run test/crash.test.ts` passed 3 tests. On the hand-built book a 0% shock liquidates 0, −3% liquidates 1 position / 100 AUSD notional and saves that one, and −7% liquidates 2 / 200 AUSD and saves 1. Liquidated notional does not fall from −1% through −10%. A 1,000-position call, after one warmup, finished within 20 ms. The result label is `first-order: excludes cascade price impact`.
 
-#### [ ] C5 Mandate EIP-712
+#### [x] C5 Mandate EIP-712
 - **Type:** AGENT · **Depends on:** S0.2 · **PRD:** §F5
 - **Do:**
   - Types and domain (`Lifeline` v1, chainId 10143) exactly as in PRD §F5; you may add a `version` field, logged in §9.
@@ -570,9 +570,9 @@ The human can prepare these in advance.
   - A sign/recover round-trip works with a test key.
   - Changing any single field breaks recovery.
   - Every validation rule has a failing-case test.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/core exec vitest run test/mandate.test.ts` passed 3 tests. A test key signs and recovers on the PRD §F5 domain. Changing any one of the eight fields makes that signature recover to a different address. Validation accepts a sane mandate and rejects trigger, target, both caps, expiry in the past, expiry past 30 days, an empty market list, an unknown perp, and a used nonce.
 
-#### [ ] C6 Lifeline evaluator
+#### [x] C6 Lifeline evaluator
 - **Type:** AGENT · **Depends on:** C1, C5 · **PRD:** §F6, §5.3
 - **Do:** `evaluate(mandate, positionState, accountState, lastActionBlock, nowBlock, budgetUsed)` returns either `{action: 'topUp', amountCNS, distBefore, distTarget}` or `{action: 'skip', reason}`. The skip reasons are:
 
@@ -590,9 +590,9 @@ The human can prepare these in advance.
 
   The evaluator never produces any other transaction type (H6).
 - **Pass:** Every skip reason and the top-up branch have a unit test, and a property test confirms the amount never exceeds any cap.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/core exec vitest run test/evaluate.test.ts` passed 2 tests. Each skip reason returns `skip`, and the top-up branch returns only `amountCNS`, `distBefore`, and `distTarget`. Across 40 random cap combinations a top-up never exceeds the per-action cap, free balance, or budget left, and it is at least 5 AUSD.
 
-#### [ ] C7 Transaction builders
+#### [x] C7 Transaction builders
 - **Type:** AGENT · **Depends on:** G7 · **PRD:** §5.2, §5.9
 - **Do:**
   - Builders for: `increasePositionCollateral` (through the proxy), `transferOwnership`, `acceptOwnership`, `withdrawCollateral`, MON drip, and every provisioning call (factory create with consent signature, transfer, createAccount, setOperatorAllowlist ×6, IOC open, post-only maker order).
@@ -600,9 +600,9 @@ The human can prepare these in advance.
 - **Pass:**
   - Encoding tests compare against reference calldata.
   - On testnet, `eth_call` simulation of each builder against the G1 proxy succeeds for allowed roles and reverts for disallowed ones, matching G1's results.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/core exec vitest run test/tx.test.ts` passed. Calldata matches `encodeFunctionData` and every builder uses `GAS_LIMITS`. On the G1 proxy, `eth_call` from the operator succeeds for `increasePositionCollateral` and reverts for withdraw, allowlist, and IOC open. The owner succeeds for withdraw, `transferOwnership`, allowlist, and a 0-value AUSD transfer, and reverts for `acceptOwnership` because there is no pending owner. `createAccount` reverts because the account exists. Factory `create` from the pool owner simulates successfully (`eth_call ok=true`).
 
-#### [ ] C8 HyperSync analytics
+#### [x] C8 HyperSync analytics
 - **Type:** AGENT · **Depends on:** G5 · **PRD:** §F9
 - **Do:**
   - `liquidationHistory(chainId, days)` returns decoded events with `idleAtLiq = accBalanceCNS − max(accAmountCNS, 0)` and `eligible = idleAtLiq ≥ posDepositCNS`, plus totals, eligible totals, and the latest 50.
@@ -612,7 +612,7 @@ The human can prepare these in advance.
   - Fixture-based tests pass.
   - A live call returns within 5 s.
   - Totals equal the sum of the rows.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/core exec vitest run test/analytics.test.ts` passed 3 tests: idle eligibility, totals equal the row sum, the latest list is capped at 50, and account filtering. Live `liquidationHistory` for 30 days from block 102159198 returned 571 rows in 2186 ms, and that total matched the row sum. A later raw-page save returned HyperSync 429 while `gate:4` was using the token budget, so the checked response was not written to disk.
 
 ### Phase 3: Provisioning CLI (`apps/cli`)
 
@@ -1154,3 +1154,11 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - G3 | the soak worker is `lifeline-gate3` on `lifeline-shreyas.workers.dev` | the account had no workers.dev subdomain, and the production name `lifeline` stays free | 906 ticks in 30 minutes, max gap 2090 ms, 0 stored errors, signing succeeded, tail outcomes `ok`
 - C1 | money is micro-dollars and MMF is `perpMaintMarginFracHdths / 100` | the docs example divides notional by 25, and testnet BTC maintenance hundredths are 2500 | docs P_liq is 94000 exactly; the calibration position read MMF 25
 - G4 | funding 0 is within 0.1% of the testnet UI on a fresh BTC long, and the historical median is not | the UI price is 83650.6 and the formula with F = 0 gives 83728.08; 8 reconstructed liquidations had median error 0.1293 | relative UI error 0.0926%; `CALIBRATED` stays false because the historical median is above 0.1%
+- G4 | the historical scan checkpoints `cli-state/gate-4-progress.json` and sleeps on the HyperSync reset header | a full lifecycle walk was dying on 429 | scan resumed from block 54,000,000 and is still below the 0.1% median
+- C2 | the read client keeps a 20 s timeout and one retry, and tries URLs in order | the pass check replaces the primary with a dead port | `listPerps` succeeded with `127.0.0.1:9` first
+- C3 | maintenance margin is read once per market at lot 1 | BTC lots 1, 179, 670, and 12000 all returned maint hundredths 2500, and a per-lot read blew the 6 s budget | cold snapshot 1963 ms after the change, 20425 ms before it
+- C3 | the public id is the first 8 hex chars of `keccak256(abi.encode(bytes32 salt, uint256 chainId, uint256 accountId))` | the backlog asks for keccak of the salt, chain, and account | snapshot JSON has no account address; salt is 32 bytes stored as 64 hex chars
+- C3 | idle balance is read only for accounts that already have an at-risk position, and headline idle is the sum of the per-market totals | C3 says not to read every account, and the pass check requires the headline to equal the sum | an account at risk on two markets is counted in both
+- C5 | the mandate has no extra message field | PRD §F5 already puts version `1` in the EIP-712 domain | sign/recover matches that domain
+- C6 | `PAUSED` and `EXPIRED` are checked before mark and position state | a kill switch must not size a top-up | unit tests cover every skip reason
+- C8 | the 30-day window is `blocks/sec` measured over the last 5,000 blocks, times 30 days | Monad's block time is not a hard-coded constant | live history from block 102159198 returned in 2186 ms

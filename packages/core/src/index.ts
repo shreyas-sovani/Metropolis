@@ -8,19 +8,29 @@ export {
 } from "./abi/index.js";
 export {
   LIFECYCLE_EVENTS,
+  blocksForDays,
   decodeIncreasePositionCollateral,
   decodePositionDecreased,
   decodePositionIncreased,
   decodePositionLiquidated,
   decodePositionOpened,
   eventTopic0,
+  filterLifelineActions,
   firstExchangeLogBlock,
+  idleAtLiquidation,
+  lifelineActions,
+  liquidationHistory,
   paginateLogs,
   queryHyperSync,
+  summarizeLiquidations,
   type HyperSyncEventName,
   type HyperSyncFetch,
   type HyperSyncLog,
   type IncreasePositionCollateralEvent,
+  type LifelineAction,
+  type LiquidationHistory,
+  type LiquidationRow,
+  type MarketScale,
   type PositionLiquidatedEvent,
 } from "./hypersync/index.js";
 export {
@@ -39,17 +49,34 @@ export {
   isDust,
   liquidationPriceMicro,
   lotFromNotional,
+  lotToScaled,
   maintenanceMargin,
+  priceToMicro,
   replayPosition,
   sizeTopUp,
   type LifecycleStep,
   type TopUpInput,
 } from "./math/index.js";
 export {
+  MANDATE_MAX_EXPIRY_SEC,
+  MANDATE_MAX_TARGET_BPS,
+  SKIP_REASONS,
+  buildMandate,
+  evaluate,
+  hashMandate,
   mandateDomain,
   mandateMessage,
   mandateTypes,
+  recoverSigner,
+  validateMandate,
+  type EvalAccount,
+  type EvalPosition,
+  type Evaluation,
+  type MandateContext,
+  type MandateIssue,
   type MandateMessage,
+  type MandateValidation,
+  type SkipReason,
 } from "./lifeline/index.js";
 export {
   ORDER_CANCEL,
@@ -68,14 +95,26 @@ export {
   type OrderDesc,
 } from "./orders/index.js";
 export {
+  asAccount,
   createReadClient,
+  freeBalanceCNS,
+  listPerps,
   lotSums,
+  openChain,
   perpIdsFromBitmap,
   POSITION_LONG,
   POSITION_PAGE_SIZE,
   POSITION_SHORT,
+  readAccountByAddr,
+  readAccounts,
   readExchangeSnapshot,
+  readMarket,
+  readPositionsForAccount,
   slicePositionPage,
+  type AccountInfo,
+  type AccountPosition,
+  type ChainApi,
+  type ChainReadOptions,
   type MarketSnapshot,
   type PerpInfo,
   type PositionNode,
@@ -93,5 +132,39 @@ export {
   type ChainAddresses,
   type ChainId,
 } from "./config/index.js";
+
+export { CRASH_LABEL, simulate, type CrashResult } from "./radar/crash.js";
+export { radarId, radarSalt } from "./radar/anonymize.js";
+export {
+  assembleSnapshot,
+  buildSnapshot,
+  type DraftMarket,
+  type DraftPosition,
+  type SnapshotDraft,
+} from "./radar/snapshot.js";
+export {
+  radarSnapshotSchema,
+  type CompactPosition,
+  type RadarSnapshot,
+} from "./radar/schema.js";
+export {
+  MON_DRIP_WEI,
+  acceptOwnershipTx,
+  ausdTransferTx,
+  createAccountTx,
+  execOrderTx,
+  factoryCreateTx,
+  faucetRequestFundsTx,
+  functionSelector,
+  increasePositionCollateralTx,
+  iocOpenTx,
+  monDripTx,
+  postOnlyMakerTx,
+  revokeOperatorAllowlistTxs,
+  setOperatorAllowlistTx,
+  transferOwnershipTx,
+  withdrawCollateralTx,
+  type TxRequest,
+} from "./tx/builders.js";
 
 export const CORE_NAME = "@lifeline/core";
