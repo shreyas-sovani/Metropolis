@@ -758,9 +758,9 @@ The human can prepare these in advance.
   - A mandate signed by a non-owner returns 403.
   - A replayed nonce returns 409.
   - After disarm, a forced breach produces no action.
-- **Evidence:** In progress, not deployed. The route is local so the W5 soak clock stays intact. `POST /arm` checks the EIP-712 signer against `owner()`, stores a user mandate, and retires the house mandate. Disarm is EIP-191 `lifeline-disarm:<proxy>:<nonce>`. The test owner accepted `0xe3929EB4` in `0xbca91b70` and is now `owner()`. Live arm trials wait for the soak hour to finish.
+- **Evidence:** In progress. The routes are deployed on `lifeline` version `1d53d621-2ac3-4412-b5ba-97f9c8ae87a0` (the U15 deploy). `POST /arm` checks the EIP-712 signer against `owner()`, stores a user mandate, and retires the house mandate. Disarm is EIP-191 `lifeline-disarm:<proxy>:<nonce>`. The test owner accepted `0xe3929EB4` via `0xbca91b70` and is `owner()`; the stored mandate is still `kind:house` because arm has not been called. Live trials are still open: confirmed top-up, p50 latency, non-owner 403, replayed nonce 409, and disarm.
 
-#### [ ] W8 `GET /twins` and sandbox mode
+#### [~] W8 `GET /twins` and sandbox mode
 - **Type:** AGENT · **Depends on:** W5, C8 · **PRD:** §F8, §F4 fallback
 - **Do:**
   - `/twins` returns pairs with their distances, Lifeline actions (from C8, read from the chain), and outcome (`liquidated at block X`, `crossed liq at block X`, or `alive`).
@@ -769,7 +769,7 @@ The human can prepare these in advance.
   - `/twins` lists every pair from `cli-state` with correct ownership and mandate status.
   - Sandbox arm produces a confirmed top-up within the W7 tolerance.
   - Sandbox is rate-limited (429 on abuse).
-- **Evidence:**
+- **Evidence:** Listing is deployed. `GET /twins` returned `count` 7 on 2026-10-06: `btc-long`, `btc-short`, `sol-long`, `sol-short`, `mon-long`, `pump-long`, `pump-short`. Each protected leg is `mandate:house` and each unprotected leg is `mandate:none`. Distances, Lifeline actions, and outcomes are not in the payload yet. `POST /sandbox/arm` is not built.
 
 #### [ ] W9 Canary, kill switch, self-healing
 - **Type:** AGENT · **Depends on:** W5 · **PRD:** §5.5
@@ -1149,9 +1149,9 @@ These tasks come from a review of the build's progress against the prize targets
 
 **Order of work.** Interleave these with the remaining Phase 4–7 tasks in this order:
 
-1. **U2 → U1 → finish G4** (`CALIBRATED=true`).
-2. **U15** (time-sensitive: twins need time and volatility to show a real liquidation).
-3. Finish **W7**, then **U3**, then W8 and W9.
+1. **U2 → U1 → finish G4** (`CALIBRATED=true`). Done.
+2. **U15** (time-sensitive: twins need time and volatility to show a real liquidation). Done. `GET /twins` lists the pairs; W8 sandbox is still open.
+3. Finish **W7**, then **U3**, then the rest of W8 and W9.
 4. **U4** and **U5**.
 5. **U7**, then A1–A3.
 6. A4–A6 together with **U8, U9, U10, U13, U16**.
@@ -1490,3 +1490,5 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - U15 | a new leg is sized to 180 AUSD of initial margin, and the order leverage is the market's own initial-margin hundredths | $1,500 at MON's 3× needs $500, and the twin account only holds $400 | `mon-long` filled at 2921/2922
 - U15 | a book fill outside 0.1% is closed with a crossing IOC (`maxMatches` 50) and dropped when it is not in the current plan | the first MON short filled 3094 against 3103 | closes `0xce4e5328` and `0x6df0820d`; the pair was then empty
 - U15 | `pool:register` accepts a claimed account whose house mandate is still the active one | W6 moved `0xe3929EB4` to the test owner and the house mandate stayed | register exit 0, `kind=house`
+- W7 | the arm and disarm routes went out with the U15 worker deploy | the soak hour had finished, and `/twins` needed a deploy | version `1d53d621-2ac3-4412-b5ba-97f9c8ae87a0`; live arm trials are still open
+- W8 | `GET /twins` lists pair id, market, side, and house-versus-none mandate | U15 needed the list before sandbox arm | `count` 7 on 2026-10-06; distances, actions, outcomes, and `POST /sandbox/arm` are still open
