@@ -27,7 +27,7 @@ import {
   type PublicClient,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { breachTerms, houseMandate, houseTerms, serializeMandate, signMandate, type PoolRole } from "./house.js";
+import { breachMayReplace, breachTerms, houseMandate, houseTerms, serializeMandate, signMandate, type PoolRole } from "./house.js";
 import type { Sql } from "./schema.js";
 import type { LifelineEnv } from "./lifeline.js";
 
@@ -233,10 +233,7 @@ async function confirmPending(sql: Sql, client: PublicClient): Promise<{ proxy: 
     .exec("SELECT id, proxy, perp_id, tx_hash, amount_cns, reason FROM actions WHERE status = 'pending'")
     .toArray() as unknown as PendingRow[];
   for (const row of rows) {
-    if (!row.tx_hash) {
-      sql.exec("UPDATE keeper_stats SET nonce_errors = nonce_errors + 1 WHERE id = 1");
-      continue;
-    }
+    if (!row.tx_hash || !row.tx_hash.startsWith("0x")) continue;
     try {
       const receipt = await client.getTransactionReceipt({ hash: row.tx_hash as Hex });
       if (receipt.status !== "success") {
@@ -482,11 +479,19 @@ export function distanceOf(position: EvalPosition): bigint {
   );
 }
 
-export async function armBreach(sql: Sql, env: LifelineEnv, proxy: Address, nowSec: bigint): Promise<{ triggerBps: number; targetBps: number }> {
+export async function armBreach(
+  sql: Sql,
+  env: LifelineEnv,
+  proxy: Address,
+  nowSec: bigint,
+): Promise<{ triggerBps: number; targetBps: number; armed: boolean }> {
   const row = sql
     .exec("SELECT account_id, perp_id, role FROM pool WHERE proxy = ?", proxy)
     .toArray()[0] as { account_id?: string; perp_id?: string; role?: string } | undefined;
   if (!row?.account_id || !row.perp_id || !row.role) throw new Error("proxy not registered");
+  const existing = sql.exec("SELECT active FROM mandates WHERE proxy = ?", proxy).toArray()[0] as { active?: number } | undefined;
+  const active = existing?.active === undefined ? null : Number(existing.active);
+  if (!breachMayReplace(active)) return { triggerBps: 0, targetBps: 0, armed: false };
   const chain = openChain(TESTNET_ID, { urls: urlsOf(env), timeout: 8_000 });
   const exchange = ADDRESSES[TESTNET_ID].exchange;
   const markets = await readMarkets(chain.client, exchange, [row.perp_id]);
@@ -523,7 +528,7 @@ export async function armBreach(sql: Sql, env: LifelineEnv, proxy: Address, nowS
     serializeMandate(message),
     signed.sig,
   );
-  return terms;
+  return { ...terms, armed: true };
 }
 
 export async function restoreHouse(

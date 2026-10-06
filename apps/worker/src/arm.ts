@@ -4,6 +4,7 @@ import {
   buildMandate,
   delegatedAccountAbi,
   contractDistanceE6,
+  desiredDepositMicro,
   evalQuote,
   evaluate,
   increasePositionCollateralTx,
@@ -71,7 +72,8 @@ export async function armPosition(
 ): Promise<Response> {
   const message = mandateFromBody(request.mandate);
   const signer = await recoverSigner(message, request.signature);
-  if (getAddress(signer) !== claimant.address || message.account !== claimant.address) {
+  // The mandate account is the proxy. The session wallet is its owner.
+  if (getAddress(signer) !== claimant.address) {
     return Response.json({ error: "forbidden" }, { status: 403 });
   }
   const pool = sql
@@ -130,35 +132,66 @@ export async function armPosition(
   if (!state || decision.action === "skip") {
     return Response.json({ skipped: true, reason: decision.action === "skip" ? decision.reason : "MARK_INVALID" });
   }
-  const liqBefore = liquidationMicroFromContract(evalQuote(state.position).position, evalQuote(state.position).market);
+  const quote = evalQuote(state.position);
+  const desired = desiredDepositMicro({
+    side: state.position.side,
+    entryMicro: state.position.entryMicro,
+    lot: state.position.lot,
+    fundingMicro: state.position.fundingMicro,
+    mmf: state.position.mmf,
+    markMicro: state.position.markMicro,
+    targetBps: BigInt(message.targetBps),
+  });
+  const rawAdd = desired > state.position.depositMicro ? desired - state.position.depositMicro : 0n;
+  const reason = decision.amountCNS < rawAdd ? "capped" : "";
+  const liqBefore = liquidationMicroFromContract(quote.position, quote.market);
+  sql.exec(
+    `INSERT INTO actions (proxy, perp_id, amount_cns, tx_hash, block, dist_before, dist_after, status, reason)
+     VALUES (?, ?, ?, 'inflight', NULL, ?, NULL, 'pending', ?)`,
+    message.account,
+    pool.perp_id,
+    decision.amountCNS.toString(),
+    decision.distBefore.toString(),
+    reason,
+  );
   const built = increasePositionCollateralTx(message.account, BigInt(pool.perp_id), decision.amountCNS);
   const operator = privateKeyToAccount(env.OPERATOR_PK as Hex);
-  const nonce = await takeNonce(sql, client, "operator", operator.address);
   const wallet = createWalletClient({
     account: operator,
     chain: CHAINS[TESTNET_ID],
     transport: http(urls[0], { timeout: 8_000, retryCount: 1 }),
   });
-  const hash = await wallet.sendTransaction({
-    account: operator,
-    chain: wallet.chain,
-    to: built.to,
-    data: built.data,
-    gas: built.gas,
-    nonce,
-    value: 0n,
-  });
-  const receipt = await client.waitForTransactionReceipt({ hash });
-  if (receipt.status !== "success") return Response.json({ error: "reverted", txHash: hash }, { status: 500 });
+  let hash: Hex;
+  try {
+    const nonce = await takeNonce(sql, client, "operator", operator.address);
+    hash = await wallet.sendTransaction({
+      account: operator,
+      chain: wallet.chain,
+      to: built.to,
+      data: built.data,
+      gas: built.gas,
+      nonce,
+      value: 0n,
+    });
+  } catch (error) {
+    sql.exec("DELETE FROM actions WHERE proxy = ? AND tx_hash = 'inflight'", message.account);
+    throw error;
+  }
+  const receipt = await client.waitForTransactionReceipt({ hash, pollingInterval: 200, timeout: 20_000 });
+  if (receipt.status !== "success") {
+    sql.exec(
+      "UPDATE actions SET status = 'reverted', tx_hash = ?, block = ? WHERE proxy = ? AND tx_hash = 'inflight'",
+      hash,
+      Number(receipt.blockNumber),
+      message.account,
+    );
+    return Response.json({ error: "reverted", txHash: hash }, { status: 500 });
+  }
   sql.exec(
-    `INSERT INTO actions (proxy, perp_id, amount_cns, tx_hash, block, dist_before, dist_after, status, reason)
-     VALUES (?, ?, ?, ?, ?, ?, NULL, 'confirmed', '')`,
-    message.account,
-    pool.perp_id,
-    decision.amountCNS.toString(),
+    "UPDATE actions SET status = 'confirmed', tx_hash = ?, block = ? WHERE proxy = ? AND tx_hash = 'inflight'",
     hash,
     Number(receipt.blockNumber),
-    decision.distBefore.toString(),
+    message.account,
   );
   const after = await readAccountState(env, { proxy: message.account, account_id: pool.account_id, perp_id: pool.perp_id });
   const afterQuote = after ? evalQuote(after.position) : null;
@@ -180,6 +213,7 @@ export async function armPosition(
     distBefore: decision.distBefore.toString(),
     distAfter: distAfter.toString(),
     msFromRequest: Date.now() - startedMs,
+    reason,
   });
 }
 

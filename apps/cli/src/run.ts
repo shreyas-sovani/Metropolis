@@ -11,6 +11,7 @@ import { fundMon } from "./commands/fund-mon.js";
 import { poolCreate } from "./commands/pool-create.js";
 import { poolRegister } from "./commands/pool-register.js";
 import { twinsCreate } from "./commands/twins-create.js";
+import { armTrial } from "./commands/arm-trial.js";
 import { twinsVolatile } from "./commands/twins-volatile.js";
 import { keysGenerate } from "./commands/keys-generate.js";
 import { secretsSyncWorker } from "./commands/secrets-sync-worker.js";
@@ -30,6 +31,7 @@ export async function run(argv: readonly string[]): Promise<number> {
     console.log("  pool:register [--url URL]");
     console.log("  twins:create");
     console.log("  twins:volatile");
+    console.log("  arm:trial");
     console.log("  secrets:sync-worker");
     console.log("  gate:1");
     console.log("  gate:2 handoff <guest>");
@@ -50,6 +52,7 @@ export async function run(argv: readonly string[]): Promise<number> {
   if (command === "pool:register") return poolRegister(workspaceRoot(), argv.slice(1));
   if (command === "twins:create") return twinsCreate(workspaceRoot());
   if (command === "twins:volatile") return twinsVolatile(workspaceRoot());
+  if (command === "arm:trial") return armTrial(workspaceRoot(), argv.slice(1));
   if (command === "secrets:sync-worker") return secretsSyncWorker(workspaceRoot());
   if (command === "gate:1") return gate1();
   if (command === "gate:2") return gate2(argv.slice(1));

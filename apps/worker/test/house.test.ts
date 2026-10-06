@@ -6,6 +6,7 @@ import {
   HOUSE_BUDGET_CNS,
   HOUSE_EXPIRY_SEC,
   HOUSE_MAX_PER_ACTION_CNS,
+  breachMayReplace,
   breachTerms,
   houseMandate,
   parseRegistrations,
@@ -16,6 +17,12 @@ const NOW = 1_700_000_000n;
 const PROXY = getAddress("0x00000000000000000000000000000000000000aa");
 
 describe("house mandates", () => {
+  it("refuses to re-arm a disarmed mandate", () => {
+    expect(breachMayReplace(0)).toBe(false);
+    expect(breachMayReplace(1)).toBe(true);
+    expect(breachMayReplace(null)).toBe(true);
+  });
+
   it("signs 1.5/2.5 for a pool account and 4/6 for a protected twin", async () => {
     const account = privateKeyToAccount(KEY);
     const pool = houseMandate({ account: PROXY, perpId: 16n, role: "pool", nowSec: NOW });

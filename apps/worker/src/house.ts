@@ -71,6 +71,11 @@ export async function signMandate(
   return { owner: account.address, sig };
 }
 
+/** A disarmed mandate (active 0) stays off. A missing or still-active mandate can take a breach. */
+export function breachMayReplace(active: number | null): boolean {
+  return active === null || active === 1;
+}
+
 /** Trigger sits above the current distance so the next keeper tick must top up. */
 export function breachTerms(distanceE6: bigint): { triggerBps: number; targetBps: number } {
   const current = Number(distanceE6 / 100n);

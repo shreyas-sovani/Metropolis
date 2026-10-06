@@ -15,8 +15,8 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W6, U2, U1, and U15 are done. W7 is in progress. The §7A order's next item is to finish W7, then U3.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, and U15 are done. The next item is to finish W7.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W7, U2, U1, and U15 are done. W8 is in progress. The §7A order's next item is U3, then the rest of W8 and W9.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, and W7 are done. The next item is U3.
 
 ---
 
@@ -746,7 +746,7 @@ The human can prepare these in advance.
   - p50 latency is ≤ 3 s over 5 claims.
 - **Evidence:** Sponsor after the 20 MON transfer was `MON=22.9978`. `fund:mon` sent the operator +0.103301928 MON `0x95d90464`. Five live claims to `TEST_OWNER` `0x1bdD3ceeb704FF0881F77dEd498eDeB1dC011682` returned 200 in 1185, 977, 787, 707, and 720 ms, p50 787. The first claim `0xe3929EB4` (account 830, BTC, distance 20769) set `pendingOwner` to that wallet and raised its MON by 0.08 (`drip` `0x6d4e7558`, `transferOwnership` `0x700139c2`). The house mandate stayed `kind:house`. The same user again returned 409. The fourth claim from IP `203.0.113.10` returned 429. Empty pool 503 `{sandbox:true}` is the wrangler check in `test/claim-http.test.ts`. One pool position remains available. `/health` after the claims: `degraded:false`, `poolAvailable:1`.
 
-#### [~] W7 `POST /arm`, `/disarm`, `/mandate/:proxy`
+#### [x] W7 `POST /arm`, `/disarm`, `/mandate/:proxy`
 - **Type:** AGENT · **Depends on:** W6, C5, C6 · **PRD:** §F5, §F7
 - **Do:**
   - `/arm` verifies the token, validates the mandate (C5), and checks the signer equals `owner()` by `eth_call`. It then stores the mandate, retires the house mandate, evaluates immediately, and if needed sends and waits for the top-up.
@@ -758,7 +758,7 @@ The human can prepare these in advance.
   - A mandate signed by a non-owner returns 403.
   - A replayed nonce returns 409.
   - After disarm, a forced breach produces no action.
-- **Evidence:** In progress. The routes are deployed on `lifeline` version `1d53d621-2ac3-4412-b5ba-97f9c8ae87a0` (the U15 deploy). `POST /arm` checks the EIP-712 signer against `owner()`, stores a user mandate, and retires the house mandate. Disarm is EIP-191 `lifeline-disarm:<proxy>:<nonce>`. The test owner accepted `0xe3929EB4` via `0xbca91b70` and is `owner()`; the stored mandate is still `kind:house` because arm has not been called. Live trials are still open: confirmed top-up, p50 latency, non-owner 403, replayed nonce 409, and disarm.
+- **Evidence:** `pnpm cli arm:trial` exit 0 on worker version `a778587f-3dfb-4555-8259-a0e3592d998e`. Test owner `0x1bdD3cee` held `0xe3929EB4` at distance 28291 (2.83%). Arm at 4%/6% returned `0x064f003f` in 782 ms, added 47169101, and an independent chain read was 59999. Four more owned positions armed the same way: `0xec891823` 700 ms, `0xda30db02` 716 ms, `0xc990afc8` 390 ms, `0x48533832` 657 ms. Each chain distance was 59999, inside [58000, 65000]. `msFromRequest` samples 782, 700, 716, 390, 657, p50 700. A maker-signed mandate returned 403. Replaying nonce 1 on `0xe3929EB4` returned 409. Disarm then `POST /admin/breach` returned `armed:false`, and 8 s later `/admin/soak` had no new action for that proxy. Accepts before the extra arms: `0xab56c827`, `0x5881bdb5`, `0x296f5cb3`, `0xdc71d084`.
 
 #### [~] W8 `GET /twins` and sandbox mode
 - **Type:** AGENT · **Depends on:** W5, C8 · **PRD:** §F8, §F4 fallback
@@ -1151,7 +1151,7 @@ These tasks come from a review of the build's progress against the prize targets
 
 1. **U2 → U1 → finish G4** (`CALIBRATED=true`). Done.
 2. **U15** (time-sensitive: twins need time and volatility to show a real liquidation). Done. `GET /twins` lists the pairs; W8 sandbox is still open.
-3. Finish **W7**, then **U3**, then the rest of W8 and W9.
+3. Finish **W7**, then **U3**, then the rest of W8 and W9. W7 is done. Next is U3.
 4. **U4** and **U5**.
 5. **U7**, then A1–A3.
 6. A4–A6 together with **U8, U9, U10, U13, U16**.
@@ -1490,5 +1490,9 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - U15 | a new leg is sized to 180 AUSD of initial margin, and the order leverage is the market's own initial-margin hundredths | $1,500 at MON's 3× needs $500, and the twin account only holds $400 | `mon-long` filled at 2921/2922
 - U15 | a book fill outside 0.1% is closed with a crossing IOC (`maxMatches` 50) and dropped when it is not in the current plan | the first MON short filled 3094 against 3103 | closes `0xce4e5328` and `0x6df0820d`; the pair was then empty
 - U15 | `pool:register` accepts a claimed account whose house mandate is still the active one | W6 moved `0xe3929EB4` to the test owner and the house mandate stayed | register exit 0, `kind=house`
-- W7 | the arm and disarm routes went out with the U15 worker deploy | the soak hour had finished, and `/twins` needed a deploy | version `1d53d621-2ac3-4412-b5ba-97f9c8ae87a0`; live arm trials are still open
+- W7 | the arm and disarm routes went out with the U15 worker deploy | the soak hour had finished, and `/twins` needed a deploy | version `1d53d621-2ac3-4412-b5ba-97f9c8ae87a0`
+- W7 | the mandate signer is the owner EOA, and `account` in the typed data is the proxy | the session wallet and the proxy are different addresses, so requiring them to be equal rejected every real arm | `arm:trial` non-owner 403, owner arms 200
+- W7 | a user mandate uses nonce 1 or higher | the house mandate already stores nonce 0, and `nonceUsed` treats that stored nonce as spent | five arms used nonces 1–5; replay of nonce 1 returned 409
+- W7 | `/admin/breach` does not reactivate `active = 0` | disarm must survive a forced breach | `breachMayReplace(0)` is false; live breach returned `armed:false` and no new action
+- W7 | arm inserts an `inflight` pending row before `sendTransaction` | the keeper tick can otherwise send a second top-up for the same position | five chain distances landed at 59999 with one action each
 - W8 | `GET /twins` lists pair id, market, side, and house-versus-none mandate | U15 needed the list before sandbox arm | `count` 7 on 2026-10-06; distances, actions, outcomes, and `POST /sandbox/arm` are still open
