@@ -15,8 +15,8 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A5, U8, U9, U10, U13, and U16 are done. The §7A order's next item is A6.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A5, U8, U9, U10, U13, and U16 are done. The next item is A6.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A6, U8, U9, U10, U13, and U16 are done. The §7A order's next item is A7.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A6, U8, U9, U10, U13, and U16 are done. The next item is A7.
 
 ---
 
@@ -856,14 +856,14 @@ The human can prepare these in advance.
   - The label is present.
 - **Evidence:** `pnpm --filter @lifeline/web exec vitest run test/crash-ui.test.ts` passed. Shocks −3%, −7%, and +5% on a 3-position BTC book match `simulate()` for liquidated and saved counts and notionals. A 650-position step measured with `performance.measure` finished within 100 ms. Each market slider runs from −10% to +10%. The line reads “N positions / $X liquidated · Lifeline could save M / $Y using their own idle AUSD.” The label is `first-order: excludes cascade price impact`. Buckets inside the shock pick up the `hit` class.
 
-#### [ ] A6 Account lookup and dry run
+#### [x] A6 Account lookup and dry run
 - **Type:** AGENT · **Depends on:** A3 · **PRD:** §F3
 - **Do:**
   - Paste an address on either chain to get a risk card for each position.
   - Show the dry-run sentence in the PRD §F3 format.
   - On mainnet, append "Protection on mainnet: coming via API-key mode."
 - **Pass:** For one known mainnet at-risk account and one testnet pool account, the card values equal `/api/account`, the dry-run sentence matches the template, and the mainnet suffix is present.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/web exec vitest run test/lookup.test.ts` passed. The template sentence is `Lifeline would add 152 AUSD from your idle balance to your BTC long → distance 2.1% → 6.0%.` Mainnet appends `Protection on mainnet: coming via API-key mode.` Live `handleAccount` for mainnet `0x77A89C51` (BTC short, distance 38901) and testnet `0xe3929EB4` (BTC long, distance 61776) returned the side, entry, mark, liquidation price, distance, deposit, and free balance the card renders. The mainnet sentence includes the suffix. The testnet sentence does not.
 
 #### [ ] A7 Try Lifeline flow
 - **Type:** AGENT · **Depends on:** W6, W7, A4 · **PRD:** §F4, §F5, §F7
@@ -1160,7 +1160,7 @@ These tasks come from a review of the build's progress against the prize targets
 3. Finish **W7**, then **U3**, then the rest of W8 and W9. Done.
 4. **U4** and **U5**. Done. Next is U7.
 5. **U7**, then A1–A3. Done.
-6. A4–A6 together with **U8, U9, U10, U13, U16**. A4, A5, U8, U9, U10, U13, and U16 are done. Next is A6.
+6. A4–A6 together with **U8, U9, U10, U13, U16**. A4, A5, A6, U8, U9, U10, U13, and U16 are done. Next is A7.
 7. A7 with **U6**, then A8–A10.
 8. **U12** (it has a HUMAN step), then D1–D4.
 9. D5, using U6's criteria.
@@ -1534,3 +1534,4 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - U16 | `/api/v1/risk` reuses the account dry run and adds the forfeit | integrators need the same numbers as `/api/account`, with a public rate limit | 60/min then 429; README curl
 - A4 | the map shows anonymized bucket sizes and 8-hex risk ids | the snapshot does not carry account addresses, so the detail view stays on the id | Playwright map check; screenshots `radar-1440.png` and `radar-390.png`
 - A5 | the slider calls `simulate` in the browser on the snapshot positions | the crash pass is a first-order reprice, and the same function is what the numbers must match | `crash-ui` shocks −3/−7/+5; 650 positions within 100 ms
+- A6 | the dry-run sentence uses the 4%/6% evaluator and names the market side | the card has to read the same payload as `/api/account` | template `152 AUSD` / `2.1% → 6.0%`; live mainnet `0x77A89C51` suffix present, testnet `0xe3929EB4` suffix absent

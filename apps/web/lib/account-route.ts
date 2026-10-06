@@ -1,15 +1,19 @@
 import {
   ADDRESSES,
   exchangeAbi,
+  forfeitCNS,
   openChain,
   readAccountByAddr,
   readPositionsForAccount,
   rpcUrls,
   type ChainId,
+  type LiqSplit,
 } from "@lifeline/core";
 import { getAddress, isAddress } from "viem";
 import { dryRunPosition, riskOf, toEvalPosition } from "./account";
 import { jsonError } from "./http";
+
+const SPLIT: LiqSplit = { userPer100K: 80_000n, insPer100K: 10_000n, protocolPer100K: 10_000n };
 
 function marginHdths(raw: unknown): bigint {
   if (Array.isArray(raw)) return (raw[1] as bigint) ?? 0n;
@@ -41,13 +45,15 @@ export async function handleAccount(chain: ChainId, address: string): Promise<Re
           allowFailure: false,
         })
       : [];
-    const markets = new Map<number, { priceDecimals: number; lotDecimals: number; maintHdths: bigint }>();
+    const markets = new Map<number, { priceDecimals: number; lotDecimals: number; maintHdths: bigint; symbol: string }>();
     perpIds.forEach((perpId, index) => {
-      const infoRow = packed[index * 2] as { priceDecimals: bigint; lotDecimals: bigint };
+      const infoRow = packed[index * 2] as { priceDecimals: bigint; lotDecimals: bigint; symbol?: string };
+      const symbol = typeof infoRow.symbol === "string" && infoRow.symbol.length > 0 ? infoRow.symbol : `perp ${perpId}`;
       markets.set(perpId, {
         priceDecimals: Number(infoRow.priceDecimals),
         lotDecimals: Number(infoRow.lotDecimals),
         maintHdths: marginHdths(packed[index * 2 + 1]),
+        symbol,
       });
     });
     const rows = positions.flatMap((item) => {
@@ -77,8 +83,14 @@ export async function handleAccount(chain: ChainId, address: string): Promise<Re
       return [
         {
           perpId: item.perpId,
+          symbol: market.symbol,
+          side: position.side === 1n ? "long" : "short",
+          entryMicro: position.entryMicro.toString(),
+          markMicro: position.markMicro.toString(),
+          depositMicro: position.depositMicro.toString(),
           ...risk,
           freeCNS: info.freeCNS.toString(),
+          forfeitCNS: forfeitCNS(position.depositMicro, SPLIT).toString(),
           dryRun:
             decision.action === "topUp"
               ? { action: "topUp", amountCNS: decision.amountCNS.toString() }
