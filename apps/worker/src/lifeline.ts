@@ -9,6 +9,7 @@ import { crudRoundTrip, migrate } from "./schema.js";
 import { armPosition, disarmPosition, mandateFromBody } from "./arm.js";
 import { claimPosition, readClaimant } from "./claim.js";
 import { armBreach, noteGap, resetSoak, runKeeper, soakReport } from "./tick.js";
+import { assembleTwinPairs, type TwinLegRow } from "./twins.js";
 
 const ALARM_MS = 2_000;
 const WINDOW_MS = 10 * 60 * 1000;
@@ -67,6 +68,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
         return Response.json({ ok: false, error: message }, { status: 500 });
       }
     }
+    if (url.pathname === "/twins" && request.method === "GET") return this.twins();
     if (url.pathname === "/claim" && request.method === "POST") return this.claim(request);
     if (url.pathname === "/arm" && request.method === "POST") return this.arm(request);
     if (url.pathname === "/disarm" && request.method === "POST") return this.disarm(request);
@@ -140,6 +142,41 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       const message = error instanceof Error ? error.message : "error";
       return Response.json({ error: message.slice(0, 180) }, { status: 400 });
     }
+  }
+
+  private twins(): Response {
+    const rows = this.ctx.storage.sql
+      .exec(
+        `SELECT pool.proxy, pool.market, pool.side, pool.role, pool.pair_id, pool.perp_id, mandates.kind, mandates.active
+         FROM pool LEFT JOIN mandates ON mandates.proxy = pool.proxy
+         WHERE pool.pair_id != ''`,
+      )
+      .toArray() as {
+      proxy?: string;
+      market?: string;
+      side?: string;
+      role?: string;
+      pair_id?: string;
+      perp_id?: string;
+      kind?: string;
+      active?: number;
+    }[];
+    const legs: TwinLegRow[] = [];
+    for (const row of rows) {
+      if (!row.proxy || !row.pair_id || !row.role) continue;
+      const mandate = Number(row.active) === 1 && row.kind ? row.kind : "none";
+      legs.push({
+        pairId: row.pair_id,
+        market: row.market ?? "",
+        side: row.side ?? "",
+        perpId: row.perp_id ?? "",
+        role: row.role,
+        proxy: row.proxy,
+        mandate,
+      });
+    }
+    const pairs = assembleTwinPairs(legs);
+    return Response.json({ pairs, count: pairs.length });
   }
 
   private async claim(request: Request): Promise<Response> {

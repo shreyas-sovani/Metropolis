@@ -4,6 +4,8 @@ import {
   ADDRESSES,
   GAS_LIMITS,
   ORDER_CANCEL,
+  ORDER_CLOSE_LONG,
+  ORDER_CLOSE_SHORT,
   ORDER_OPEN_LONG,
   ORDER_OPEN_SHORT,
   TESTNET_ID,
@@ -21,7 +23,9 @@ import {
   functionSelector,
   iocOpenTx,
   listPerps,
+  MICRO,
   orderDesc,
+  priceToMicro,
   postOnlyMakerTx,
   restingAskPricePNS,
   revokeOperatorAllowlistTxs,
@@ -29,7 +33,6 @@ import {
 } from "@lifeline/core";
 import { decodeEventLog, type Address, type Hex, type PublicClient } from "viem";
 import { workspaceRoot } from "./keys-generate.js";
-import { lotForNotional } from "./pool-create.js";
 import { SPONSOR_FLOOR, WEI } from "../funding.js";
 import { loadRoles } from "../roles.js";
 import { testnetPublicClient, testnetWallet } from "../testnet.js";
@@ -66,7 +69,14 @@ interface Book {
   lotDecimals: number;
 }
 
-const PLAN: { id: string; market: "BTC" | "SOL"; side: TwinSide; cap: bigint }[] = [
+export interface TwinSpec {
+  id: string;
+  market: string;
+  side: TwinSide;
+  cap: bigint;
+}
+
+const PLAN: TwinSpec[] = [
   { id: "btc-long", market: "BTC", side: "long", cap: 1500n },
   { id: "btc-short", market: "BTC", side: "short", cap: 1500n },
   { id: "sol-long", market: "SOL", side: "long", cap: 1000n },
@@ -76,6 +86,22 @@ const PLAN: { id: string; market: "BTC" | "SOL"; side: TwinSide; cap: bigint }[]
 export function twinLeverage(capHdths: bigint, initHdths: bigint): bigint {
   if (initHdths <= 0n) return capHdths;
   return initHdths < capHdths ? initHdths : capHdths;
+}
+
+/** Size a leg so two of them fit in the maker's free balance and one fits in the 400 AUSD account. */
+export function lotForLeverage(
+  markPNS: bigint,
+  priceDecimals: number,
+  lotDecimals: number,
+  leverageHdths: bigint,
+  marginMicro = 180n * MICRO,
+): bigint {
+  if (leverageHdths <= 0n) return 1n;
+  const notional = (marginMicro * leverageHdths) / 100n;
+  const price = priceToMicro(markPNS, priceDecimals);
+  if (price <= 0n || notional <= 0n) return 1n;
+  const lot = (notional * 10n ** BigInt(lotDecimals)) / price;
+  return lot > 0n ? lot : 1n;
 }
 
 /** Entry prices match when they differ by at most 0.1%. */
@@ -186,7 +212,8 @@ async function topUp(
   if (status !== 1) throw new Error(`topup ${label} reverted`);
 }
 
-export async function twinsCreate(root = workspaceRoot()): Promise<number> {
+export async function twinsCreate(root = workspaceRoot(), extra: readonly TwinSpec[] = []): Promise<number> {
+  const plan = [...PLAN, ...extra];
   const roles = loadRoles(root);
   const client = testnetPublicClient();
   const addresses = ADDRESSES[TESTNET_ID];
@@ -203,11 +230,54 @@ export async function twinsCreate(root = workspaceRoot()): Promise<number> {
   const sponsorWallet = testnetWallet(sponsor);
 
   const state = loadTwins(root);
+  const plannedIds = new Set(plan.map((spec) => spec.id));
+  const kept = [];
+  for (const pair of state.pairs) {
+    if (plannedIds.has(pair.id)) {
+      kept.push(pair);
+      continue;
+    }
+    const perpId = BigInt(pair.perpId);
+    const left = await positionOf(client, exchange, pair.protected.proxy, perpId);
+    const right = await positionOf(client, exchange, pair.unprotected.proxy, perpId);
+    if (left && right && entriesMatch(left.pricePNS, right.pricePNS)) {
+      kept.push(pair);
+      continue;
+    }
+    if (left || right) {
+      console.log(`close unmatched ${pair.id}`);
+      const closing = {
+        client,
+        owner,
+        ownerWallet,
+        exchange,
+        pair,
+        leverage: BigInt(pair.leverageHdths || "300"),
+      };
+      for (const leg of [
+        { proxy: pair.protected.proxy, position: left },
+        { proxy: pair.unprotected.proxy, position: right },
+      ]) {
+        if (!leg.position) continue;
+        for (let attempt = 1; attempt <= 3; attempt += 1) {
+          const still = await positionOf(client, exchange, leg.proxy, perpId);
+          if (!still) break;
+          await closeLeg(closing, leg.proxy, still.lotLNS, still.positionType);
+        }
+      }
+    }
+    const leftAfter = await positionOf(client, exchange, pair.protected.proxy, perpId);
+    const rightAfter = await positionOf(client, exchange, pair.unprotected.proxy, perpId);
+    if (!leftAfter && !rightAfter) console.log(`drop empty ${pair.id}`);
+    else kept.push(pair);
+  }
+  state.pairs = kept;
+  saveTwins(root, state);
   const perps = await listPerps(client, exchange);
   const bySymbol = new Map(perps.map((perp) => [perp.symbol.toUpperCase(), perp.perpId]));
   let failed = false;
 
-  for (const spec of PLAN) {
+  for (const spec of plan) {
     let market: string = spec.market;
     let perpId = bySymbol.get(market);
     if (market === "SOL" && (perpId === undefined || state.solFallback === "ETH")) {
@@ -259,8 +329,8 @@ export async function twinsCreate(root = workspaceRoot()): Promise<number> {
       saveTwins(root, state);
     }
     const book = await readBook(client, exchange, BigInt(pair.perpId));
-    const lot = lotForNotional(book.markPNS, book.priceDecimals, book.lotDecimals);
-    const leverage = twinLeverage(spec.cap, await initMargin(client, exchange, BigInt(pair.perpId), lot));
+    const leverage = twinLeverage(spec.cap, await initMargin(client, exchange, BigInt(pair.perpId), 1n));
+    const lot = lotForLeverage(book.markPNS, book.priceDecimals, book.lotDecimals, leverage);
     pair.leverageHdths = leverage.toString();
     pair.market = market;
     saveTwins(root, state);
@@ -291,7 +361,7 @@ export async function twinsCreate(root = workspaceRoot()): Promise<number> {
   }
 
   if (state.solFallback === "ETH") {
-    for (const spec of PLAN.filter((item) => item.market === "SOL")) {
+    for (const spec of plan.filter((item) => item.market === "SOL")) {
       const pair = state.pairs.find((item) => item.id === spec.id);
       const eth = bySymbol.get("ETH");
       if (!pair || eth === undefined) continue;
@@ -301,8 +371,8 @@ export async function twinsCreate(root = workspaceRoot()): Promise<number> {
       pair.perpId = String(eth);
       saveTwins(root, state);
       const book = await readBook(client, exchange, BigInt(eth));
-      const lot = lotForNotional(book.markPNS, book.priceDecimals, book.lotDecimals);
-      const leverage = twinLeverage(1200n, await initMargin(client, exchange, BigInt(eth), lot));
+      const leverage = twinLeverage(1200n, await initMargin(client, exchange, BigInt(eth), 1n));
+      const lot = lotForLeverage(book.markPNS, book.priceDecimals, book.lotDecimals, leverage);
       pair.leverageHdths = leverage.toString();
       const ok = await openPair({
         client,
@@ -340,7 +410,7 @@ export async function twinsCreate(root = workspaceRoot()): Promise<number> {
     if (!match || !ownerOk || !operatorOk) failed = true;
   }
   console.log(`twins pairs=${state.pairs.length} solFallback=${state.solFallback ?? "none"}`);
-  return failed || state.pairs.length < 4 ? 1 : 0;
+  return failed || state.pairs.length < plan.length ? 1 : 0;
 }
 
 async function bothOpen(client: PublicClient, exchange: Address, pair: TwinPair): Promise<boolean> {
@@ -401,9 +471,22 @@ async function openPair(args: {
     await revokeAllowlist(args.client, args.ownerWallet, args.owner, proxy);
   }
   const perpId = BigInt(args.pair.perpId);
-  const left = await positionOf(args.client, args.exchange, args.pair.protected.proxy, perpId);
-  const right = await positionOf(args.client, args.exchange, args.pair.unprotected.proxy, perpId);
-  if (left && right) return entriesMatch(left.pricePNS, right.pricePNS);
+  let left = await positionOf(args.client, args.exchange, args.pair.protected.proxy, perpId);
+  let right = await positionOf(args.client, args.exchange, args.pair.unprotected.proxy, perpId);
+  if (left && right && entriesMatch(left.pricePNS, right.pricePNS)) return true;
+  if (left && right) {
+    console.log(`${args.pair.id} entries ${left.pricePNS} ${right.pricePNS} differ; closing`);
+    for (const leg of [
+      { proxy: args.pair.protected.proxy, lot: left.lotLNS, positionType: left.positionType },
+      { proxy: args.pair.unprotected.proxy, lot: right.lotLNS, positionType: right.positionType },
+    ]) {
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        const still = await positionOf(args.client, args.exchange, leg.proxy, perpId);
+        if (!still) break;
+        await closeLeg(args, leg.proxy, still.lotLNS, still.positionType);
+      }
+    }
+  }
   const bookFilled = !left && !right && (await tryBook(args, args.lot));
   if (bookFilled) return true;
   return selfMatch(args, args.lot);
@@ -478,25 +561,35 @@ async function selfMatch(
       const position = await positionOf(args.client, args.exchange, proxy, perpId);
       if (!position) missing.push(proxy);
     }
-    if (missing.length === 0) return true;
+    if (missing.length === 0) {
+      const filledLeft = await positionOf(args.client, args.exchange, args.pair.protected.proxy, perpId);
+      const filledRight = await positionOf(args.client, args.exchange, args.pair.unprotected.proxy, perpId);
+      return Boolean(filledLeft && filledRight && entriesMatch(filledLeft.pricePNS, filledRight.pricePNS));
+    }
     console.log(`${args.pair.id} self-match attempt ${attempt} price=${price} legs=${missing.length}`);
-    await sendBuilt(
-      args.client,
-      args.makerWallet,
-      args.maker,
-      postOnlyMakerTx(
-        args.exchange,
-        orderDesc({
-          perpId,
-          orderType: makerSide === "long" ? ORDER_OPEN_LONG : ORDER_OPEN_SHORT,
-          pricePNS: price,
-          lotLNS: lot * BigInt(missing.length),
-          leverageHdths: args.leverage,
-          postOnly: true,
-        }),
-      ),
-      `${args.pair.id}.maker`,
-    );
+    try {
+      await sendBuilt(
+        args.client,
+        args.makerWallet,
+        args.maker,
+        postOnlyMakerTx(
+          args.exchange,
+          orderDesc({
+            perpId,
+            orderType: makerSide === "long" ? ORDER_OPEN_LONG : ORDER_OPEN_SHORT,
+            pricePNS: price,
+            lotLNS: lot * BigInt(missing.length),
+            leverageHdths: args.leverage,
+            postOnly: true,
+          }),
+        ),
+        `${args.pair.id}.maker`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message.split("\n")[0] : "reverted";
+      console.log(`${args.pair.id} maker ${message?.slice(0, 160)}`);
+      continue;
+    }
     for (const proxy of missing) {
       try {
         await sendBuilt(
@@ -518,6 +611,48 @@ async function selfMatch(
   return false;
 }
 
+async function closeLeg(
+  args: {
+    client: PublicClient;
+    owner: ReturnType<typeof loadRoles>["POOL_OWNER"];
+    ownerWallet: ReturnType<typeof testnetWallet>;
+    exchange: Address;
+    pair: TwinPair;
+    leverage: bigint;
+  },
+  proxy: Address | null,
+  lot: bigint,
+  positionType: number,
+) {
+  if (!proxy || lot <= 0n) return;
+  const book = await readBook(args.client, args.exchange, BigInt(args.pair.perpId));
+  const short = positionType === 1;
+  const price = crossingClosePrice(book, short);
+  try {
+    await sendBuilt(
+      args.client,
+      args.ownerWallet,
+      args.owner,
+      iocOpenTx(
+        proxy,
+        orderDesc({
+          perpId: BigInt(args.pair.perpId),
+          orderType: short ? ORDER_CLOSE_SHORT : ORDER_CLOSE_LONG,
+          pricePNS: price,
+          lotLNS: lot,
+          leverageHdths: args.leverage,
+          immediateOrCancel: true,
+          maxMatches: 50n,
+        }),
+      ),
+      `${args.pair.id}.close`,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message.split("\n")[0] : "reverted";
+    console.log(`${args.pair.id} close ${message?.slice(0, 160)}`);
+  }
+}
+
 function openOrder(pair: TwinPair, price: bigint, lot: bigint, leverage: bigint): OrderDesc {
   return orderDesc({
     perpId: BigInt(pair.perpId),
@@ -528,6 +663,18 @@ function openOrder(pair: TwinPair, price: bigint, lot: bigint, leverage: bigint)
     immediateOrCancel: true,
     maxMatches: 1n,
   });
+}
+
+function crossingClosePrice(book: Book, short: boolean): bigint {
+  if (short) {
+    const ask = book.minAskPriceONS === 0n ? 0n : bookPricePNS(book.basePricePNS, book.minAskPriceONS);
+    const cap = (book.markPNS * 10_300n) / 10_000n;
+    return ask > cap ? ask : cap;
+  }
+  const bid = book.maxBidPriceONS === 0n ? 0n : bookPricePNS(book.basePricePNS, book.maxBidPriceONS);
+  const floor = (book.markPNS * 9_700n) / 10_000n;
+  if (bid === 0n) return floor > 0n ? floor : book.markPNS;
+  return bid < floor ? bid : floor;
 }
 
 function restingBid(book: Book): bigint {

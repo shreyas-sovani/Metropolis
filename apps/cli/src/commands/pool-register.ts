@@ -178,12 +178,21 @@ export async function poolRegister(root = workspaceRoot(), argv: readonly string
     const onchain = getAddress(
       await client.readContract({ address: entry.proxy, abi: delegatedAccountAbi, functionName: "owner" }),
     );
+    if (onchain !== owner) {
+      const houseKept = stored.kind === "house" && recovered === owner && getAddress(stored.owner) === owner;
+      const userTook = stored.kind !== "house" && recovered === onchain && getAddress(stored.owner) === onchain;
+      if (!houseKept && !userTook) {
+        console.error(`${entry.proxy} claimed mandate mismatch`);
+        return 1;
+      }
+      console.log(`${entry.proxy} ${entry.role} claimed owner=${onchain} kind=${stored.kind}`);
+      continue;
+    }
     const trigger = entry.role === "pool" ? 150 : 400;
     const target = entry.role === "pool" ? 250 : 600;
     if (
       recovered !== owner ||
       getAddress(stored.owner) !== owner ||
-      onchain !== owner ||
       stored.kind !== "house" ||
       stored.typedData.triggerBps !== trigger ||
       stored.typedData.targetBps !== target ||

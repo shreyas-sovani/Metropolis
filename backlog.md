@@ -15,8 +15,8 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W6, U2, and U1 are done. W7 is in progress. The §7A order's next item is U15.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2 and U1 are done. The next item is U15.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W6, U2, U1, and U15 are done. W7 is in progress. The §7A order's next item is to finish W7, then U3.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, and U15 are done. The next item is to finish W7.
 
 ---
 
@@ -1206,7 +1206,7 @@ These tasks come from a review of the build's progress against the prize targets
   - The C1 PRD demo example still passes at its tolerances.
 - **Evidence:** `pnpm --filter @lifeline/core test` passed 43 tests, including the dex-sdk entry-100 vectors and a 912-position fixture match. `pnpm --filter @lifeline/cli test` passed 25. `pnpm --filter @lifeline/worker test` passed 19. The docs example still liquidates at 94000. Radar assembly, the crash simulator, and `evaluate` take distance from `liquidationPricePNS`. PRD §5.3 now states the premium sign, raw entry, and conservative tick rounding.
 
-#### [ ] U15 Aggressive twins on volatile markets (time-sensitive)
+#### [x] U15 Aggressive twins on volatile markets (time-sensitive)
 - **Type:** AGENT · **Depends on:** P3, W4
 - **Why:** "The unprotected twin was liquidated by Perpl's own engine while its protected twin survived" is the single most convincing proof for judges. Testnet's liquidator is active (G5 counted 272 liquidations), but it needs volatility and time.
 - **Do:**
@@ -1217,7 +1217,7 @@ These tasks come from a review of the build's progress against the prize targets
   - Both pairs are open with entries within 0.1% of each other.
   - `pool:register` succeeds, and `/twins` (W8) lists 6 pairs.
   - The volatility ranking is logged in §9.
-- **Evidence:**
+- **Evidence:** `twins:volatile` ranked testnet `MarkUpdated` over 20,000 blocks: MON variance `3.2157e-7` (742 samples), PUMP `1.8296e-7` (518), NEAR `1.8069e-7` (625), ZEC `1.1960e-7` (374). Opened `mon-long` at 2921/2922 and `pump-short` at 6311/6311. An earlier window also left a matching `pump-long` at 6619/6618. All three are inside 0.1%. `pnpm cli pool:register` exited 0: `registered 20 mandates 13`. Protected legs are house mandates at 4%/6% with budget `300000000`; unprotected legs return 404. `GET /twins` returned `count` 7. Worker version `1d53d621-2ac3-4412-b5ba-97f9c8ae87a0`.
 
 #### [ ] U3 Demo-fire guarantee: arming always produces a visible top-up
 - **Type:** AGENT · **Depends on:** W7 · **Amends:** W6, A7
@@ -1486,3 +1486,7 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - U1 | `liquidationPricePNS` is the product rule: raw `pricePNS`, premium subtracted, maintenance at lot 0, ceil for longs and floor for shorts | a one-tick conservative price is what the contract emits | fixture test exact on 912 positions; dex-sdk entry-100 vectors pass
 - U1 | bankruptcy drops the maintenance term and keeps the same tick rounding | the dex-sdk tests separate liquidation from bankruptcy | long base 90, pay 95, receive 85; short base 110, pay 105, receive 115
 - G4 | `CALIBRATED=true` | step b is the fork fixture match, and the historical median is no longer a gate | `packages/core/src/config/calibration.ts`; UI check stays 0.0926%
+- U15 | rank markets by the variance of successive relative `MarkUpdated` moves over the last 20,000 blocks | a 30-minute poll is slower, and raw price variance is not comparable across MON and ZEC | MON `3.2157e-7` (742), PUMP `1.8296e-7` (518), NEAR `1.8069e-7` (625), ZEC `1.1960e-7` (374)
+- U15 | a new leg is sized to 180 AUSD of initial margin, and the order leverage is the market's own initial-margin hundredths | $1,500 at MON's 3× needs $500, and the twin account only holds $400 | `mon-long` filled at 2921/2922
+- U15 | a book fill outside 0.1% is closed with a crossing IOC (`maxMatches` 50) and dropped when it is not in the current plan | the first MON short filled 3094 against 3103 | closes `0xce4e5328` and `0x6df0820d`; the pair was then empty
+- U15 | `pool:register` accepts a claimed account whose house mandate is still the active one | W6 moved `0xe3929EB4` to the test owner and the house mandate stayed | register exit 0, `kind=house`

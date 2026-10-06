@@ -16,6 +16,9 @@ const handler: ExportedHandler<Env> = {
     if (url.pathname === "/session" && request.method === "GET") {
       return session(request, env);
     }
+    if (url.pathname === "/twins" && request.method === "GET") {
+      return stub.fetch(request);
+    }
     if (url.pathname === "/claim" && request.method === "POST") {
       return stub.fetch(request);
     }
