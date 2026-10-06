@@ -30,8 +30,29 @@ jobs:
           key: lifeline-cli-state-${{ github.run_id }}
           restore-keys: |
             lifeline-cli-state-
-      - name: require pool state
-        run: test -f cli-state/pool.json
+      - name: seed pool state
+        env:
+          POOL_JSON: ${{ secrets.CLI_STATE_POOL }}
+          TWINS_JSON: ${{ secrets.CLI_STATE_TWINS }}
+        run: node --input-type=module -e '
+          import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+          mkdirSync("cli-state", { recursive: true });
+          function seed(name, raw) {
+            const file = "cli-state/" + name;
+            if (existsSync(file)) {
+              console.log(name + " restored");
+              return;
+            }
+            if (!raw || !raw.startsWith("{")) {
+              console.error(name + " missing");
+              process.exit(1);
+            }
+            writeFileSync(file, raw.endsWith("\n") ? raw : raw + "\n", { mode: 0o600 });
+            console.log(name + " seeded");
+          }
+          seed("pool.json", process.env.POOL_JSON ?? "");
+          seed("twins.json", process.env.TWINS_JSON ?? "");
+        '
       - name: write testnet keys
         env:
           SPONSOR_PK: ${{ secrets.SPONSOR_PK }}
