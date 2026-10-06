@@ -22,6 +22,9 @@ const handler: ExportedHandler<Env> = {
     if (url.pathname === "/actions" && request.method === "GET") {
       return stub.fetch(request);
     }
+    if (url.pathname === "/saves" && request.method === "GET") {
+      return stub.fetch(request);
+    }
     if (url.pathname === "/claim" && request.method === "POST") {
       return stub.fetch(request);
     }

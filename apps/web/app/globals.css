@@ -75,9 +75,30 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--amber); outline
 .lookup input { flex: 1; font-family: var(--data); font-size: 13px; }
 .lookup button { cursor: pointer; }
 
+.radar-head, .headline, .toggle { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.headline { margin: 12px 0; }
+.headline div { min-width: 140px; }
+.headline span, .bands, .mark-price { color: var(--muted); font-family: var(--data); font-size: 12px; }
+.headline strong { display: block; font-family: var(--data); font-size: 20px; margin-top: 4px; }
+.exact { color: var(--ok); font-family: var(--data); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.est { color: var(--muted); font-family: var(--data); font-size: 12px; }
+.penalty { margin: 4px 0; color: var(--text); }
+.book { display: grid; grid-template-columns: 1.5fr 0.8fr; gap: 16px; }
+.buckets { display: flex; align-items: flex-end; gap: 2px; min-height: 96px; position: relative; padding-top: 8px; }
+.bucket { width: 8px; border: 0; padding: 0; cursor: pointer; }
+.bucket.long { background: var(--danger); }
+.bucket.short { background: var(--ok); }
+.mark-line { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--amber); }
+.spark { width: 120px; height: 24px; }
+.spark path { fill: none; stroke: var(--amber); stroke-width: 1.4; }
+.risk-list, .tape { list-style: none; padding: 0; margin: 8px 0; }
+.risk-list button { background: transparent; color: var(--text); border: 0; font-family: var(--data); cursor: pointer; padding: 4px 0; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.lookup-panel { margin-top: 16px; }
+
 @media (max-width: 800px) {
   .top { flex-direction: column; align-items: flex-start; padding: 16px; }
   .stage { padding: 16px; }
-  .grid { grid-template-columns: 1fr; }
+  .grid, .book { grid-template-columns: 1fr; }
   .stage h1 { font-size: 32px; }
 }

@@ -3,6 +3,7 @@ export default function TwinsPage() {
     <main className="stage">
       <h1>Twins</h1>
       <p className="lede">Each pair is the same trade, one with a mandate and one without. The panel shows which one is still alive.</p>
+      <p data-testid="saves">Saves 0</p>
     </main>
   );
 }

@@ -88,6 +88,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     if (url.pathname === "/admin/soak" && request.method === "GET") return this.soak(request);
     if (url.pathname === "/admin/soak/reset" && request.method === "POST") return this.soakReset(request);
     if (url.pathname === "/actions" && request.method === "GET") return this.actions(url);
+    if (url.pathname === "/saves" && request.method === "GET") return this.saves();
     const mandatePath = /^\/mandate\/(0x[0-9a-fA-F]{40})$/.exec(url.pathname);
     if (mandatePath?.[1] && request.method === "GET") return this.mandate(mandatePath[1]);
     if (url.pathname !== "/health") return new Response("lifeline", { status: 404 });
@@ -122,6 +123,27 @@ export class Lifeline extends DurableObject<LifelineEnv> {
         ];
       }),
     });
+  }
+
+  private saves(): Response {
+    const rows = this.ctx.storage.sql
+      .exec(
+        "SELECT tx_hash, block, amount_cns, liq_before, proxy FROM actions WHERE status = 'confirmed' AND liq_before IS NOT NULL AND liq_before != '' ORDER BY id",
+      )
+      .toArray() as { tx_hash?: string | null; block?: number | null; amount_cns?: string; liq_before?: string; proxy?: string }[];
+    const saves = rows.flatMap((row) => {
+      if (!row.tx_hash || !row.liq_before) return [];
+      return [
+        {
+          txHash: row.tx_hash,
+          block: row.block ?? null,
+          amountCNS: row.amount_cns ?? "0",
+          preLiq: row.liq_before,
+          proxy: row.proxy ?? "",
+        },
+      ];
+    });
+    return Response.json({ count: 0, watched: saves.length, saves: [] });
   }
 
   private admin(request: Request): boolean {

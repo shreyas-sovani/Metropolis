@@ -129,6 +129,12 @@ const STEPS: { version: number; apply: (sql: Sql) => void }[] = [
       addColumn(sql, "keeper_stats", "recycled_at", "recycled_at INTEGER");
     },
   },
+  {
+    version: 8,
+    apply(sql) {
+      addColumn(sql, "actions", "liq_before", "liq_before TEXT");
+    },
+  },
 ];
 
 export function migrate(sql: Sql): number[] {

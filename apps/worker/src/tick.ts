@@ -11,6 +11,8 @@ import {
   functionSelector,
   increasePositionCollateralTx,
   contractDistanceE6,
+  evalQuote,
+  liquidationPricePNS,
   lotToScaled,
   monDripTx,
   openChain,
@@ -181,15 +183,18 @@ export async function runKeeper(sql: Sql, env: LifelineEnv, nowMs: number): Prom
         nonce,
         value: built.value,
       });
+      const quote = evalPosition ? evalQuote(evalPosition) : null;
+      const liqBefore = quote ? liquidationPricePNS(quote.position, quote.market).toString() : "";
       sql.exec(
-        `INSERT INTO actions (proxy, perp_id, amount_cns, tx_hash, block, dist_before, dist_after, status, reason)
-         VALUES (?, ?, ?, ?, NULL, ?, NULL, 'pending', ?)`,
+        `INSERT INTO actions (proxy, perp_id, amount_cns, tx_hash, block, dist_before, dist_after, status, reason, liq_before)
+         VALUES (?, ?, ?, ?, NULL, ?, NULL, 'pending', ?, ?)`,
         row.proxy,
         row.perp_id,
         decision.amountCNS.toString(),
         hash,
         decision.distBefore.toString(),
         capped ? "capped" : "",
+        liqBefore,
       );
       pending.add(key);
       console.log(`top-up ${row.proxy} ${row.perp_id} ${decision.amountCNS} ${hash}`);

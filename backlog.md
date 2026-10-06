@@ -15,8 +15,8 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, and A1–A3 are done. The §7A order's next item is A4, together with U8, U9, U10, U13, and U16.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, and A1–A3 are done. The next item is A4.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A4, U8, U9, U10, U13, and U16 are done. The §7A order's next item is A5.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A4, U8, U9, U10, U13, and U16 are done. The next item is A5.
 
 ---
 
@@ -830,7 +830,7 @@ The human can prepare these in advance.
   - An invalid address returns 400.
 - **Evidence:** `handleAccount(143, "not-an-address")` returned 400. Mainnet BTC account `0x77A89C51` at distance 39652 dry-ran to `skip BELOW_MIN` through both `dryRunPosition` and `evaluate` (`match:true`). The same match held for `0x973E2464` at distance 47486 (`skip ABOVE_TRIGGER`). Worker `4f588011-bfe1-4171-8ffa-e122ab4cd8b4`. `GET /actions?account=0xe3929EB4` returned tx `0x064f003f` and `0xd44d55a8`, the same hashes stored on the Durable Object. `GET /actions?account=nope` returned 400. Liquidation totals in the route test equal the sum of the row notionals.
 
-#### [ ] A4 Radar UI
+#### [x] A4 Radar UI
 - **Type:** AGENT · **Depends on:** A2, A3 · **PRD:** §F1
 - **Do:**
   - **Headline strip:** open interest, at-risk notional and count, idle AUSD beside at-risk positions, and the block number.
@@ -845,7 +845,7 @@ The human can prepare these in advance.
   - Hover shows details, and the toggle switches chains.
   - No raw account IDs or addresses appear on the map (DOM check).
   - Screenshots are saved to `apps/web/e2e/artifacts/`.
-- **Evidence:**
+- **Evidence:** Playwright `e2e/radar.spec.ts` passed. Headline text matched the mocked payload: open interest `$1,500`, at risk `2 · $400`, idle `$25`, block `110`. Bitcoin and ETH both rendered. Hover showed the long-bucket detail. The testnet toggle requested `chain=10143`. The map text matched no `0x` address. Screenshots: `apps/web/e2e/artifacts/radar-1440.png` and `radar-390.png`. The blocked-Perpl case still rendered BTC and ETH from the onchain payload, and the browser log had zero `perpl.xyz` requests.
 
 #### [ ] A5 Crash simulator UI
 - **Type:** AGENT · **Depends on:** C4, A4 · **PRD:** §F2
@@ -1159,8 +1159,8 @@ These tasks come from a review of the build's progress against the prize targets
 2. **U15** (time-sensitive: twins need time and volatility to show a real liquidation). Done. `GET /twins` lists the pairs with distances and outcomes, and sandbox arm is done.
 3. Finish **W7**, then **U3**, then the rest of W8 and W9. Done.
 4. **U4** and **U5**. Done. Next is U7.
-5. **U7**, then A1–A3. Done. Next is A4 with U8, U9, U10, U13, and U16.
-6. A4–A6 together with **U8, U9, U10, U13, U16**.
+5. **U7**, then A1–A3. Done.
+6. A4–A6 together with **U8, U9, U10, U13, U16**. A4, U8, U9, U10, U13, and U16 are done. Next is A5.
 7. A7 with **U6**, then A8–A10.
 8. **U12** (it has a HUMAN step), then D1–D4.
 9. D5, using U6's criteria.
@@ -1287,7 +1287,7 @@ These tasks come from a review of the build's progress against the prize targets
   - Totals still equal the sum of the rows.
 - **Evidence:** `pnpm --filter @lifeline/core exec vitest run test/history.test.ts` and the web `/api/liquidations` cases in `test/api.test.ts` passed. One hundred concurrent reads inside 60 s made `hypersyncRequests` 1. A following 429 returned the previous rows with `stale:true` and HTTP 200. A tail refresh appended block 4 without duplicating block 2, and `totals.notionalMicro` stayed `70`, the sum of the rows. The cursor lives in the server `HistoryStore` (decision log). `retryAfterMs("2")` is 2000 ms and a reset timestamp is capped at 8 s.
 
-#### [ ] U8 Money-left-on-table metrics
+#### [x] U8 Money-left-on-table metrics
 - **Type:** AGENT · **Depends on:** U1, U7 · **Amends:** A4, A6
 - **Why:** It turns risk into dollars, which is the sharpest Perpl Analytics angle and the strongest Track 1 pitch line.
 - **Do:**
@@ -1302,9 +1302,9 @@ These tasks come from a review of the build's progress against the prize targets
   - The 5-event reconciliation passes.
   - Totals reconcile with the per-event sums.
   - The values render on Radar and in the risk card.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/core exec vitest run test/penalty.test.ts` passed. Five mainnet `PositionLiquidated` credits (blocks 110947217, 110954073 twice, 110981838, 110994159, perp 10) use split `80000/10000/10000`. Inverting the account credit and giving the remainder to the protocol reconstructs the residual, and the user share is within 1 CNS. Radar renders the 30-day penalty, the avoidable idle line, and the at-stake line. The account card says "If liquidated now you'd forfeit about …".
 
-#### [ ] U9 "Contract-exact" badge and methodology page
+#### [x] U9 "Contract-exact" badge and methodology page
 - **Type:** AGENT · **Depends on:** U1, U2, A1 · **Amends:** A4, A10, H9
 - **Why:** It's credibility the judges can check themselves, for Perpl Analytics and Track 1.
 - **Do:**
@@ -1313,9 +1313,9 @@ These tasks come from a review of the build's progress against the prize targets
 - **Pass:**
   - The page renders from the committed U2 summary JSON.
   - The badge is hidden when `CALIBRATED=false` (test both states).
-- **Evidence:**
+- **Evidence:** `/methodology` renders the committed `g4-fork-summary.json`: 2026-10-05, 912 positions, 19 markets, 297 shorts, premium 781, residue 374, exact match 100%. `calibrationMark(true)` is `Contract-exact` and `calibrationMark(false)` is `est.`. The radar badge links to `/methodology`. Script: `pnpm cli gate:4 --fork`.
 
-#### [ ] U10 Perpl public API enrichment (server-side, off the critical path)
+#### [x] U10 Perpl public API enrichment (server-side, off the critical path)
 - **Type:** AGENT · **Depends on:** A2 · **Amends:** A4
 - **Why:** It strengthens the "Best use of Perpl's API" case ($5k) without risking H3.
 - **Do:**
@@ -1328,9 +1328,9 @@ These tasks come from a review of the build's progress against the prize targets
   - With the Perpl API reachable, names and sparklines render.
   - With the Perpl API blocked (mock or abort), Radar renders fully from onchain data and A7 still passes.
   - The browser network log shows zero `*.perpl.xyz` requests.
-- **Evidence:**
+- **Evidence:** `GET /api/markets` is pinned to `preferredRegion = fra1`, caches for 5 minutes, and reads `https://app.perpl.xyz/api/v1/pub/context` plus hourly candles. `curl` of that context returned HTTP 200. A missing name falls back so the page keeps the onchain symbol. Playwright with the markets route empty still rendered BTC and ETH, and recorded zero browser requests to `perpl.xyz`.
 
-#### [ ] U13 Saves ledger: proof that Lifeline actually saved positions
+#### [x] U13 Saves ledger: proof that Lifeline actually saved positions
 - **Type:** AGENT · **Depends on:** U1, W5, C8 · **Amends:** A4, A8
 - **Why:** "N positions survived a move that would have liquidated them" is the demo's wow line, provable from chain data. It serves Track 1, Grand Champion, and the Perpl API bounty.
 - **Do:**
@@ -1341,9 +1341,9 @@ These tasks come from a review of the build's progress against the prize targets
   - Unit tests on synthetic mark paths: save, no save, and liquidated anyway.
   - Each live save links to its top-up transaction and crossing block.
   - The counter shows 0 honestly when there are none.
-- **Evidence:**
+- **Evidence:** `judgeSave` tests cover a long cross (`save` at block 3), a short that never crosses (`none`), and a liquidation on the crossing block (`liquidated`). New top-ups store `liq_before`. `GET /saves` returns `count: 0` until a later mark crosses that price while the position is still open. Radar, Twins, and `/judges` show `Saves 0`.
 
-#### [ ] U16 Public risk endpoint
+#### [x] U16 Public risk endpoint
 - **Type:** AGENT · **Depends on:** U1, A3
 - **Why:** It's an infrastructure give-back that Perpl integrators can call, which strengthens the Perpl API and Analytics stories.
 - **Do:**
@@ -1351,7 +1351,7 @@ These tasks come from a review of the build's progress against the prize targets
   - CORS open, 60 requests per minute per IP.
   - Documented in README and on `/judges`.
 - **Pass:** Values equal `/api/account` for the same address, the rate limit returns 429 when exceeded, and the docs example `curl` works.
-- **Evidence:**
+- **Evidence:** `GET /api/v1/risk/:address` builds from `handleAccount`, so the liquidation price and distance match `/api/account`. CORS is `*`. `allowRequest` accepts 60 calls in a minute and rejects the 61st, then allows one after the window. The example `curl` is in `README.md` and on `/judges`.
 
 #### [ ] U6 End-to-end strategy for Privy flows
 - **Type:** AGENT, plus **HUMAN** (one real-Privy run per D5 cycle) · **Depends on:** A7 · **Amends:** A7 and D5 pass checks
@@ -1527,3 +1527,9 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - A1 | the shell is dark and data-dense, with a serif nameplate and an amber trace | the brief asks for a dark trading desk, and the trace is the lifeline | Playwright home at 390 and 1440
 - A2 | radar builds are single-flight per chain for 2 s, and `/health` is pinged without awaiting it | fifty overlapping requests must not each rebuild the book | load test, 6 builds across 10 s
 - A3 | `/actions` reads the Durable Object rows, and the account dry run calls `evaluate` at 4%/6% | the pass compares those hashes and that amount with the chain | worker `4f588011`; mainnet `0x77A89C51` `match:true`
+- U8 | the residual is the account credit inverted by `liqUserAmtPer100K`, and the remainder is the protocol share | three floored per-100k shares can miss the residual by 2 CNS, while the user credit itself stays within 1 | perp 10 split `80000/10000/10000`; five credits through block 110994159
+- U9 | the badge reads `CALIBRATED` and links to `/methodology` | the fork summary is the committed JSON, so the page does not recompute it | `g4-fork-summary.json` exact match 100
+- U10 | market names and sparks are fetched on the server in `fra1` and cached for 5 minutes | the browser must not call Perpl, and a failed fetch keeps the onchain symbol | context HTTP 200; Playwright zero `perpl.xyz`
+- U13 | a save is the first mark that crosses the stored pre-top-up liquidation price while the position is still open | a liquidation on that same block is not a save, and an empty ledger stays at 0 | `judgeSave` tests; radar `Saves 0`
+- U16 | `/api/v1/risk` reuses the account dry run and adds the forfeit | integrators need the same numbers as `/api/account`, with a public rate limit | 60/min then 429; README curl
+- A4 | the map shows anonymized bucket sizes and 8-hex risk ids | the snapshot does not carry account addresses, so the detail view stays on the id | Playwright map check; screenshots `radar-1440.png` and `radar-390.png`

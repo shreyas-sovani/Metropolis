@@ -20,6 +20,7 @@ function row(block: number): LiquidationRow {
     posDepositCNS: "9",
     markPricePNS: "10",
     liqLotLNS: "2",
+    accAmountCNS: "0",
   };
 }
 
