@@ -1,6 +1,6 @@
 name: ops
 
-on:
+"on":
   schedule:
     - cron: "*/30 * * * *"
   workflow_dispatch:
@@ -30,31 +30,10 @@ jobs:
           key: lifeline-cli-state-${{ github.run_id }}
           restore-keys: |
             lifeline-cli-state-
-      - name: seed pool state
+      - name: prepare testnet env
         env:
           POOL_JSON: ${{ secrets.CLI_STATE_POOL }}
           TWINS_JSON: ${{ secrets.CLI_STATE_TWINS }}
-        run: node --input-type=module -e '
-          import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-          mkdirSync("cli-state", { recursive: true });
-          function seed(name, raw) {
-            const file = "cli-state/" + name;
-            if (existsSync(file)) {
-              console.log(name + " restored");
-              return;
-            }
-            if (!raw || !raw.startsWith("{")) {
-              console.error(name + " missing");
-              process.exit(1);
-            }
-            writeFileSync(file, raw.endsWith("\n") ? raw : raw + "\n", { mode: 0o600 });
-            console.log(name + " seeded");
-          }
-          seed("pool.json", process.env.POOL_JSON ?? "");
-          seed("twins.json", process.env.TWINS_JSON ?? "");
-        '
-      - name: write testnet keys
-        env:
           SPONSOR_PK: ${{ secrets.SPONSOR_PK }}
           OPERATOR_PK: ${{ secrets.OPERATOR_PK }}
           POOL_OWNER_PK: ${{ secrets.POOL_OWNER_PK }}
@@ -62,26 +41,7 @@ jobs:
           CALIBRATION_PK: ${{ secrets.CALIBRATION_PK }}
           TEST_OWNER_PK: ${{ secrets.TEST_OWNER_PK }}
           ALCHEMY_MONAD_TESTNET_URL: ${{ secrets.ALCHEMY_MONAD_TESTNET_URL }}
-        run: node --input-type=module -e '
-          import { mkdirSync, writeFileSync } from "node:fs";
-          mkdirSync("secrets", { recursive: true });
-          const names = ["SPONSOR_PK","OPERATOR_PK","POOL_OWNER_PK","MAKER_PK","CALIBRATION_PK","TEST_OWNER_PK"];
-          const lines = [];
-          for (const name of names) {
-            const value = process.env[name] ?? "";
-            if (!/^0x[0-9a-fA-F]{64}$/.test(value)) {
-              console.error(name + " missing");
-              process.exit(1);
-            }
-            lines.push(name + "=" + value);
-          }
-          writeFileSync("secrets/testnet-keys.env", lines.join("\n") + "\n", { mode: 0o600 });
-          const alchemy = process.env.ALCHEMY_MONAD_TESTNET_URL ?? "";
-          if (alchemy.startsWith("https://")) {
-            writeFileSync("secrets/services.env", "ALCHEMY_MONAD_TESTNET_URL=" + alchemy + "\n", { mode: 0o600 });
-          }
-          console.log("testnet keys written");
-        '
+        run: node scripts/ops-prepare.mjs
       - run: pnpm cli pool:refill --target 30 --per-side 12 --in-band 10
       - run: pnpm cli faucet:ausd
       - run: pnpm cli status
