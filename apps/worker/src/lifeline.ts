@@ -2,14 +2,16 @@ import { DurableObject } from "cloudflare:workers";
 import { type MandateMessage } from "@lifeline/core";
 import { getAddress, type Address, type Hex } from "viem";
 import { coreEvaluator } from "./adapter.js";
-import { clientError, healthReport, pausedFlag, WORKER_VERSION } from "./health.js";
+import { clientError, healthReport, needsAlarm, pausedFlag, WORKER_VERSION } from "./health.js";
 import { parseRegistrations, signMandate } from "./house.js";
 import { registerPool } from "./register.js";
 import { crudRoundTrip, migrate } from "./schema.js";
 import { armPosition, disarmPosition, mandateFromBody } from "./arm.js";
 import { claimPosition, readClaimant } from "./claim.js";
 import { armBreach, noteGap, resetSoak, runKeeper, soakReport } from "./tick.js";
-import { assembleTwinPairs, type TwinLegRow } from "./twins.js";
+import { sandboxArm } from "./sandbox.js";
+import { readLegStates } from "./tick.js";
+import { assembleTwinPairs, twinOutcome, type TwinAction, type TwinLegRow } from "./twins.js";
 
 const ALARM_MS = 2_000;
 const WINDOW_MS = 10 * 60 * 1000;
@@ -70,6 +72,9 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       }
     }
     if (url.pathname === "/twins" && request.method === "GET") return this.twins();
+    if (url.pathname === "/sandbox/arm" && request.method === "POST") return this.sandbox(request);
+    if (url.pathname === "/admin/alarm/clear" && request.method === "POST") return this.clearAlarm(request);
+    if (url.pathname === "/admin/alarm" && request.method === "GET") return this.readAlarm(request);
     if (url.pathname === "/claim" && request.method === "POST") return this.claim(request);
     if (url.pathname === "/arm" && request.method === "POST") return this.arm(request);
     if (url.pathname === "/disarm" && request.method === "POST") return this.disarm(request);
@@ -81,7 +86,8 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     if (mandatePath?.[1] && request.method === "GET") return this.mandate(mandatePath[1]);
     if (url.pathname !== "/health") return new Response("lifeline", { status: 404 });
     const alarm = await this.ctx.storage.getAlarm();
-    if (alarm === null) await this.ctx.storage.setAlarm(Date.now() + 50);
+    const lastTick = this.ticks[this.ticks.length - 1] ?? null;
+    if (needsAlarm(alarm, lastTick, Date.now())) await this.ctx.storage.setAlarm(Date.now() + 50);
     return Response.json(this.report());
   }
 
@@ -143,15 +149,16 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     }
   }
 
-  private twins(): Response {
+  private async twins(): Promise<Response> {
     const rows = this.ctx.storage.sql
       .exec(
-        `SELECT pool.proxy, pool.market, pool.side, pool.role, pool.pair_id, pool.perp_id, mandates.kind, mandates.active
+        `SELECT pool.proxy, pool.account_id, pool.market, pool.side, pool.role, pool.pair_id, pool.perp_id, mandates.kind, mandates.active
          FROM pool LEFT JOIN mandates ON mandates.proxy = pool.proxy
          WHERE pool.pair_id != ''`,
       )
       .toArray() as {
       proxy?: string;
+      account_id?: string;
       market?: string;
       side?: string;
       role?: string;
@@ -161,6 +168,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       active?: number;
     }[];
     const legs: TwinLegRow[] = [];
+    const readable: { proxy: string; account_id: string; perp_id: string }[] = [];
     for (const row of rows) {
       if (!row.proxy || !row.pair_id || !row.role) continue;
       const mandate = Number(row.active) === 1 && row.kind ? row.kind : "none";
@@ -173,9 +181,64 @@ export class Lifeline extends DurableObject<LifelineEnv> {
         proxy: row.proxy,
         mandate,
       });
+      if (row.account_id && row.perp_id) readable.push({ proxy: row.proxy, account_id: row.account_id, perp_id: row.perp_id });
     }
     const pairs = assembleTwinPairs(legs);
+    let states = new Map<string, { distanceE6: bigint; open: boolean; block: number }>();
+    try {
+      states = await readLegStates(this.env, readable);
+    } catch {
+      states = new Map();
+    }
+    for (const pair of pairs) {
+      this.fillLeg(pair.protected);
+      this.fillLeg(pair.unprotected);
+      for (const leg of [pair.protected, pair.unprotected]) {
+        if (!leg) continue;
+        const state = states.get(getAddress(leg.proxy));
+        if (!state) continue;
+        leg.distanceE6 = state.distanceE6.toString();
+        leg.outcome = twinOutcome(state.open, state.distanceE6, state.block);
+      }
+    }
     return Response.json({ pairs, count: pairs.length });
+  }
+
+  private fillLeg(leg: { proxy: string; actions: TwinAction[] } | null) {
+    if (!leg) return;
+    const actions = this.ctx.storage.sql
+      .exec(
+        "SELECT tx_hash, block, amount_cns FROM actions WHERE proxy = ? AND status = 'confirmed' AND tx_hash LIKE '0x%' ORDER BY id",
+        leg.proxy,
+      )
+      .toArray() as { tx_hash?: string; block?: number | null; amount_cns?: string }[];
+    leg.actions = actions
+      .filter((row) => row.tx_hash)
+      .map((row) => ({ txHash: row.tx_hash as string, block: row.block ?? null, amountCNS: row.amount_cns ?? "0" }));
+  }
+
+  private async sandbox(request: Request): Promise<Response> {
+    try {
+      const body = (await request.json()) as { proxy?: string; triggerBps?: number; targetBps?: number };
+      const ip =
+        request.headers.get("cf-connecting-ip") ||
+        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        "unknown";
+      return await sandboxArm(this.ctx.storage.sql, this.env, { ...body, ip }, Date.now());
+    } catch (error) {
+      return Response.json({ error: clientError(error) }, { status: 400 });
+    }
+  }
+
+  private async readAlarm(request: Request): Promise<Response> {
+    if (!this.admin(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
+    return Response.json({ alarm: await this.ctx.storage.getAlarm() });
+  }
+
+  private async clearAlarm(request: Request): Promise<Response> {
+    if (!this.admin(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
+    await this.ctx.storage.deleteAlarm();
+    return Response.json({ alarm: null });
   }
 
   private async claim(request: Request): Promise<Response> {

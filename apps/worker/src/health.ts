@@ -26,6 +26,12 @@ export function healthReport(input: {
   };
 }
 
+/** A missing or overdue alarm should be set within a few milliseconds of /health. */
+export function needsAlarm(alarmAt: number | null, lastTick: number | null, now: number): boolean {
+  if (alarmAt === null || alarmAt <= now) return true;
+  return lastTick !== null && now - lastTick > 10_000;
+}
+
 export function pausedFlag(value: string | undefined): boolean {
   return value === "true" || value === "1";
 }

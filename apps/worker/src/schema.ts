@@ -111,6 +111,18 @@ const STEPS: { version: number; apply: (sql: Sql) => void }[] = [
       )`);
     },
   },
+  {
+    version: 6,
+    apply(sql) {
+      sql.exec(`CREATE TABLE IF NOT EXISTS sandbox_hits (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip TEXT NOT NULL,
+        at INTEGER NOT NULL
+      )`);
+      sql.exec(`CREATE INDEX IF NOT EXISTS sandbox_hits_ip ON sandbox_hits (ip, at)`);
+      addColumn(sql, "keeper_stats", "canary_at", "canary_at INTEGER");
+    },
+  },
 ];
 
 export function migrate(sql: Sql): number[] {

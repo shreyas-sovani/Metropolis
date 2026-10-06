@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assembleTwinPairs } from "../src/twins.js";
+import { assembleTwinPairs, twinOutcome } from "../src/twins.js";
 
 describe("twin pairs", () => {
   it("groups protected and unprotected legs", () => {
@@ -15,8 +15,8 @@ describe("twin pairs", () => {
         market: "MON",
         side: "long",
         perpId: "64",
-        protected: { proxy: "0x1", mandate: "house" },
-        unprotected: { proxy: "0x3", mandate: "none" },
+        protected: { proxy: "0x1", mandate: "house", distanceE6: null, actions: [], outcome: "alive" },
+        unprotected: { proxy: "0x3", mandate: "none", distanceE6: null, actions: [], outcome: "alive" },
       },
       {
         id: "pump-short",
@@ -24,8 +24,14 @@ describe("twin pairs", () => {
         side: "short",
         perpId: "320",
         protected: null,
-        unprotected: { proxy: "0x2", mandate: "none" },
+        unprotected: { proxy: "0x2", mandate: "none", distanceE6: null, actions: [], outcome: "alive" },
       },
     ]);
+  });
+
+  it("names an open pair alive and a crossed pair by the block", () => {
+    expect(twinOutcome(true, 20_000n, 10)).toBe("alive");
+    expect(twinOutcome(true, 0n, 44)).toBe("crossed liq at block 44");
+    expect(twinOutcome(false, null, 90)).toBe("liquidated at block 90");
   });
 });

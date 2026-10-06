@@ -22,7 +22,7 @@ const handler: ExportedHandler<Env> = {
     if (url.pathname === "/claim" && request.method === "POST") {
       return stub.fetch(request);
     }
-    if ((url.pathname === "/arm" || url.pathname === "/disarm") && request.method === "POST") {
+    if ((url.pathname === "/arm" || url.pathname === "/disarm" || url.pathname === "/sandbox/arm") && request.method === "POST") {
       return stub.fetch(request);
     }
     if (
@@ -30,7 +30,9 @@ const handler: ExportedHandler<Env> = {
       url.pathname === "/admin/pool" ||
       url.pathname === "/admin/breach" ||
       url.pathname === "/admin/soak" ||
-      url.pathname === "/admin/soak/reset"
+      url.pathname === "/admin/soak/reset" ||
+      url.pathname === "/admin/alarm/clear" ||
+      url.pathname === "/admin/alarm"
     ) {
       return stub.fetch(request);
     }

@@ -8,6 +8,7 @@ import {
   desiredDepositMicro,
   evaluate,
   exchangeAbi,
+  functionSelector,
   increasePositionCollateralTx,
   contractDistanceE6,
   lotToScaled,
@@ -200,6 +201,47 @@ export async function runKeeper(sql: Sql, env: LifelineEnv, nowMs: number): Prom
       }
       throw new Error(message.slice(0, 180));
     }
+  }
+  await runCanary(sql, env, nowMs);
+}
+
+const CANARY_MS = 10 * 60 * 1000;
+
+/** A canary that reverts, or that targets any selector other than collateral top-up, is degraded. */
+export function judgeCanary(selector: string, reverted: boolean): { degraded: boolean; reason: string | null } {
+  const allowed = functionSelector("increasePositionCollateral").toLowerCase();
+  if (selector.toLowerCase() !== allowed || reverted) return { degraded: true, reason: "canary revert" };
+  return { degraded: false, reason: null };
+}
+
+export function canaryDue(lastAt: number | null, now: number): boolean {
+  return lastAt === null || now - lastAt >= CANARY_MS;
+}
+
+async function runCanary(sql: Sql, env: LifelineEnv, nowMs: number): Promise<void> {
+  const row = sql.exec("SELECT canary_at FROM keeper_stats WHERE id = 1").toArray()[0] as
+    | { canary_at?: number | null }
+    | undefined;
+  const last = row?.canary_at === undefined || row.canary_at === null ? null : Number(row.canary_at);
+  if (!canaryDue(last, nowMs)) return;
+  sql.exec("UPDATE keeper_stats SET canary_at = ? WHERE id = 1", nowMs);
+  const pool = sql.exec("SELECT proxy, perp_id FROM pool WHERE role = 'pool' LIMIT 1").toArray()[0] as
+    | { proxy?: string; perp_id?: string }
+    | undefined;
+  if (!pool?.proxy || !pool.perp_id) return;
+  const operator = keyAccount(env.OPERATOR_PK, "operator");
+  const built = increasePositionCollateralTx(getAddress(pool.proxy), BigInt(pool.perp_id), 1n);
+  const chain = openChain(TESTNET_ID, { urls: urlsOf(env), timeout: 8_000 });
+  const verdict = judgeCanary(functionSelector("increasePositionCollateral"), false);
+  if (verdict.degraded) {
+    sql.exec("UPDATE health_state SET last_error = ? WHERE id = 1", verdict.reason);
+    return;
+  }
+  try {
+    await chain.client.call({ account: operator.address, to: built.to, data: built.data });
+  } catch {
+    sql.exec("UPDATE health_state SET last_error = ? WHERE id = 1", "canary revert");
+    throw new Error("canary revert");
   }
 }
 
@@ -397,6 +439,36 @@ function toEvalPosition(
     maintHdths: market.maintHdths,
     markPNS: read.markPNS,
   };
+}
+
+export async function readLegStates(
+  env: LifelineEnv,
+  rows: readonly { proxy: string; account_id: string; perp_id: string }[],
+): Promise<Map<string, { distanceE6: bigint; open: boolean; block: number }>> {
+  const out = new Map<string, { distanceE6: bigint; open: boolean; block: number }>();
+  if (rows.length === 0) return out;
+  const chain = openChain(TESTNET_ID, { urls: urlsOf(env), timeout: 8_000 });
+  const armed = rows.map((row) => ({
+    proxy: row.proxy,
+    account_id: row.account_id,
+    perp_id: row.perp_id,
+    role: "twin-protected",
+    typed_data: "",
+    budget_used_cns: "0",
+    active: 1,
+  }));
+  const exchange = ADDRESSES[TESTNET_ID].exchange;
+  const positions = await readPositions(chain.client, exchange, armed);
+  const markets = await readMarkets(chain.client, exchange, [...new Set(rows.map((row) => row.perp_id))]);
+  const block = Number(await chain.client.getBlockNumber());
+  for (const row of rows) {
+    const market = markets.get(row.perp_id);
+    const position = positions.get(`${row.proxy}:${row.perp_id}`);
+    if (!market || !position) continue;
+    const view = toEvalPosition(position, market);
+    out.set(getAddress(row.proxy), { distanceE6: distanceOf(view), open: view.open, block });
+  }
+  return out;
 }
 
 export async function readDistances(

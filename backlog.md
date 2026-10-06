@@ -15,8 +15,8 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W7, U2, U1, U15, and U3 are done. W8 is in progress. The §7A order's next item is the rest of W8, then W9.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, and U3 are done. The next item is the rest of W8.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, and U3 are done. The §7A order's next item is U4.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, and W9 are done. The next item is U4.
 
 ---
 
@@ -760,7 +760,7 @@ The human can prepare these in advance.
   - After disarm, a forced breach produces no action.
 - **Evidence:** `pnpm cli arm:trial` exit 0 on worker version `a778587f-3dfb-4555-8259-a0e3592d998e`. Test owner `0x1bdD3cee` held `0xe3929EB4` at distance 28291 (2.83%). Arm at 4%/6% returned `0x064f003f` in 782 ms, added 47169101, and an independent chain read was 59999. Four more owned positions armed the same way: `0xec891823` 700 ms, `0xda30db02` 716 ms, `0xc990afc8` 390 ms, `0x48533832` 657 ms. Each chain distance was 59999, inside [58000, 65000]. `msFromRequest` samples 782, 700, 716, 390, 657, p50 700. A maker-signed mandate returned 403. Replaying nonce 1 on `0xe3929EB4` returned 409. Disarm then `POST /admin/breach` returned `armed:false`, and 8 s later `/admin/soak` had no new action for that proxy. Accepts before the extra arms: `0xab56c827`, `0x5881bdb5`, `0x296f5cb3`, `0xdc71d084`.
 
-#### [~] W8 `GET /twins` and sandbox mode
+#### [x] W8 `GET /twins` and sandbox mode
 - **Type:** AGENT · **Depends on:** W5, C8 · **PRD:** §F8, §F4 fallback
 - **Do:**
   - `/twins` returns pairs with their distances, Lifeline actions (from C8, read from the chain), and outcome (`liquidated at block X`, `crossed liq at block X`, or `alive`).
@@ -769,9 +769,9 @@ The human can prepare these in advance.
   - `/twins` lists every pair from `cli-state` with correct ownership and mandate status.
   - Sandbox arm produces a confirmed top-up within the W7 tolerance.
   - Sandbox is rate-limited (429 on abuse).
-- **Evidence:** Listing is deployed. `GET /twins` returned `count` 7 on 2026-10-06: `btc-long`, `btc-short`, `sol-long`, `sol-short`, `mon-long`, `pump-long`, `pump-short`. Each protected leg is `mandate:house` and each unprotected leg is `mandate:none`. Distances, Lifeline actions, and outcomes are not in the payload yet. `POST /sandbox/arm` is not built.
+- **Evidence:** Worker `0a8bb0af-92a2-4a74-809c-6c1535318ef4`. `GET /twins` returned `count` 7. Before the sandbox arm every protected leg was `mandate:house` and every unprotected leg was `mandate:none`, with a live `distanceE6` and outcome `alive`. Confirmed actions included `0x96442cfb`, `0xe99c0d38`, and `0x5dc1f61e`. `POST /sandbox/arm` on sol-short `0x49975921` at 4%/6% returned `0x85fe2562` in 868 ms, `distBefore` 39806, `distAfter` 59996. An independent chain read was 61128, inside [58000, 65000]. The same IP's fourth call returned 429 `{"error":"rate"}`. After the arm, sol-short's protected mandate is `user` and the other six protected legs stayed `house`.
 
-#### [ ] W9 Canary, kill switch, self-healing
+#### [x] W9 Canary, kill switch, self-healing
 - **Type:** AGENT · **Depends on:** W5 · **PRD:** §5.5
 - **Do:**
   - Every 10 min, simulate `increasePositionCollateral(1)` as the operator on a canary pool account. A revert sets `degraded=true` with a reason.
@@ -781,7 +781,7 @@ The human can prepare these in advance.
   - Pointing the canary at a non-allowlisted selector in a test sets `degraded:true`.
   - With paused on, a forced breach yields `skip PAUSED`, and the radar still works.
   - Deleting the alarm manually in a test and then calling `/health` restores ticking within 5 s.
-- **Evidence:**
+- **Evidence:** `judgeCanary` on `execOrder` returns `degraded:true` / `canary revert`, and the collateral selector with no revert returns `degraded:false`. `evaluate` with `paused:true` returns `skip PAUSED` while `healthReport` still returns `poolAvailable` and `paused:true`. `pnpm --filter @lifeline/worker exec vitest run test/alarm.test.ts` deleted the alarm and `/health` scheduled a new one within 5s (`alarm` was non-null and less than 5s ahead).
 
 ### Phase 5: Web app (`apps/web`)
 
@@ -1151,7 +1151,7 @@ These tasks come from a review of the build's progress against the prize targets
 
 1. **U2 → U1 → finish G4** (`CALIBRATED=true`). Done.
 2. **U15** (time-sensitive: twins need time and volatility to show a real liquidation). Done. `GET /twins` lists the pairs; W8 sandbox is still open.
-3. Finish **W7**, then **U3**, then the rest of W8 and W9. W7 and U3 are done. Next is the rest of W8.
+3. Finish **W7**, then **U3**, then the rest of W8 and W9. Done. Next is U4.
 4. **U4** and **U5**.
 5. **U7**, then A1–A3.
 6. A4–A6 together with **U8, U9, U10, U13, U16**.
@@ -1503,3 +1503,7 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - U3 | a failed keeper tick reschedules in 20s | a 2s loop of failing RPC calls kept the endpoint rate-limited | `/health` after a deploy showed the alarm still present
 - U3 | `pool:register` reopens a claimed row whose on-chain owner is still the pool owner and whose pending owner is zero | a broadcast that never landed had marked `0xc4C86A35` claimed | after reopen, `/health` `poolAvailable` was 20 and that proxy was cycle 1
 - U3 | a failed maker cancel does not abort `pool:create` | the cancel reverted after a zero-lot book fill and stopped the remaining opens | later `pool:create done 27/27`
+- W8 | sandbox arm is unsigned and limited to 3 calls per IP per hour | the fallback demo has no wallet, and an open route would let one client drain the house budget | sol-short `0x85fe2562`; fourth call 429
+- W8 | a closed leg is `liquidated at block N`, a non-positive distance is `crossed liq at block N`, and every other open leg is `alive` | the twins panel needs an outcome before a liquidator event exists | all 7 pairs were `alive` on 2026-10-06
+- W9 | the canary is an `increasePositionCollateral(1)` eth_call; any other selector counts as a revert | the operator is allowlisted only for that call, so a revoked selector must set degraded | `judgeCanary(execOrder)` is `canary revert`
+- W9 | `/health` sets the alarm 50ms out when it is missing or the last tick is more than 10s old | a deleted alarm must resume without waiting for the next isolate event | alarm test, under 5s
