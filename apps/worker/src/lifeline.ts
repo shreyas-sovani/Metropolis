@@ -87,6 +87,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     if (url.pathname === "/admin/breach" && request.method === "POST") return this.breach(request);
     if (url.pathname === "/admin/soak" && request.method === "GET") return this.soak(request);
     if (url.pathname === "/admin/soak/reset" && request.method === "POST") return this.soakReset(request);
+    if (url.pathname === "/actions" && request.method === "GET") return this.actions(url);
     const mandatePath = /^\/mandate\/(0x[0-9a-fA-F]{40})$/.exec(url.pathname);
     if (mandatePath?.[1] && request.method === "GET") return this.mandate(mandatePath[1]);
     if (url.pathname !== "/health") return new Response("lifeline", { status: 404 });
@@ -94,6 +95,33 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     const lastTick = this.ticks[this.ticks.length - 1] ?? null;
     if (needsAlarm(alarm, lastTick, Date.now())) await this.ctx.storage.setAlarm(Date.now() + 50);
     return Response.json(await this.report());
+  }
+
+  private actions(url: URL): Response {
+    const account = url.searchParams.get("account");
+    if (!account || !/^0x[0-9a-fA-F]{40}$/.test(account)) return Response.json({ error: "address" }, { status: 400 });
+    const proxy = getAddress(account);
+    const rows = this.ctx.storage.sql
+      .exec(
+        "SELECT tx_hash, block, amount_cns, perp_id, status FROM actions WHERE proxy = ? ORDER BY id",
+        proxy,
+      )
+      .toArray() as { tx_hash?: string | null; block?: number | null; amount_cns?: string; perp_id?: string; status?: string }[];
+    return Response.json({
+      account: proxy,
+      actions: rows.flatMap((row) => {
+        if (!row.tx_hash) return [];
+        return [
+          {
+            txHash: row.tx_hash,
+            block: row.block ?? null,
+            amountCNS: row.amount_cns ?? "0",
+            perpId: row.perp_id ?? "",
+            status: row.status ?? "",
+          },
+        ];
+      }),
+    });
   }
 
   private admin(request: Request): boolean {

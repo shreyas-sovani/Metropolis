@@ -15,8 +15,8 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, and U5 are done. The §7A order's next item is U7.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, and U5 are done. The next item is U7.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, and A1–A3 are done. The §7A order's next item is A4, together with U8, U9, U10, U13, and U16.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, and A1–A3 are done. The next item is A4.
 
 ---
 
@@ -790,7 +790,7 @@ The human can prepare these in advance.
 
 ### Phase 5: Web app (`apps/web`)
 
-#### [ ] A1 Scaffold, Privy, design system
+#### [x] A1 Scaffold, Privy, design system
 - **Type:** AGENT · **Depends on:** G2 · **PRD:** §5.1, §5.4
 - **Do:**
   - Start Next.js (App Router, TypeScript), from Monad's Next.js + Privy template or fresh; your call.
@@ -801,9 +801,9 @@ The human can prepare these in advance.
   - `pnpm --filter web build` succeeds.
   - Playwright: the home page renders with no console errors at 390 px and 1440 px widths.
   - The client bundle contains no secret values (grep the build output for the private-key and token names in §4).
-- **Evidence:**
+- **Evidence:** `pnpm --filter web build` succeeded. Playwright `e2e/shell.spec.ts` passed at 390 px and 1440 px with an empty console-error list. `.next/static` has no `SPONSOR_PK`, `OPERATOR_PK`, `POOL_OWNER_PK`, `MAKER_PK`, `CALIBRATION_PK`, `TEST_OWNER_PK`, `ENVIO_API_TOKEN`, `PRIVY_APP_SECRET`, `ADMIN_SECRET`, `RADAR_SALT`, or `PRIVY_VERIFICATION_KEY`. Routes `/`, `/a/[address]`, `/lifeline`, and `/twins` are in the build. Privy is mounted with guest embedded wallets on Monad testnet and mainnet.
 
-#### [ ] A2 `/api/radar`
+#### [x] A2 `/api/radar`
 - **Type:** AGENT · **Depends on:** C3, A1 · **PRD:** §F1, §5.7
 - **Do:**
   - A Node-runtime route calls `buildSnapshot(chain)`.
@@ -814,9 +814,9 @@ The human can prepare these in advance.
   - Warm p95 is ≤ 300 ms and cold is ≤ 6 s.
   - A load test of 50 concurrent requests over 10 s causes ≤ 6 upstream builds (check the route's counter).
   - The response validates against the C3 schema.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/web exec vitest run test/api.test.ts` passed. A cold `handleRadar` returned 200 in under 6 s. Twenty warm reads stayed under a 300 ms p95. Fifty concurrent reads at 0, 2, 4, 6, 8, and 10 seconds produced 6 upstream builds. The response validated against `radarSnapshotSchema` and sent `Cache-Control: public, s-maxage=2, stale-while-revalidate=10`. `chain=1` returned 400. A refresh calls the worker `/health` and does not wait on it.
 
-#### [ ] A3 `/api/account`, `/api/liquidations`, `/api/actions`
+#### [x] A3 `/api/account`, `/api/liquidations`, `/api/actions`
 - **Type:** AGENT · **Depends on:** C2, C6, C8, A1 · **PRD:** §F3, §F9, §5.7
 - **Do:**
   - `/api/account/[address]`: positions, risk metrics, and the evaluator dry run at the default 4%/6%.
@@ -828,7 +828,7 @@ The human can prepare these in advance.
   - The liquidations totals equal the sum of the rows.
   - The action tx hashes for a W7 test account equal the Durable Object's `actions` rows.
   - An invalid address returns 400.
-- **Evidence:**
+- **Evidence:** `handleAccount(143, "not-an-address")` returned 400. Mainnet BTC account `0x77A89C51` at distance 39652 dry-ran to `skip BELOW_MIN` through both `dryRunPosition` and `evaluate` (`match:true`). The same match held for `0x973E2464` at distance 47486 (`skip ABOVE_TRIGGER`). Worker `4f588011-bfe1-4171-8ffa-e122ab4cd8b4`. `GET /actions?account=0xe3929EB4` returned tx `0x064f003f` and `0xd44d55a8`, the same hashes stored on the Durable Object. `GET /actions?account=nope` returned 400. Liquidation totals in the route test equal the sum of the row notionals.
 
 #### [ ] A4 Radar UI
 - **Type:** AGENT · **Depends on:** A2, A3 · **PRD:** §F1
@@ -1159,7 +1159,7 @@ These tasks come from a review of the build's progress against the prize targets
 2. **U15** (time-sensitive: twins need time and volatility to show a real liquidation). Done. `GET /twins` lists the pairs with distances and outcomes, and sandbox arm is done.
 3. Finish **W7**, then **U3**, then the rest of W8 and W9. Done.
 4. **U4** and **U5**. Done. Next is U7.
-5. **U7**, then A1–A3.
+5. **U7**, then A1–A3. Done. Next is A4 with U8, U9, U10, U13, and U16.
 6. A4–A6 together with **U8, U9, U10, U13, U16**.
 7. A7 with **U6**, then A8–A10.
 8. **U12** (it has a HUMAN step), then D1–D4.
@@ -1273,7 +1273,7 @@ These tasks come from a review of the build's progress against the prize targets
   - `pnpm cli status` shows enough MON for the budget above.
 - **Evidence:** `pnpm --filter @lifeline/worker exec vitest run test/health.test.ts` passed. `isOpsLow` is false on the floors and true under each one. Worker `aac808b6-08bd-4734-99fb-199b9a566ae0`. `GET /health` returned `sponsorMon` `21.0530`, `operatorMon` `5.0000`, `poolAvailable` 30, `poolInBand` 30, `poolBySide` `{"long":15,"short":15}`, `low` false before the top-up. `pnpm cli status` now prints `budget ok need=31.1400 sponsor=36.1530` and exits 0. Private repo `shreyas-sovani/Metropolis`. Actions run `37512214988` succeeded: `pool.json seeded`, `pool:refill nothing new` at `available=30 long=15 short=15 inBand=30`, `faucet:ausd targets met`, `budget ok need=31.1400 sponsor=36.1530`. The workflow cron is `*/30 * * * *`.
 
-#### [ ] U7 HyperSync budget: incremental history cache
+#### [x] U7 HyperSync budget: incremental history cache
 - **Type:** AGENT · **Depends on:** C8 · **Amends:** A3
 - **Why:** C8 and G4 already hit HyperSync 429s. Judges' traffic must never turn the history (which drives the Envio bounty) into errors.
 - **Do:**
@@ -1285,7 +1285,7 @@ These tasks come from a review of the build's progress against the prize targets
   - 100 concurrent `/api/liquidations` requests produce at most 1 HyperSync request per 60 s (counter).
   - A simulated 429 yields stale data with no 5xx.
   - Totals still equal the sum of the rows.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/core exec vitest run test/history.test.ts` and the web `/api/liquidations` cases in `test/api.test.ts` passed. One hundred concurrent reads inside 60 s made `hypersyncRequests` 1. A following 429 returned the previous rows with `stale:true` and HTTP 200. A tail refresh appended block 4 without duplicating block 2, and `totals.notionalMicro` stayed `70`, the sum of the rows. The cursor lives in the server `HistoryStore` (decision log). `retryAfterMs("2")` is 2000 ms and a reset timestamp is capped at 8 s.
 
 #### [ ] U8 Money-left-on-table metrics
 - **Type:** AGENT · **Depends on:** U1, U7 · **Amends:** A4, A6
@@ -1522,3 +1522,8 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - U5 | the judging budget is 31.14 MON and `status` prints it without turning it into a `LOW:` floor | the 3 MON sponsor floor stays the operational alert; 31.14 is the judging reserve | `budget ok need=31.1400 sponsor=36.1530`
 - U5 | the pool owner sent 0.1 MON back to the sponsor | the first 10 MON top-up left the sponsor 0.0869 under 31.14, and the pool owner was still above its 2 MON target | tx `0x74b113aa`; a later top-up brought the sponsor to 36.1530
 - U5 | the 30-minute runner is a private GitHub Actions workflow, and a clean runner seeds `cli-state` from secrets then keeps it in cache | `cli-state/` is gitignored, so minting without the pool file would open a second pool | run `37512214988` on `shreyas-sovani/Metropolis`, `pool:refill nothing new`
+- U7 | liquidation history is an in-process `HistoryStore` on the web server, not the Worker Durable Object | `/api/liquidations` is the route judges hit, and one isolate can single-flight the HyperSync tail | 100 concurrent reads, 1 request; 429 returns `stale:true`
+- U7 | rate-limit waits use Retry-After or the reset timestamp, capped at 8 s | an uncapped reset would stall the request, and the cache already serves the last good payload | `retryAfterMs` test
+- A1 | the shell is dark and data-dense, with a serif nameplate and an amber trace | the brief asks for a dark trading desk, and the trace is the lifeline | Playwright home at 390 and 1440
+- A2 | radar builds are single-flight per chain for 2 s, and `/health` is pinged without awaiting it | fifty overlapping requests must not each rebuild the book | load test, 6 builds across 10 s
+- A3 | `/actions` reads the Durable Object rows, and the account dry run calls `evaluate` at 4%/6% | the pass compares those hashes and that amount with the chain | worker `4f588011`; mainnet `0x77A89C51` `match:true`

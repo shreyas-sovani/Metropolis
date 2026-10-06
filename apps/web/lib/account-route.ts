@@ -1,0 +1,93 @@
+import {
+  ADDRESSES,
+  exchangeAbi,
+  openChain,
+  readAccountByAddr,
+  readPositionsForAccount,
+  rpcUrls,
+  type ChainId,
+} from "@lifeline/core";
+import { getAddress, isAddress } from "viem";
+import { dryRunPosition, riskOf, toEvalPosition } from "./account";
+import { jsonError } from "./http";
+
+function marginHdths(raw: unknown): bigint {
+  if (Array.isArray(raw)) return (raw[1] as bigint) ?? 0n;
+  if (raw && typeof raw === "object" && "perpMaintMarginFracHdths" in raw) {
+    return (raw as { perpMaintMarginFracHdths: bigint }).perpMaintMarginFracHdths;
+  }
+  return 0n;
+}
+
+export async function handleAccount(chain: ChainId, address: string): Promise<Response> {
+  if (!isAddress(address)) return jsonError("address", 400);
+  const account = getAddress(address);
+  try {
+    const chainApi = openChain(chain, { urls: rpcUrls(chain), timeout: 8_000 });
+    const exchange = ADDRESSES[chain].exchange;
+    const info = await readAccountByAddr(chainApi.client, exchange, account);
+    const [positions, block, timestamp] = await Promise.all([
+      readPositionsForAccount(chainApi.client, exchange, info.accountId),
+      chainApi.client.getBlockNumber(),
+      chainApi.client.getBlock().then((item) => item.timestamp),
+    ]);
+    const perpIds = [...new Set(positions.map((item) => item.perpId))];
+    const packed = perpIds.length
+      ? await chainApi.client.multicall({
+          contracts: perpIds.flatMap((perpId) => [
+            { address: exchange, abi: exchangeAbi, functionName: "getPerpetualInfoV2" as const, args: [BigInt(perpId)] as const },
+            { address: exchange, abi: exchangeAbi, functionName: "getMarginFractions" as const, args: [BigInt(perpId), 0n] as const },
+          ]),
+          allowFailure: false,
+        })
+      : [];
+    const markets = new Map<number, { priceDecimals: number; lotDecimals: number; maintHdths: bigint }>();
+    perpIds.forEach((perpId, index) => {
+      const infoRow = packed[index * 2] as { priceDecimals: bigint; lotDecimals: bigint };
+      markets.set(perpId, {
+        priceDecimals: Number(infoRow.priceDecimals),
+        lotDecimals: Number(infoRow.lotDecimals),
+        maintHdths: marginHdths(packed[index * 2 + 1]),
+      });
+    });
+    const rows = positions.flatMap((item) => {
+      const market = markets.get(item.perpId);
+      if (!market || market.maintHdths <= 0n) return [];
+      const position = toEvalPosition({
+        markPriceValid: item.markPriceValid,
+        positionType: item.position.positionType,
+        lotLNS: item.position.lotLNS,
+        pricePNS: item.position.pricePNS,
+        depositCNS: item.position.depositCNS,
+        premiumPnlCNS: item.position.premiumPnlCNS,
+        priceDecimals: market.priceDecimals,
+        lotDecimals: market.lotDecimals,
+        maintHdths: market.maintHdths,
+        markPNS: item.markPricePNS,
+      });
+      const decision = dryRunPosition({
+        account,
+        perpId: BigInt(item.perpId),
+        position,
+        freeCNS: info.freeCNS,
+        nowSec: timestamp,
+        nowBlock: block,
+      });
+      const risk = riskOf(position);
+      return [
+        {
+          perpId: item.perpId,
+          ...risk,
+          freeCNS: info.freeCNS.toString(),
+          dryRun:
+            decision.action === "topUp"
+              ? { action: "topUp", amountCNS: decision.amountCNS.toString() }
+              : { action: "skip", reason: decision.reason },
+        },
+      ];
+    });
+    return Response.json({ chainId: chain, address: account, accountId: info.accountId.toString(), positions: rows });
+  } catch {
+    return jsonError("rpc", 502);
+  }
+}
