@@ -14,9 +14,20 @@ export {
   firstExchangeLogBlock,
   paginateLogs,
   queryHyperSync,
+  retryAfterMs,
   type HyperSyncFetch,
   type HyperSyncPage,
 } from "./client.js";
+export {
+  HISTORY_TTL_MS,
+  HistoryStore,
+  appendRows,
+  historyDue,
+  recomputeHistory,
+  totalsMatch,
+  type CachedHistory,
+  type HistoryPage,
+} from "./history.js";
 export {
   decodeIncreasePositionCollateral,
   decodePositionDecreased,

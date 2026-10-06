@@ -136,6 +136,7 @@ export async function liquidationHistory(input: {
   fromBlock: number;
   scales: ReadonlyMap<string, MarketScale>;
   fetchImpl?: HyperSyncFetch;
+  retryOnRateLimit?: boolean;
 }): Promise<LiquidationHistory> {
   const scanned = await paginateLogs({
     endpoint: HYPERSYNC_ENDPOINTS[input.chainId],
@@ -144,6 +145,7 @@ export async function liquidationHistory(input: {
     address: ADDRESSES[input.chainId].exchange,
     eventName: "PositionLiquidated",
     fetchImpl: input.fetchImpl,
+    retryOnRateLimit: input.retryOnRateLimit,
   });
   const events = scanned.logs.map((log) => decodePositionLiquidated(log));
   return summarizeLiquidations(events, input.scales);

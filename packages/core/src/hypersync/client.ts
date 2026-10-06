@@ -6,7 +6,22 @@ export interface HyperSyncFetch {
   (
     url: string,
     init: { method: string; headers: Record<string, string>; body: string },
-  ): Promise<{ status: number; json: () => Promise<unknown> }>;
+  ): Promise<{ status: number; headers?: { get(name: string): string | null }; json: () => Promise<unknown> }>;
+}
+
+/** Retry-After seconds, or a reset timestamp. Capped so a long reset cannot stall the caller. */
+export function retryAfterMs(header: string | null, now: number, fallbackMs: number): number {
+  const fallback = Math.min(8_000, Math.max(0, fallbackMs));
+  if (!header) return fallback;
+  const trimmed = header.trim();
+  if (/^\d+(\.\d+)?$/.test(trimmed)) {
+    const value = Number(trimmed);
+    if (value > 1_000_000) return Math.min(8_000, Math.max(0, value * 1000 - now));
+    return Math.min(8_000, Math.max(0, Math.ceil(value * 1000)));
+  }
+  const when = Date.parse(trimmed);
+  if (Number.isFinite(when)) return Math.min(8_000, Math.max(0, when - now));
+  return fallback;
 }
 
 export interface HyperSyncPage {
@@ -27,23 +42,13 @@ export async function queryHyperSync(input: {
   token: string;
   body: unknown;
   fetchImpl?: HyperSyncFetch;
+  retryOnRateLimit?: boolean;
+  now?: number;
 }): Promise<HyperSyncPage> {
   const fetchImpl = input.fetchImpl;
   if (!fetchImpl) throw new Error("fetchImpl is required");
-  let response = await fetchImpl(`${input.endpoint.replace(/\/$/, "")}/query`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${input.token}`,
-    },
-    body: JSON.stringify(input.body),
-  });
-  for (let attempt = 0; response.status === 429 && attempt < 5; attempt += 1) {
-    await new Promise<void>((resolve) => {
-      const timer = (globalThis as unknown as { setTimeout: (fn: () => void, ms: number) => void }).setTimeout;
-      timer(resolve, 1_000 * 2 ** attempt);
-    });
-    response = await fetchImpl(`${input.endpoint.replace(/\/$/, "")}/query`, {
+  const call = () =>
+    fetchImpl(`${input.endpoint.replace(/\/$/, "")}/query`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -51,6 +56,19 @@ export async function queryHyperSync(input: {
       },
       body: JSON.stringify(input.body),
     });
+  let response = await call();
+  const retry = input.retryOnRateLimit !== false;
+  for (let attempt = 0; retry && response.status === 429 && attempt < 5; attempt += 1) {
+    const wait = retryAfterMs(
+      response.headers?.get("retry-after") ?? response.headers?.get("x-ratelimit-reset") ?? null,
+      input.now ?? Date.now(),
+      1_000 * 2 ** attempt,
+    );
+    await new Promise<void>((resolve) => {
+      const timer = (globalThis as unknown as { setTimeout: (fn: () => void, ms: number) => void }).setTimeout;
+      timer(resolve, wait);
+    });
+    response = await call();
   }
   if (response.status !== 200) {
     throw new Error(`hypersync status ${response.status}`);
@@ -75,6 +93,7 @@ export async function paginateLogs(input: {
   eventName?: string;
   eventNames?: readonly string[];
   fetchImpl?: HyperSyncFetch;
+  retryOnRateLimit?: boolean;
 }): Promise<{ logs: HyperSyncLog[]; pages: number; archiveHeight: number; nextBlock: number }> {
   let fromBlock = input.fromBlock;
   let archiveHeight = Number.POSITIVE_INFINITY;
@@ -100,6 +119,7 @@ export async function paginateLogs(input: {
       token: input.token,
       body,
       fetchImpl: input.fetchImpl,
+      retryOnRateLimit: input.retryOnRateLimit,
     });
     pages += 1;
     if (page.archiveHeight !== null) archiveHeight = page.archiveHeight;
