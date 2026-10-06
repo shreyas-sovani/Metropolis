@@ -3,21 +3,25 @@ import { formatUsd } from "../../../lib/format";
 import { handleRadar } from "../../../lib/radar";
 import { parseChain } from "../../../lib/http";
 import { historyStore } from "../../../lib/history-store";
+import { radarUrls } from "../../../lib/radar-urls";
+import { readSecret } from "../../../lib/secrets";
 
 export const runtime = "nodejs";
 
 const MAINNET_SPLIT: LiqSplit = { userPer100K: 80_000n, insPer100K: 10_000n, protocolPer100K: 10_000n };
 
 export async function GET(request: Request): Promise<Response> {
-  const chain = new URL(request.url).searchParams.get("chain");
+  const url = new URL(request.url);
+  const chain = url.searchParams.get("chain");
+  const deadPrimary = url.searchParams.get("rpc") === "dead" && process.env.NODE_ENV !== "production";
   const response = await handleRadar({
     chain,
     now: Date.now(),
     load: (chainId: ChainId) => {
-      const salt = radarSalt(process.env.RADAR_SALT ?? "");
+      const salt = radarSalt(readSecret("RADAR_SALT"));
       const parsed = parseChain(String(chainId));
       if (!parsed) throw new Error("chain");
-      return buildSnapshot(parsed, salt);
+      return buildSnapshot(parsed, salt, { urls: radarUrls(parsed, deadPrimary) });
     },
   });
   if (!response.ok) return response;

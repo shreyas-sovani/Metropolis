@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ExactBadge } from "../exact-badge";
+import { ONE_LINER } from "../../lib/copy";
 import { bucketHit, crashLine } from "../../lib/crash-line";
 import { formatPct, formatUsd } from "../../lib/format";
 import type { CompactPosition } from "../../../../packages/core/src/radar/schema";
@@ -68,19 +69,30 @@ export function RadarBoard() {
   const [hover, setHover] = useState<string>("");
   const [error, setError] = useState("");
   const [shocks, setShocks] = useState<Record<number, number>>({});
+  const urlApplied = useRef(false);
 
   useEffect(() => {
     let gone = false;
     async function load() {
       try {
-        const [radar, liquidations, markets, saves] = await Promise.all([
-          fetch(`/api/radar?chain=${chain}`),
+        const params = new URLSearchParams(window.location.search);
+        if (!urlApplied.current) {
+          urlApplied.current = true;
+          if (params.get("chain") === "10143" && chain !== "10143") {
+            setChain("10143");
+            return;
+          }
+        }
+        const fault = process.env.NODE_ENV !== "production" && params.get("rpc") === "dead";
+        const radar = await fetch(`/api/radar?chain=${chain}${fault ? "&rpc=dead" : ""}`);
+        if (!radar.ok) throw new Error("radar");
+        const snapshot = (await radar.json()) as RadarPayload;
+        if (!gone) setData((current) => ({ ...snapshot, saves: current?.saves, names: current?.names, sparks: current?.sparks }));
+        const [liquidations, markets, saves] = await Promise.all([
           fetch("/api/liquidations"),
           fetch("/api/markets"),
           fetch("/api/saves"),
         ]);
-        if (!radar.ok) throw new Error("radar");
-        const snapshot = (await radar.json()) as RadarPayload;
         const history = liquidations.ok ? ((await liquidations.json()) as { latest?: TapeRow[] }) : {};
         const meta = markets.ok ? ((await markets.json()) as { markets?: { perpId: number; name: string; spark: number[] }[] }) : {};
         const saveBody = saves.ok ? ((await saves.json()) as { count?: number }) : { count: 0 };
@@ -113,6 +125,7 @@ export function RadarBoard() {
       <div className="radar-head">
         <div>
           <h1>Where the book can break</h1>
+          <p className="lede">{ONE_LINER}</p>
           <ExactBadge calibrated={data?.calibrated !== false} />
         </div>
         <div className="toggle" role="group" aria-label="Chain">
@@ -124,7 +137,8 @@ export function RadarBoard() {
           </button>
         </div>
       </div>
-      {error ? <p className="lede">{error}</p> : null}
+      {error ? <p className="lede" role="alert">{error}</p> : null}
+      {data && data.markets.length === 0 ? <p>No open positions on this chain yet.</p> : null}
       {data ? (
         <>
           <section className="headline" aria-label="Headline">

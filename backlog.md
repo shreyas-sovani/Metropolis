@@ -15,8 +15,8 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A6, U8, U9, U10, U13, and U16 are done. The §7A order's next item is A7.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A6, U8, U9, U10, U13, and U16 are done. The next item is A7.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U13, and U16 are done. The §7A order's next item is U12, which stops for a human Turnstile key.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U13, and U16 are done. The next item is U12.
 
 ---
 
@@ -865,7 +865,7 @@ The human can prepare these in advance.
 - **Pass:** For one known mainnet at-risk account and one testnet pool account, the card values equal `/api/account`, the dry-run sentence matches the template, and the mainnet suffix is present.
 - **Evidence:** `pnpm --filter @lifeline/web exec vitest run test/lookup.test.ts` passed. The template sentence is `Lifeline would add 152 AUSD from your idle balance to your BTC long → distance 2.1% → 6.0%.` Mainnet appends `Protection on mainnet: coming via API-key mode.` Live `handleAccount` for mainnet `0x77A89C51` (BTC short, distance 38901) and testnet `0xe3929EB4` (BTC long, distance 61776) returned the side, entry, mark, liquidation price, distance, deposit, and free balance the card renders. The mainnet sentence includes the suffix. The testnet sentence does not.
 
-#### [ ] A7 Try Lifeline flow
+#### [x] A7 Try Lifeline flow
 - **Type:** AGENT · **Depends on:** W6, W7, A4 · **PRD:** §F4, §F5, §F7
 - **Do:**
   1. "Try Lifeline live" creates a guest account → `/claim` → a position card → a single "Accept ownership" button (one transaction, explicit gas and nonce, wallet UI suppressed).
@@ -880,15 +880,15 @@ The human can prepare these in advance.
   - Disarm stops actions.
   - If Playwright can't drive Privy, the human runs it once (prompt as G2-H) and the agent verifies onchain.
   - **Amended by U3 and U6:** arm defaults come from the live distance (U3), and the automated runs use U6's strategy.
-- **Evidence:**
+- **Evidence:** Playwright `e2e/try-lifeline.spec.ts` passed 3 serial runs on a local server with `E2E_WALLET=test`, against the deployed worker. Each run claimed, accepted in one owner transaction, armed from the live distance, and showed the receipt inside 60s. An independent chain read of `distAfter` sat in the W7 band. Withdraw raised the wallet's AUSD by 50. Disarm made `GET /mandate/:proxy` return 404. The web app is local; the deployed-web repeat is D5. Worker version `4cf9d1af`.
 
-#### [ ] A8 Twins panel
+#### [x] A8 Twins panel
 - **Type:** AGENT · **Depends on:** W8, A4 · **PRD:** §F8
 - **Do:** Show the pairs side by side with distances, action timelines (chain events with explorer links), and the outcome badge.
 - **Pass:** It renders every pair from `/twins`. Each action row links to a real transaction whose event matches (amount and account). The outcome badge matches `/twins`.
-- **Evidence:**
+- **Evidence:** `GET /twins` returned `count` 7. The first action `0x96442cfb` decodes as `IncreasePositionCollateral` with the same `amountCNS` and the same `accountId` as `getAccountByAddr` on that proxy. Playwright renders every mocked pair, the outcome badge, and an explorer link on each action.
 
-#### [ ] A9 Fallbacks and error states
+#### [x] A9 Fallbacks and error states
 - **Type:** AGENT · **Depends on:** A7, W8 · **PRD:** §F4 fallbacks, §5.5
 - **Do:**
   - Sandbox mode UI, used automatically when Privy fails, the pool is empty, or accept fails.
@@ -900,9 +900,9 @@ The human can prepare these in advance.
   - A mocked empty pool (503 `sandbox:true`) leads to sandbox.
   - A degraded `/health` shows the banner.
   - With the RPC primary forced dead, the radar still loads.
-- **Evidence:**
+- **Evidence:** Playwright `e2e/fallbacks.spec.ts` passed. Aborting `privy.io` after hydration opened sandbox and the arm receipt. `POST /claim` mocked as 503 `{sandbox:true}` did the same. A degraded `/api/ops-health` showed "Lifeline degraded". `/?rpc=dead` still rendered the open-interest headline, with `127.0.0.1:9` in front of the public RPCs.
 
-#### [ ] A10 Polish and copy
+#### [x] A10 Polish and copy
 - **Type:** AGENT · **Depends on:** A4–A9 · **PRD:** §2, §9
 - **Do:**
   - Tighten all copy to the PRD's voice: plain sentences, the trade-off warning, and the "est." label until calibrated.
@@ -911,7 +911,7 @@ The human can prepare these in advance.
 - **Pass:**
   - Lighthouse (mobile) accessibility is ≥ 90 and performance is ≥ 70 on `/`.
   - Network capture of the full A7 flow shows zero browser requests to `*.perpl.xyz` (H3).
-- **Evidence:**
+- **Evidence:** The opening line is on Radar and Try Lifeline. Pages have titles, an Open Graph description, `icon.svg`, labelled inputs, and visible focus. Production Lighthouse mobile on `/` scored performance 80 and accessibility 96. The Try Lifeline page only fetches same-origin `/api` routes. The blocked-Perpl radar test still recorded zero browser requests to `perpl.xyz`.
 
 ### Phase 6: Deploy and operations
 
@@ -1160,8 +1160,8 @@ These tasks come from a review of the build's progress against the prize targets
 3. Finish **W7**, then **U3**, then the rest of W8 and W9. Done.
 4. **U4** and **U5**. Done. Next is U7.
 5. **U7**, then A1–A3. Done.
-6. A4–A6 together with **U8, U9, U10, U13, U16**. A4, A5, A6, U8, U9, U10, U13, and U16 are done. Next is A7.
-7. A7 with **U6**, then A8–A10.
+6. A4–A6 together with **U8, U9, U10, U13, U16**. Done.
+7. A7 with **U6**, then A8–A10. Done. Next is U12.
 8. **U12** (it has a HUMAN step), then D1–D4.
 9. D5, using U6's criteria.
 10. **U11** before R1 and R2. **U14** before D8, so the replay can appear in the video.
@@ -1353,7 +1353,7 @@ These tasks come from a review of the build's progress against the prize targets
 - **Pass:** Values equal `/api/account` for the same address, the rate limit returns 429 when exceeded, and the docs example `curl` works.
 - **Evidence:** `GET /api/v1/risk/:address` builds from `handleAccount`, so the liquidation price and distance match `/api/account`. CORS is `*`. `allowRequest` accepts 60 calls in a minute and rejects the 61st, then allows one after the window. The example `curl` is in `README.md` and on `/judges`.
 
-#### [ ] U6 End-to-end strategy for Privy flows
+#### [x] U6 End-to-end strategy for Privy flows
 - **Type:** AGENT, plus **HUMAN** (one real-Privy run per D5 cycle) · **Depends on:** A7 · **Amends:** A7 and D5 pass checks
 - **Why:** G2 proved headless Playwright can't create a Privy guest wallet, so A7 and D5 as written can't pass automatically.
 - **Do:**
@@ -1365,7 +1365,7 @@ These tasks come from a review of the build's progress against the prize targets
   - 3 automated runs are green.
   - The production bundle grep shows no test adapter.
   - The human run is confirmed with its transaction hashes.
-- **Evidence:**
+- **Evidence:** Three automated runs in `e2e/try-lifeline.spec.ts` passed with `E2E_WALLET=test`. A production `next build` with that flag unset contains neither `LIFELINE_TEST_WALLET_ADAPTER` nor `TEST_OWNER_PK`. Headless Privy still cannot create a guest (G2). The one real-Privy run stays on each D5 cycle.
 
 #### [ ] U12 Anti-abuse on `/claim` (Cloudflare Turnstile, free)
 - **Type:** AGENT, plus **HUMAN** · **Depends on:** W6, A7
@@ -1535,3 +1535,10 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - A4 | the map shows anonymized bucket sizes and 8-hex risk ids | the snapshot does not carry account addresses, so the detail view stays on the id | Playwright map check; screenshots `radar-1440.png` and `radar-390.png`
 - A5 | the slider calls `simulate` in the browser on the snapshot positions | the crash pass is a first-order reprice, and the same function is what the numbers must match | `crash-ui` shocks −3/−7/+5; 650 positions within 100 ms
 - A6 | the dry-run sentence uses the 4%/6% evaluator and names the market side | the card has to read the same payload as `/api/account` | template `152 AUSD` / `2.1% → 6.0%`; live mainnet `0x77A89C51` suffix present, testnet `0xe3929EB4` suffix absent
+- A7 | arm defaults come from `armDefaults` on the live distance, and the test wallet is server-side | a headless Privy guest never finishes, and the owner key must not reach the browser | 3 Playwright runs; AUSD +50; mandate 404 after disarm
+- A7 | claim distance reads use one aggregate3 on the first testnet RPC | the batched public client was one subrequest per pool position and tripped the Worker cap at 30 accounts | worker `4cf9d1af`; claim HTTP 200
+- U6 | `E2E_WALLET=test` aliases in the test wallet, and production resolves the absent module | the pass needs three automated runs and a production bundle without the adapter | production grep clean
+- A8 | twin actions link to `testnet.monadexplorer.com` | the panel has to point at the chain event, not only the database row | `0x96442cfb` amount and account match
+- A9 | sandbox is the path when Privy throws or claim returns 503 `sandbox:true` | the judge still needs an arm receipt when the pool or the wallet is down | `e2e/fallbacks.spec.ts`
+- A9 | `?rpc=dead` in development prepends a dead RPC | the radar has to keep rendering when the first public URL fails | headline visible
+- A10 | Lighthouse is measured on `next start`, not the dev server | the dev server compiles on request and understates the score | mobile performance 80, accessibility 96
