@@ -1,0 +1,66 @@
+name: ops
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: lifeline-ops
+  cancel-in-progress: false
+
+jobs:
+  cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @lifeline/core build && pnpm --filter @lifeline/cli build
+      - uses: actions/cache@v4
+        with:
+          path: cli-state
+          key: lifeline-cli-state-${{ github.run_id }}
+          restore-keys: |
+            lifeline-cli-state-
+      - name: require pool state
+        run: test -f cli-state/pool.json
+      - name: write testnet keys
+        env:
+          SPONSOR_PK: ${{ secrets.SPONSOR_PK }}
+          OPERATOR_PK: ${{ secrets.OPERATOR_PK }}
+          POOL_OWNER_PK: ${{ secrets.POOL_OWNER_PK }}
+          MAKER_PK: ${{ secrets.MAKER_PK }}
+          CALIBRATION_PK: ${{ secrets.CALIBRATION_PK }}
+          TEST_OWNER_PK: ${{ secrets.TEST_OWNER_PK }}
+          ALCHEMY_MONAD_TESTNET_URL: ${{ secrets.ALCHEMY_MONAD_TESTNET_URL }}
+        run: node --input-type=module -e '
+          import { mkdirSync, writeFileSync } from "node:fs";
+          mkdirSync("secrets", { recursive: true });
+          const names = ["SPONSOR_PK","OPERATOR_PK","POOL_OWNER_PK","MAKER_PK","CALIBRATION_PK","TEST_OWNER_PK"];
+          const lines = [];
+          for (const name of names) {
+            const value = process.env[name] ?? "";
+            if (!/^0x[0-9a-fA-F]{64}$/.test(value)) {
+              console.error(name + " missing");
+              process.exit(1);
+            }
+            lines.push(name + "=" + value);
+          }
+          writeFileSync("secrets/testnet-keys.env", lines.join("\n") + "\n", { mode: 0o600 });
+          const alchemy = process.env.ALCHEMY_MONAD_TESTNET_URL ?? "";
+          if (alchemy.startsWith("https://")) {
+            writeFileSync("secrets/services.env", "ALCHEMY_MONAD_TESTNET_URL=" + alchemy + "\n", { mode: 0o600 });
+          }
+          console.log("testnet keys written");
+        '
+      - run: pnpm cli pool:refill --target 30 --per-side 12 --in-band 10
+      - run: pnpm cli faucet:ausd
+      - run: pnpm cli status

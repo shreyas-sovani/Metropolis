@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { coreEvaluator } from "../src/adapter.js";
-import { clientError, healthReport, needsAlarm, pausedFlag, WORKER_VERSION } from "../src/health.js";
+import {
+  clientError,
+  countBySide,
+  countInBand,
+  healthReport,
+  isOpsLow,
+  needsAlarm,
+  pausedFlag,
+  WORKER_VERSION,
+} from "../src/health.js";
+import { opsDue } from "../src/ops.js";
 
 describe("worker health", () => {
   it("reports a clean scaffold with degraded false", () => {
@@ -11,6 +21,10 @@ describe("worker health", () => {
         lastError: null,
         paused: false,
         poolAvailable: 0,
+        sponsorWei: 0n,
+        operatorWei: 0n,
+        poolInBand: 0,
+        poolBySide: { long: 0, short: 0 },
       }),
     ).toEqual({
       lastAlarmAt: null,
@@ -18,8 +32,32 @@ describe("worker health", () => {
       degraded: false,
       paused: false,
       poolAvailable: 0,
+      sponsorMon: "0.0000",
+      operatorMon: "0.0000",
+      poolInBand: 0,
+      poolBySide: { long: 0, short: 0 },
+      low: true,
       version: WORKER_VERSION,
     });
+  });
+
+  it("flips low only under a floor", () => {
+    const healthy = {
+      sponsorWei: 3n * 10n ** 18n,
+      operatorWei: 10n ** 18n,
+      poolAvailable: 10,
+      poolInBand: 5,
+    };
+    expect(isOpsLow(healthy)).toBe(false);
+    expect(isOpsLow({ ...healthy, sponsorWei: healthy.sponsorWei - 1n })).toBe(true);
+    expect(isOpsLow({ ...healthy, operatorWei: healthy.operatorWei - 1n })).toBe(true);
+    expect(isOpsLow({ ...healthy, poolAvailable: 9 })).toBe(true);
+    expect(isOpsLow({ ...healthy, poolInBand: 4 })).toBe(true);
+    expect(countInBand([24_999n, 25_000n, 35_000n, 35_001n])).toBe(2);
+    expect(countBySide(["long", "short", "long", "reserve"])).toEqual({ long: 2, short: 1 });
+    expect(opsDue(null, 1_000)).toBe(true);
+    expect(opsDue(1_000, 60_999)).toBe(false);
+    expect(opsDue(1_000, 61_000)).toBe(true);
   });
 
   it("treats only an explicit pause flag as paused", () => {
@@ -43,6 +81,10 @@ describe("worker health", () => {
       lastError: null,
       paused: true,
       poolAvailable: 2,
+      sponsorWei: 4n * 10n ** 18n,
+      operatorWei: 2n * 10n ** 18n,
+      poolInBand: 5,
+      poolBySide: { long: 1, short: 1 },
     });
     expect(report.paused).toBe(true);
     expect(report.degraded).toBe(false);

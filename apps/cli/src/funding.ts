@@ -3,6 +3,24 @@ export const AUSD_UNIT = 10n ** 6n;
 
 export const SPONSOR_FLOOR = 3n * WEI;
 
+/** G7 measured costs, in wei: 0.286 per pool account, 0.097 per claim, 0.025 per top-up. */
+export const POOL_ACCOUNT_MON = 286n * 10n ** 15n;
+export const CLAIM_MON = 97n * 10n ** 15n;
+export const TOPUP_MON = 25n * 10n ** 15n;
+
+/** 40 accounts, 100 claims, and 400 top-ups. 31.14 MON. */
+export function judgingMonBudget(accounts = 40n, claims = 100n, topups = 400n): bigint {
+  return accounts * POOL_ACCOUNT_MON + claims * CLAIM_MON + topups * TOPUP_MON;
+}
+
+export function budgetLine(sponsorWei: bigint, need = judgingMonBudget()): string {
+  const needText = formatUnits(need, 18, 4);
+  const have = formatUnits(sponsorWei, 18, 4);
+  if (sponsorWei >= need) return `budget ok need=${needText} sponsor=${have}`;
+  const shortfall = formatUnits(need - sponsorWei, 18, 4);
+  return `budget short need=${needText} sponsor=${have} shortfall=${shortfall}`;
+}
+
 export const MON_ROLES = [
   "OPERATOR",
   "POOL_OWNER",

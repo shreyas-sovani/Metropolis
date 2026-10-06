@@ -2,7 +2,8 @@ import { DurableObject } from "cloudflare:workers";
 import { type MandateMessage } from "@lifeline/core";
 import { getAddress, type Address, type Hex } from "viem";
 import { coreEvaluator } from "./adapter.js";
-import { clientError, healthReport, needsAlarm, pausedFlag, WORKER_VERSION } from "./health.js";
+import { clientError, countBySide, healthReport, needsAlarm, pausedFlag, WORKER_VERSION } from "./health.js";
+import { opsDue, readOps, type OpsSnapshot } from "./ops.js";
 import { parseRegistrations, signMandate } from "./house.js";
 import { registerPool } from "./register.js";
 import { crudRoundTrip, migrate } from "./schema.js";
@@ -32,6 +33,8 @@ export class Lifeline extends DurableObject<LifelineEnv> {
   private ticks: number[] = [];
   private knownError: string | null | undefined;
   private gap: { startedAt: number | null; maxGapMs: number } | null = null;
+  private ops: OpsSnapshot | null = null;
+  private opsFlight: Promise<void> | null = null;
 
   constructor(ctx: DurableObjectState, env: LifelineEnv) {
     super(ctx, env);
@@ -90,7 +93,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     const alarm = await this.ctx.storage.getAlarm();
     const lastTick = this.ticks[this.ticks.length - 1] ?? null;
     if (needsAlarm(alarm, lastTick, Date.now())) await this.ctx.storage.setAlarm(Date.now() + 50);
-    return Response.json(this.report());
+    return Response.json(await this.report());
   }
 
   private admin(request: Request): boolean {
@@ -325,8 +328,25 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     this.ctx.storage.sql.exec("UPDATE health_state SET last_error = ? WHERE id = 1", error);
   }
 
-  private report() {
+  private async refreshOps(now: number): Promise<void> {
+    if (!opsDue(this.ops?.at ?? null, now)) return;
+    if (this.opsFlight) return this.opsFlight;
+    this.opsFlight = readOps(this.ctx.storage.sql, this.env, now)
+      .then((next) => {
+        if (next) this.ops = next;
+      })
+      .catch(() => {
+        // Keep the last snapshot. A miss leaves balances at zero, so low stays true.
+      })
+      .finally(() => {
+        this.opsFlight = null;
+      });
+    return this.opsFlight;
+  }
+
+  private async report() {
     const now = Date.now();
+    await this.refreshOps(now);
     const cutoff = now - WINDOW_MS;
     const ticks = this.ticks.filter((at) => at >= cutoff);
     const last = ticks[ticks.length - 1] ?? null;
@@ -334,14 +354,19 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       .exec("SELECT last_error FROM health_state WHERE id = 1")
       .toArray() as { last_error: string | null }[];
     const available = this.ctx.storage.sql
-      .exec("SELECT COUNT(*) AS n FROM pool WHERE status = 'available'")
-      .toArray() as { n: number }[];
+      .exec("SELECT side FROM pool WHERE status = 'available'")
+      .toArray() as { side?: string }[];
+    const ops = this.ops;
     return healthReport({
       lastAlarmAt: last,
       ticksLast10m: ticks.length,
       lastError: state[0]?.last_error ?? null,
       paused: pausedFlag(this.env.LIFELINE_PAUSED),
-      poolAvailable: Number(available[0]?.n ?? 0),
+      poolAvailable: available.length,
+      sponsorWei: ops?.sponsorWei ?? 0n,
+      operatorWei: ops?.operatorWei ?? 0n,
+      poolInBand: ops?.poolInBand ?? 0,
+      poolBySide: ops?.poolBySide ?? countBySide(available.map((row) => row.side ?? "")),
     });
   }
 }

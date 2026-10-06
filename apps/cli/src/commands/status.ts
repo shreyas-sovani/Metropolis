@@ -5,6 +5,7 @@ import type { Address } from "viem";
 import { workspaceRoot } from "./keys-generate.js";
 import {
   ALL_ROLES,
+  budgetLine,
   floorBreaches,
   formatUnits,
   parseFloorSpec,
@@ -68,6 +69,7 @@ export async function status(root = workspaceRoot(), argv: readonly string[] = [
   const twins = countJsonArray(path.join(root, "cli-state", "twins.json"));
   console.log(`pool=${pool}`);
   console.log(`twins=${twins}`);
+  console.log(budgetLine(mon.SPONSOR));
 
   const holdings: Holdings = { mon, ausd: ausdBal };
   const lows = floorBreaches(holdings, overrides);

@@ -15,8 +15,8 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, and U4 are done. The §7A order's next item is U5.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, and U4 are done. The next item is U5.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, and U4 are done. U5 is `[!]` until the sponsor covers the 31.14 MON judging budget and the scheduled runner has a hosted green run. The §7A order's next item stays U5.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, and U4 are done. U5 is blocked on the sponsor top-up and a private GitHub remote.
 
 ---
 
@@ -271,7 +271,7 @@ The agent builds these across phases. Every command is idempotent or resumable, 
 |---|---|---|
 | `keys:generate` | Create `secrets/testnet-keys.env` if it's missing (never overwrite) and print the addresses | S0.3 |
 | `verify:addresses` | Check code exists at every PRD §5.2 address on both chains, and cross-check the collateral token and faucet token | S0.2 |
-| `status` | MON and AUSD balances for each role, pool inventory and distances, twins, floors | S0.5 |
+| `status` | MON and AUSD balances for each role, pool inventory and distances, twins, floors, and the 31.14 MON judging budget | S0.5, U5 |
 | `fund:mon` | Distribute MON from the sponsor to each role up to its target | S0.5 |
 | `faucet:ausd` | Loop `requestFunds` (respecting the global 60 s cooldown) until the AUSD targets are met | S0.5 |
 | `gate:<n>` | Gate scripts G1–G8 | Phase 1 |
@@ -688,6 +688,7 @@ The human can prepare these in advance.
   - Turn the G3 prototype into the real Worker: a router, one `Lifeline` Durable Object (SQLite), and secret bindings (§4.3).
   - Add `pnpm cli secrets:sync-worker`.
   - `GET /health` returns `{lastAlarmAt, ticksLast10m, degraded, paused, poolAvailable, version}`.
+  - **Amended by U5:** `/health` also returns `sponsorMon`, `operatorMon`, `poolInBand`, `poolBySide`, and `low`.
   - Adapters wrap `packages/core` so the core stays runtime-agnostic.
 - **Pass:**
   - `wrangler deploy` succeeds.
@@ -939,6 +940,7 @@ The human can prepare these in advance.
 - **Type:** AGENT · **Depends on:** D2, P2, P3 · **PRD:** §5.9
 - **Do:**
   - Top up funds: prompt S0.4 if the sponsor is below 15 MON cumulative.
+  - **Amended by U5:** `pnpm cli status` must print `budget ok` (need 31.1400 MON) before this pool work. `budget short` is the S0.4 prompt.
   - `pool:create` until there are at least 20 available, split BTC and ETH.
   - Make sure twins exist, then `pool:register`.
 - **Pass:**
@@ -1156,7 +1158,7 @@ These tasks come from a review of the build's progress against the prize targets
 1. **U2 → U1 → finish G4** (`CALIBRATED=true`). Done.
 2. **U15** (time-sensitive: twins need time and volatility to show a real liquidation). Done. `GET /twins` lists the pairs with distances and outcomes, and sandbox arm is done.
 3. Finish **W7**, then **U3**, then the rest of W8 and W9. Done.
-4. **U4** and **U5**. U4 is done. Next is U5.
+4. **U4** and **U5**. U4 is done. U5 is blocked: the sponsor is short of 31.14 MON, and this checkout has no GitHub remote for the cron.
 5. **U7**, then A1–A3.
 6. A4–A6 together with **U8, U9, U10, U13, U16**.
 7. A7 with **U6**, then A8–A10.
@@ -1253,7 +1255,7 @@ These tasks come from a review of the build's progress against the prize targets
   - `pool:refill` reaches all three targets, and a re-run sends nothing.
 - **Evidence:** `pnpm --filter @lifeline/worker exec vitest run test/recycle.test.ts test/claim.test.ts` passed. An unaccepted claim older than 10 minutes plans `clear` (`transferOwnership(0)`); `pendingCleared` is true only for the zero address; `releaseClaim` sets status `available` and `pickPool` returns that proxy again. A 7% reserve is offered only when no closer account is free. `pnpm cli pool:refill --target 30 --per-side 12 --in-band 10` created accounts through `available=30 long=15 short=15 inBand=30`. The re-run printed `available=30 long=15 short=15 inBand=30` and `pool:refill nothing new`, exit 0. `/health` `poolAvailable` is 30. Worker `ce97d881-e28d-4034-846f-6543f781c9c6`. `pool:register` then exited 0, with sol-short kept as `house-signed kind=user`.
 
-#### [ ] U5 Ops signals, scheduled runner, and MON budget
+#### [!] U5 Ops signals, scheduled runner, and MON budget
 - **Type:** AGENT, plus **HUMAN** decision · **Depends on:** U4 · **Amends:** W1, D4, D3
 - **Why:** The product must stay demoable for the whole judging period with no one watching it.
 - **Do:**
@@ -1269,7 +1271,7 @@ These tasks come from a review of the build's progress against the prize targets
   - A forced low condition flips `low:true`.
   - The scheduled job has one green run, or the decline is logged with the runbook step added.
   - `pnpm cli status` shows enough MON for the budget above.
-- **Evidence:**
+- **Evidence:** Health fields and the forced-low test pass. The budget check does not: sponsor `21.0530` against need `31.1400`, shortfall `10.0869`. There is no git remote, so the Actions cron has not had a hosted run. Daily commands until that exists: `pnpm cli pool:refill --target 30 --per-side 12 --in-band 10`, `pnpm cli faucet:ausd`, `pnpm cli status`. On 2026-10-06 those exited 0, 0, and 0 after the operator top-up. `pnpm --filter @lifeline/worker exec vitest run test/health.test.ts` passed, including `isOpsLow` flipping true under each floor and false on the floors themselves. Worker `aac808b6-08bd-4734-99fb-199b9a566ae0`. `GET /health` returned `sponsorMon` `21.0530`, `operatorMon` `5.0000`, `poolAvailable` 30, `poolInBand` 30, `poolBySide` `{"long":15,"short":15}`, `low` false. `pool:refill` printed `available=30 long=15 short=15 inBand=30` and `nothing new`. `faucet:ausd` printed `targets met`. `fund:mon` sent the operator `+0.748938978` MON, tx `0xba696288`, status 1. Keeper ticks are `degraded:true` with `Too many subrequests` on the alarm.
 
 #### [ ] U7 HyperSync budget: incremental history cache
 - **Type:** AGENT · **Depends on:** C8 · **Amends:** A3
@@ -1515,3 +1517,7 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - U4 | an unaccepted claim is recycled at most once a minute by `transferOwnership(0)`, and only released when `pendingOwner` reads back as zero | the house mandate stays in place, and an accepted owner is not overwritten | `planRecycle` keeps an owner who is not the pool owner; `releaseClaim` deletes the claim row
 - U4 | `pool:refill` counts pool-owned positions at or under 6%, and the demo band is 2.5–3.5% | claimed accounts and far-from-liquidation positions should not satisfy the inventory targets | first run 30/15/15/30; re-run `nothing new`
 - U4 | `pool:register` accepts a house-signed `user` mandate on an account the pool owner still owns | sandbox arm left sol-short as `kind=user` without moving `owner()` | register exit 0, `house-signed kind=user`
+- U5 | `/health` reads sponsor and operator balances and the 2.5–3.5% band at most once a minute | radar and UptimeRobot both hit `/health`, and a chain read on every request would multiply RPC calls | live JSON `poolAvailable` 30, `poolInBand` 30, `poolBySide` 15/15, `low` false
+- U5 | `low` is true only under 3 MON, under 1 MON, under 10 available, or under 5 in-band | the floors themselves must stay quiet | `isOpsLow` test
+- U5 | the judging budget is 31.14 MON and `status` prints it without turning it into a `LOW:` floor | the 3 MON sponsor floor stays the operational alert; 31.14 is the judging reserve | `budget short need=31.1400 sponsor=21.0530 shortfall=10.0869`
+- U5 | the 30-minute runner is `.github/workflows/ops.yml`, and until a private remote exists the same three commands are the daily cycle | this checkout has no git remote, and `cli-state/` is gitignored so a clean Actions runner must restore it from cache instead of minting a second pool | local cycle exit 0 after the operator top-up `0xba696288`

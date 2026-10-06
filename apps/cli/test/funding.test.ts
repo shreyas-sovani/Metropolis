@@ -5,7 +5,9 @@ import {
   MON_TARGETS,
   SPONSOR_FLOOR,
   WEI,
+  budgetLine,
   floorBreaches,
+  judgingMonBudget,
   nextFaucetRole,
   parseFloorSpec,
   planMonSends,
@@ -122,6 +124,12 @@ describe("status lines", () => {
     expect(floorBreaches(state).some((line) => line.startsWith("LOW: OPERATOR MON"))).toBe(true);
     expect(floorBreaches(state).some((line) => line.startsWith("LOW: MAKER AUSD"))).toBe(true);
     expect(targetShortfalls(state).some((line) => line.startsWith("SHORT: POOL_OWNER"))).toBe(true);
+  });
+
+  it("prices the judging budget at 31.14 MON", () => {
+    expect(judgingMonBudget()).toBe(31_140_000_000_000_000_000n);
+    expect(budgetLine(judgingMonBudget())).toBe("budget ok need=31.1400 sponsor=31.1400");
+    expect(budgetLine(31n * WEI)).toBe("budget short need=31.1400 sponsor=31.0000 shortfall=0.1400");
   });
 
   it("exits non-zero when a temporary floor is above the balance", () => {
