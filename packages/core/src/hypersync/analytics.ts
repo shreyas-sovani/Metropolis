@@ -25,6 +25,7 @@ export interface LiquidationRow {
   posDepositCNS: string;
   markPricePNS: string;
   liqLotLNS: string;
+  accAmountCNS: string;
 }
 
 export interface LiquidationHistory {
@@ -74,6 +75,7 @@ export function summarizeLiquidations(
         posDepositCNS: event.posDepositCNS.toString(),
         markPricePNS: event.markPricePNS.toString(),
         liqLotLNS: event.liqLotLNS.toString(),
+        accAmountCNS: event.accAmountCNS.toString(),
       };
     });
   let notional = 0n;

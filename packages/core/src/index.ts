@@ -159,6 +159,15 @@ export {
 } from "./config/index.js";
 
 export { CRASH_LABEL, simulate, type CrashResult } from "./radar/crash.js";
+export {
+  PER_100K,
+  forfeitCNS,
+  penaltyTotals,
+  reconstructResidual,
+  type LiqSplit,
+  type ResidualSplit,
+} from "./radar/penalty.js";
+export { judgeSave, markCrossed, type MarkSample, type SaveOutcome } from "./radar/saves.js";
 export { radarId, radarSalt } from "./radar/anonymize.js";
 export {
   assembleSnapshot,
