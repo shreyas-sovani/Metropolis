@@ -9,6 +9,7 @@ import { gate7 } from "./commands/gate-7.js";
 import { gate8 } from "./commands/gate-8.js";
 import { fundMon } from "./commands/fund-mon.js";
 import { poolCreate } from "./commands/pool-create.js";
+import { poolRefill } from "./commands/pool-refill.js";
 import { poolRegister } from "./commands/pool-register.js";
 import { twinsCreate } from "./commands/twins-create.js";
 import { armDemo } from "./commands/arm-demo.js";
@@ -29,6 +30,7 @@ export async function run(argv: readonly string[]): Promise<number> {
     console.log("  fund:mon [--kill-after-broadcast]");
     console.log("  faucet:ausd [--kill-after-broadcast]");
     console.log("  pool:create --count N --market BTC|ETH");
+    console.log("  pool:refill --target 30 --per-side 12 --in-band 10");
     console.log("  pool:register [--url URL]");
     console.log("  twins:create");
     console.log("  twins:volatile");
@@ -51,6 +53,7 @@ export async function run(argv: readonly string[]): Promise<number> {
   if (command === "fund:mon") return fundMon(workspaceRoot(), argv.slice(1));
   if (command === "faucet:ausd") return faucetAusd(workspaceRoot(), argv.slice(1));
   if (command === "pool:create") return poolCreate(workspaceRoot(), argv.slice(1));
+  if (command === "pool:refill") return poolRefill(workspaceRoot(), argv.slice(1));
   if (command === "pool:register") return poolRegister(workspaceRoot(), argv.slice(1));
   if (command === "twins:create") return twinsCreate(workspaceRoot());
   if (command === "twins:volatile") return twinsVolatile(workspaceRoot());

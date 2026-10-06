@@ -304,6 +304,55 @@ export async function poolCreate(root = workspaceRoot(), argv: readonly string[]
   return failed ? 1 : 0;
 }
 
+/** Open one more pool account on the requested side and append it to pool.json. */
+export async function addPoolAccount(root: string, market: PoolMarket, side: PoolSide): Promise<PoolAccount> {
+  const roles = loadRoles(root);
+  const client = testnetPublicClient();
+  const addresses = ADDRESSES[TESTNET_ID];
+  const exchange = addresses.exchange;
+  const factory = addresses.factory;
+  const ausd = addresses.ausd;
+  if (!factory || !ausd) throw new Error("testnet factory or AUSD missing");
+  const owner = roles.POOL_OWNER;
+  const maker = roles.MAKER;
+  const sponsor = roles.SPONSOR;
+  const ownerWallet = testnetWallet(owner);
+  const perps = await listPerps(client, exchange);
+  const perp = perps.find((item) => item.symbol.toUpperCase() === market);
+  if (!perp) throw new Error(`no ${market} market on testnet`);
+  const perpId = BigInt(perp.perpId);
+  await topUp(client, sponsor, testnetWallet(sponsor), owner.address, (5n * WEI) / 2n, "pool owner");
+  await topUp(client, sponsor, testnetWallet(sponsor), maker.address, WEI, "maker");
+  const proxy = await provisionAccount({
+    client,
+    owner,
+    ownerWallet,
+    operator: roles.OPERATOR,
+    factory,
+    ausd,
+  });
+  const account: PoolAccount = { proxy, market, side, perpId: perpId.toString() };
+  const state = loadPool(root);
+  state.accounts.push(account);
+  savePool(root, state);
+  console.log(`created ${proxy} side=${side}`);
+  const book = await readBook(client, exchange, perpId);
+  const opened = await ensureOpen({
+    client,
+    owner,
+    ownerWallet,
+    maker,
+    makerWallet: testnetWallet(maker),
+    exchange,
+    ausd,
+    account,
+    book,
+    market,
+  });
+  if (!opened) throw new Error(`open failed ${proxy}`);
+  return account;
+}
+
 async function missingOpens(client: PublicClient, exchange: Address, accounts: PoolAccount[]): Promise<boolean> {
   for (const account of accounts) {
     const accountId = (await client.readContract({

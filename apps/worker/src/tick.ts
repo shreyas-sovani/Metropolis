@@ -96,7 +96,7 @@ export function storedMandate(proxy: Address, typed: string): MandateMessage {
   });
 }
 
-function urlsOf(env: LifelineEnv): string[] {
+export function urlsOf(env: LifelineEnv): string[] {
   return env.RPC_URLS_TESTNET.split(",").map((url) => url.trim()).filter((url) => url.length > 0);
 }
 

@@ -40,6 +40,14 @@ describe("claim selection", () => {
     expect(picked?.market).toBe("ETH");
   });
 
+  it("offers a reserve position only when nothing closer is free", () => {
+    const reserved = btc(70_000n, "0x00000000000000000000000000000000000000b1");
+    reserved.reserve = true;
+    const closer = btc(20_000n, "0x00000000000000000000000000000000000000b2");
+    expect(pickPool([reserved, closer])?.proxy).toBe(closer.proxy);
+    expect(pickPool([reserved])?.proxy).toBe(reserved.proxy);
+  });
+
   it("uses another market only when no BTC position is above the trigger", () => {
     const picked = pickPool([
       btc(10_000n, "0x00000000000000000000000000000000000000a1"),

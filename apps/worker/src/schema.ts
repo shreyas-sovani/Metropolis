@@ -123,6 +123,12 @@ const STEPS: { version: number; apply: (sql: Sql) => void }[] = [
       addColumn(sql, "keeper_stats", "canary_at", "canary_at INTEGER");
     },
   },
+  {
+    version: 7,
+    apply(sql) {
+      addColumn(sql, "keeper_stats", "recycled_at", "recycled_at INTEGER");
+    },
+  },
 ];
 
 export function migrate(sql: Sql): number[] {

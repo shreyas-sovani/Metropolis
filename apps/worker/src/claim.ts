@@ -18,6 +18,8 @@ export const HOUSE_TRIGGER_E6 = 15_000n;
 /** House target is 2.5%. The demo band runs from there through 3.5%. */
 export const HOUSE_TARGET_E6 = 25_000n;
 export const DEMO_BAND_HIGH_E6 = 35_000n;
+/** Above 6% the position is still offered, but only after every closer account. */
+export const RESERVE_DISTANCE_E6 = 60_000n;
 const HOUR_MS = 60 * 60 * 1000;
 const IP_LIMIT = 3;
 
@@ -29,20 +31,26 @@ export interface PoolCandidate {
   side: string;
   leverage: string;
   distanceE6: bigint;
+  reserve?: boolean;
 }
 
-export function pickPool(rows: readonly PoolCandidate[]): PoolCandidate | null {
-  const eligible = rows.filter((row) => row.distanceE6 > HOUSE_TRIGGER_E6);
-  const band = eligible.filter((row) => row.distanceE6 >= HOUSE_TARGET_E6 && row.distanceE6 <= DEMO_BAND_HIGH_E6);
-  const source = band.length > 0 ? band : eligible;
-  const btc = source.filter((row) => row.market === "BTC");
-  const pool = btc.length > 0 ? btc : source;
+function rankPool(rows: readonly PoolCandidate[]): PoolCandidate | null {
+  const btc = rows.filter((row) => row.market === "BTC");
+  const pool = btc.length > 0 ? btc : [...rows];
   const ranked = [...pool].sort((left, right) => {
     if (left.distanceE6 < right.distanceE6) return -1;
     if (left.distanceE6 > right.distanceE6) return 1;
     return 0;
   });
   return ranked[0] ?? null;
+}
+
+export function pickPool(rows: readonly PoolCandidate[]): PoolCandidate | null {
+  const eligible = rows.filter((row) => row.distanceE6 > HOUSE_TRIGGER_E6);
+  const fresh = eligible.filter((row) => !row.reserve && row.distanceE6 <= RESERVE_DISTANCE_E6);
+  const band = fresh.filter((row) => row.distanceE6 >= HOUSE_TARGET_E6 && row.distanceE6 <= DEMO_BAND_HIGH_E6);
+  const source = band.length > 0 ? band : fresh.length > 0 ? fresh : eligible;
+  return rankPool(source);
 }
 
 export type ClaimGate = { ok: true } | { ok: false; status: 409 | 429 | 503; body: { error: string; sandbox?: boolean } };
@@ -103,6 +111,7 @@ interface AvailableRow {
   side: string;
   leverage: string;
   market: string;
+  status: string;
 }
 
 export async function claimPosition(
@@ -116,7 +125,7 @@ export async function claimPosition(
     .exec("SELECT COUNT(*) AS n FROM claims WHERE ip = ? AND claimed_at >= ?", claimant.ip, nowMs - HOUR_MS)
     .toArray()[0] as { n?: number } | undefined;
   const available = sql
-    .exec("SELECT proxy, account_id, perp_id, side, leverage, market FROM pool WHERE status = 'available' AND role = 'pool'")
+    .exec("SELECT proxy, account_id, perp_id, side, leverage, market, status FROM pool WHERE status IN ('available', 'reserve') AND role = 'pool'")
     .toArray() as unknown as AvailableRow[];
   const gate = claimGate({
     existingUser: Boolean(userRow),
@@ -138,6 +147,7 @@ export async function claimPosition(
       side: row.side,
       leverage: row.leverage,
       distanceE6: distances.get(getAddress(row.proxy)) ?? 0n,
+      reserve: row.status === "reserve",
     })),
   );
   if (!picked) return Response.json({ error: "empty", sandbox: true }, { status: 503 });

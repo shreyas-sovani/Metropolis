@@ -9,6 +9,7 @@ import { crudRoundTrip, migrate } from "./schema.js";
 import { armPosition, disarmPosition, mandateFromBody } from "./arm.js";
 import { claimPosition, readClaimant } from "./claim.js";
 import { armBreach, noteGap, resetSoak, runKeeper, soakReport } from "./tick.js";
+import { recycleClaims } from "./recycle.js";
 import { sandboxArm } from "./sandbox.js";
 import { readLegStates } from "./tick.js";
 import { assembleTwinPairs, twinOutcome, type TwinAction, type TwinLegRow } from "./twins.js";
@@ -50,6 +51,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       if (typeof coreEvaluator() !== "function") throw new Error("core missing");
       this.gap = noteGap(this.ctx.storage.sql, started, prior, this.gap);
       await runKeeper(this.ctx.storage.sql, this.env, started);
+      await recycleClaims(this.ctx.storage.sql, this.env, started);
       this.rememberError(null);
     } catch (caught) {
       error = clientError(caught);

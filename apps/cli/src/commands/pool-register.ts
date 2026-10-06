@@ -196,6 +196,15 @@ export async function poolRegister(root = workspaceRoot(), argv: readonly string
       console.log(`${entry.proxy} ${entry.role} claimed owner=${onchain} kind=${stored.kind}`);
       continue;
     }
+    if (
+      (stored.kind === "user" || stored.kind === "sandbox") &&
+      recovered === owner &&
+      getAddress(stored.owner) === owner &&
+      onchain === owner
+    ) {
+      console.log(`${entry.proxy} ${entry.role} house-signed kind=${stored.kind}`);
+      continue;
+    }
     const trigger = entry.role === "pool" ? 150 : 400;
     const target = entry.role === "pool" ? 250 : 600;
     if (

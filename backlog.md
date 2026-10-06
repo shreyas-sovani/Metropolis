@@ -15,8 +15,8 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, and U3 are done. The §7A order's next item is U4.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, and W9 are done. The next item is U4.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, and U4 are done. The §7A order's next item is U5.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, and U4 are done. The next item is U5.
 
 ---
 
@@ -276,8 +276,12 @@ The agent builds these across phases. Every command is idempotent or resumable, 
 | `faucet:ausd` | Loop `requestFunds` (respecting the global 60 s cooldown) until the AUSD targets are met | S0.5 |
 | `gate:<n>` | Gate scripts G1–G8 | Phase 1 |
 | `pool:create --count N --market BTC\|ETH` | Full provisioning (§P3) | Phase 3 |
+| `pool:refill --target 30 --per-side 12 --in-band 10` | Create pool accounts until those inventory targets are met | U4 |
 | `twins:create` | Twin pairs (§P4) | Phase 3 |
+| `twins:volatile` | Rank testnet markets by mark variance and open the top pairs | U15 |
 | `pool:register` | Register state-file entries with the Worker `/admin/pool` | Phase 4 |
+| `arm:trial` | Live arm, latency, 403, 409, and disarm checks for one owner | W7 |
+| `arm:demo --count 20` | Claim, accept, and arm with distance-based defaults | U3 |
 | `secrets:sync-worker` / `secrets:sync-vercel` | Push secrets to the platforms without echoing them | Phase 6 |
 
 ---
@@ -1150,9 +1154,9 @@ These tasks come from a review of the build's progress against the prize targets
 **Order of work.** Interleave these with the remaining Phase 4–7 tasks in this order:
 
 1. **U2 → U1 → finish G4** (`CALIBRATED=true`). Done.
-2. **U15** (time-sensitive: twins need time and volatility to show a real liquidation). Done. `GET /twins` lists the pairs; W8 sandbox is still open.
-3. Finish **W7**, then **U3**, then the rest of W8 and W9. Done. Next is U4.
-4. **U4** and **U5**.
+2. **U15** (time-sensitive: twins need time and volatility to show a real liquidation). Done. `GET /twins` lists the pairs with distances and outcomes, and sandbox arm is done.
+3. Finish **W7**, then **U3**, then the rest of W8 and W9. Done.
+4. **U4** and **U5**. U4 is done. Next is U5.
 5. **U7**, then A1–A3.
 6. A4–A6 together with **U8, U9, U10, U13, U16**.
 7. A7 with **U6**, then A8–A10.
@@ -1234,7 +1238,7 @@ These tasks come from a review of the build's progress against the prize targets
   - The UI test shows the explanatory copy.
 - **Evidence:** `pnpm cli arm:demo --count 20` exited 0: `confirmed 20/20` on worker `e45931f9-f6d1-4255-bb4b-f67737a75d76`. Every cycle claimed, accepted, and armed. Chain distances after the top-up sat on the target tick: 64998 or 64999 for target 650 (`0x42ff833f`, `0x86e94a65`), 59998 or 59999 for target 600 (`0x041e1599`, `0xfeeac8ed`), and 84998 for target 850 (`0x531b717f` on `0xb4C851B0`, which started at 52416). `pnpm --filter @lifeline/core exec vitest run test/arm-defaults.test.ts` covers 1.5% through 15% and the sentence "Your position is 2.8% from liquidation. Lifeline will act below 4% and restore 6%." The same test shows "Armed: Lifeline will act when distance falls below 3%." and the label "Test Lifeline now".
 
-#### [ ] U4 Pool inventory: demo band, both sides, recycling of unaccepted claims
+#### [x] U4 Pool inventory: demo band, both sides, recycling of unaccepted claims
 - **Type:** AGENT · **Depends on:** U3 · **Amends:** P2, W6, D3
 - **Why:** Judges arrive throughout the review window. An empty or out-of-band pool degrades the demo to sandbox mode.
 - **Do:**
@@ -1247,7 +1251,7 @@ These tasks come from a review of the build's progress against the prize targets
   - **Forced test:** claim without accepting, advance the timeout in a test, and confirm `pendingOwner` is 0 and the status is `available`.
   - A second claim of the same position works.
   - `pool:refill` reaches all three targets, and a re-run sends nothing.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/worker exec vitest run test/recycle.test.ts test/claim.test.ts` passed. An unaccepted claim older than 10 minutes plans `clear` (`transferOwnership(0)`); `pendingCleared` is true only for the zero address; `releaseClaim` sets status `available` and `pickPool` returns that proxy again. A 7% reserve is offered only when no closer account is free. `pnpm cli pool:refill --target 30 --per-side 12 --in-band 10` created accounts through `available=30 long=15 short=15 inBand=30`. The re-run printed `available=30 long=15 short=15 inBand=30` and `pool:refill nothing new`, exit 0. `/health` `poolAvailable` is 30. Worker `ce97d881-e28d-4034-846f-6543f781c9c6`. `pool:register` then exited 0, with sol-short kept as `house-signed kind=user`.
 
 #### [ ] U5 Ops signals, scheduled runner, and MON budget
 - **Type:** AGENT, plus **HUMAN** decision · **Depends on:** U4 · **Amends:** W1, D4, D3
@@ -1507,3 +1511,7 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - W8 | a closed leg is `liquidated at block N`, a non-positive distance is `crossed liq at block N`, and every other open leg is `alive` | the twins panel needs an outcome before a liquidator event exists | all 7 pairs were `alive` on 2026-10-06
 - W9 | the canary is an `increasePositionCollateral(1)` eth_call; any other selector counts as a revert | the operator is allowlisted only for that call, so a revoked selector must set degraded | `judgeCanary(execOrder)` is `canary revert`
 - W9 | `/health` sets the alarm 50ms out when it is missing or the last tick is more than 10s old | a deleted alarm must resume without waiting for the next isolate event | alarm test, under 5s
+- U4 | positions above 6% are status `reserve` and `pickPool` offers them last | the demo should hand out the 2.5–3.5% band first | claim test: 7% loses to 2%, and is chosen only when it is alone
+- U4 | an unaccepted claim is recycled at most once a minute by `transferOwnership(0)`, and only released when `pendingOwner` reads back as zero | the house mandate stays in place, and an accepted owner is not overwritten | `planRecycle` keeps an owner who is not the pool owner; `releaseClaim` deletes the claim row
+- U4 | `pool:refill` counts pool-owned positions at or under 6%, and the demo band is 2.5–3.5% | claimed accounts and far-from-liquidation positions should not satisfy the inventory targets | first run 30/15/15/30; re-run `nothing new`
+- U4 | `pool:register` accepts a house-signed `user` mandate on an account the pool owner still owns | sandbox arm left sol-short as `kind=user` without moving `owner()` | register exit 0, `house-signed kind=user`
