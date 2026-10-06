@@ -29,3 +29,19 @@ export function healthReport(input: {
 export function pausedFlag(value: string | undefined): boolean {
   return value === "true" || value === "1";
 }
+
+export function clientError(error: unknown): string {
+  const details = error as {
+    shortMessage?: string;
+    message?: string;
+    status?: number;
+    body?: { error?: { message?: string } };
+    cause?: { message?: string };
+  };
+  const rpc = details.body?.error?.message ?? "";
+  const raw = details.shortMessage || details.message || "error";
+  const message = [details.status ? `status ${details.status}` : "", rpc, details.cause?.message ?? "", raw]
+    .filter((part) => part.length > 0)
+    .join(" ");
+  return message.replace(/https?:\/\/\S+/g, "rpc").replace(/0x[0-9a-fA-F]{20,}/g, "0x").slice(0, 180);
+}

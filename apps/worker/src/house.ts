@@ -20,6 +20,7 @@ export interface PoolRegistration {
   market: string;
   role: PoolRole;
   pairId: string;
+  reopen?: boolean;
 }
 
 const ROLES = new Set<PoolRole>(["pool", "twin-protected", "twin-unprotected"]);
@@ -138,6 +139,7 @@ export function parseRegistrations(body: unknown): PoolRegistration[] {
       market: text(row.market, `entry ${index} market`),
       role: role as PoolRole,
       pairId: typeof row.pairId === "string" ? row.pairId : "",
+      reopen: row.reopen === true,
     };
   });
 }

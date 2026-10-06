@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { coreEvaluator } from "../src/adapter.js";
-import { healthReport, pausedFlag, WORKER_VERSION } from "../src/health.js";
+import { clientError, healthReport, pausedFlag, WORKER_VERSION } from "../src/health.js";
 
 describe("worker health", () => {
   it("reports a clean scaffold with degraded false", () => {
@@ -27,6 +27,16 @@ describe("worker health", () => {
     expect(pausedFlag("1")).toBe(true);
     expect(pausedFlag("false")).toBe(false);
     expect(pausedFlag(undefined)).toBe(false);
+  });
+
+  it("strips RPC URLs from client errors", () => {
+    const error = new Error("HTTP request failed. URL: https://rpc.example/v2/secret body") as Error & {
+      shortMessage?: string;
+      status?: number;
+    };
+    error.shortMessage = "HTTP request failed.";
+    error.status = 429;
+    expect(clientError(error)).toBe("status 429 HTTP request failed.");
   });
 
   it("reaches the core evaluator through the adapter", () => {

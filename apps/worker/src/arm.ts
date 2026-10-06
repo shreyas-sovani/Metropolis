@@ -1,5 +1,4 @@
 import {
-  CHAINS,
   TESTNET_ID,
   buildMandate,
   delegatedAccountAbi,
@@ -14,13 +13,13 @@ import {
   validateMandate,
   type MandateMessage,
 } from "@lifeline/core";
-import { createWalletClient, getAddress, http, recoverMessageAddress, type Address, type Hex } from "viem";
+import { getAddress, recoverMessageAddress, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import type { Claimant } from "./claim.js";
 import { serializeMandate } from "./house.js";
 import type { LifelineEnv } from "./lifeline.js";
 import type { Sql } from "./schema.js";
-import { readAccountState, takeNonce } from "./tick.js";
+import { broadcastTx, readAccountState, takeNonce, waitForReceipt } from "./tick.js";
 
 /** EIP-191. The owner signs this; it is not the mandate typed data. */
 export function disarmMessage(proxy: Address, nonce: string): string {
@@ -156,28 +155,18 @@ export async function armPosition(
   );
   const built = increasePositionCollateralTx(message.account, BigInt(pool.perp_id), decision.amountCNS);
   const operator = privateKeyToAccount(env.OPERATOR_PK as Hex);
-  const wallet = createWalletClient({
-    account: operator,
-    chain: CHAINS[TESTNET_ID],
-    transport: http(urls[0], { timeout: 8_000, retryCount: 1 }),
-  });
   let hash: Hex;
   try {
     const nonce = await takeNonce(sql, client, "operator", operator.address);
-    hash = await wallet.sendTransaction({
-      account: operator,
-      chain: wallet.chain,
-      to: built.to,
-      data: built.data,
-      gas: built.gas,
-      nonce,
-      value: 0n,
-    });
+    hash = await broadcastTx(urls, operator, { to: built.to, data: built.data, gas: built.gas, value: 0n, nonce });
   } catch (error) {
     sql.exec("DELETE FROM actions WHERE proxy = ? AND tx_hash = 'inflight'", message.account);
     throw error;
   }
-  const receipt = await client.waitForTransactionReceipt({ hash, pollingInterval: 200, timeout: 20_000 });
+  const receipt = await waitForReceipt(client, hash).catch((error: unknown) => {
+    sql.exec("UPDATE actions SET tx_hash = ? WHERE proxy = ? AND tx_hash = 'inflight'", hash, message.account);
+    throw error;
+  });
   if (receipt.status !== "success") {
     sql.exec(
       "UPDATE actions SET status = 'reverted', tx_hash = ?, block = ? WHERE proxy = ? AND tx_hash = 'inflight'",

@@ -2,7 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import { type MandateMessage } from "@lifeline/core";
 import { getAddress, type Address, type Hex } from "viem";
 import { coreEvaluator } from "./adapter.js";
-import { healthReport, pausedFlag, WORKER_VERSION } from "./health.js";
+import { clientError, healthReport, pausedFlag, WORKER_VERSION } from "./health.js";
 import { parseRegistrations, signMandate } from "./house.js";
 import { registerPool } from "./register.js";
 import { crudRoundTrip, migrate } from "./schema.js";
@@ -50,10 +50,11 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       await runKeeper(this.ctx.storage.sql, this.env, started);
       this.rememberError(null);
     } catch (caught) {
-      error = caught instanceof Error ? caught.message.slice(0, 180) : "error";
+      error = clientError(caught);
       this.rememberError(error);
     } finally {
-      await this.ctx.storage.setAlarm(Date.now() + ALARM_MS);
+      const delay = error ? 20_000 : ALARM_MS;
+      await this.ctx.storage.setAlarm(Date.now() + delay);
     }
   }
 
@@ -122,8 +123,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       if (!body.mandate || !body.signature) return Response.json({ error: "mandate" }, { status: 400 });
       return await armPosition(this.ctx.storage.sql, this.env, claimant, { mandate: body.mandate, signature: body.signature }, Date.now());
     } catch (error) {
-      const message = error instanceof Error ? error.message : "error";
-      return Response.json({ error: message.slice(0, 180) }, { status: 400 });
+      return Response.json({ error: clientError(error) }, { status: 400 });
     }
   }
 
@@ -139,8 +139,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
         signature: body.signature,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "error";
-      return Response.json({ error: message.slice(0, 180) }, { status: 400 });
+      return Response.json({ error: clientError(error) }, { status: 400 });
     }
   }
 
@@ -185,8 +184,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     try {
       return await claimPosition(this.ctx.storage.sql, this.env, claimant, Date.now());
     } catch (error) {
-      const message = error instanceof Error ? error.message : "error";
-      return Response.json({ error: message.slice(0, 180) }, { status: 500 });
+      return Response.json({ error: clientError(error) }, { status: 500 });
     }
   }
 

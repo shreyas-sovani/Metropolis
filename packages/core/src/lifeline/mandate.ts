@@ -89,6 +89,59 @@ export function validateMandate(message: MandateMessage, ctx: MandateContext): M
   return { ok: true };
 }
 
+export interface ArmTerms {
+  triggerBps: number;
+  targetBps: number;
+}
+
+const HALF_PERCENT_E6 = 5_000n;
+const ONE_PERCENT_E6 = 10_000n;
+const FOUR_PERCENT_E6 = 40_000n;
+
+/** Trigger sits at least 4%, and at least 1% above the distance rounded up to 0.5%. */
+export function armDefaults(distanceE6: bigint): ArmTerms {
+  if (distanceE6 < 0n) throw new Error("distance");
+  const rounded = ((distanceE6 + HALF_PERCENT_E6 - 1n) / HALF_PERCENT_E6) * HALF_PERCENT_E6;
+  let triggerE6 = rounded + ONE_PERCENT_E6;
+  if (triggerE6 < FOUR_PERCENT_E6) triggerE6 = FOUR_PERCENT_E6;
+  return clampTerms(Number(triggerE6 / 100n));
+}
+
+/** A user-initiated test: trigger is the first basis point above the live distance. */
+export function testNowTerms(distanceE6: bigint): ArmTerms {
+  if (distanceE6 < 0n) throw new Error("distance");
+  const triggerBps = Number(distanceE6 / 100n) + 1;
+  return clampTerms(triggerBps);
+}
+
+function clampTerms(triggerBps: number): ArmTerms {
+  let targetBps = triggerBps + 200;
+  if (targetBps > MANDATE_MAX_TARGET_BPS) targetBps = MANDATE_MAX_TARGET_BPS;
+  let trigger = triggerBps;
+  if (trigger >= targetBps) trigger = targetBps - 1;
+  if (trigger < 1) trigger = 1;
+  return { triggerBps: trigger, targetBps };
+}
+
+export function formatDistancePct(distanceE6: bigint): string {
+  const pct = Number(distanceE6) / 10_000;
+  return `${(Math.round(pct * 10) / 10).toFixed(1)}%`;
+}
+
+export function formatBps(bps: number): string {
+  return `${(bps / 100).toFixed(1).replace(/\.0$/, "")}%`;
+}
+
+export function armExplanation(distanceE6: bigint, terms: ArmTerms): string {
+  return `Your position is ${formatDistancePct(distanceE6)} from liquidation. Lifeline will act below ${formatBps(terms.triggerBps)} and restore ${formatBps(terms.targetBps)}.`;
+}
+
+export function armedWaitCopy(triggerBps: number): string {
+  return `Armed: Lifeline will act when distance falls below ${formatBps(triggerBps)}.`;
+}
+
+export const TEST_NOW_LABEL = "Test Lifeline now";
+
 /** Defaults from the user mandate in PRD §F5, for one market. */
 export function mandateMessage(args: {
   account: Address;

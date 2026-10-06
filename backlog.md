@@ -15,8 +15,8 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W7, U2, U1, and U15 are done. W8 is in progress. The §7A order's next item is U3, then the rest of W8 and W9.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, and W7 are done. The next item is U3.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W7, U2, U1, U15, and U3 are done. W8 is in progress. The §7A order's next item is the rest of W8, then W9.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, and U3 are done. The next item is the rest of W8.
 
 ---
 
@@ -1151,7 +1151,7 @@ These tasks come from a review of the build's progress against the prize targets
 
 1. **U2 → U1 → finish G4** (`CALIBRATED=true`). Done.
 2. **U15** (time-sensitive: twins need time and volatility to show a real liquidation). Done. `GET /twins` lists the pairs; W8 sandbox is still open.
-3. Finish **W7**, then **U3**, then the rest of W8 and W9. W7 is done. Next is U3.
+3. Finish **W7**, then **U3**, then the rest of W8 and W9. W7 and U3 are done. Next is the rest of W8.
 4. **U4** and **U5**.
 5. **U7**, then A1–A3.
 6. A4–A6 together with **U8, U9, U10, U13, U16**.
@@ -1219,7 +1219,7 @@ These tasks come from a review of the build's progress against the prize targets
   - The volatility ranking is logged in §9.
 - **Evidence:** `twins:volatile` ranked testnet `MarkUpdated` over 20,000 blocks: MON variance `3.2157e-7` (742 samples), PUMP `1.8296e-7` (518), NEAR `1.8069e-7` (625), ZEC `1.1960e-7` (374). Opened `mon-long` at 2921/2922 and `pump-short` at 6311/6311. An earlier window also left a matching `pump-long` at 6619/6618. All three are inside 0.1%. `pnpm cli pool:register` exited 0: `registered 20 mandates 13`. Protected legs are house mandates at 4%/6% with budget `300000000`; unprotected legs return 404. `GET /twins` returned `count` 7. Worker version `1d53d621-2ac3-4412-b5ba-97f9c8ae87a0`.
 
-#### [ ] U3 Demo-fire guarantee: arming always produces a visible top-up
+#### [x] U3 Demo-fire guarantee: arming always produces a visible top-up
 - **Type:** AGENT · **Depends on:** W7 · **Amends:** W6, A7
 - **Why:** This prevents the main failure mode. If the price moved in a claimed position's favor, its distance sits above the default 4% trigger, arming returns `ABOVE_TRIGGER`, and the judge sees nothing happen. That costs every prize.
 - **Do:**
@@ -1232,7 +1232,7 @@ These tasks come from a review of the build's progress against the prize targets
   - Over **20 consecutive claim → accept → arm cycles** on testnet (test-owner path), **20 of 20** produce a confirmed top-up with `distAfter` inside the W5 tolerance.
   - A property test of the default computation covers distances from 1.5% to 15%.
   - The UI test shows the explanatory copy.
-- **Evidence:**
+- **Evidence:** `pnpm cli arm:demo --count 20` exited 0: `confirmed 20/20` on worker `e45931f9-f6d1-4255-bb4b-f67737a75d76`. Every cycle claimed, accepted, and armed. Chain distances after the top-up sat on the target tick: 64998 or 64999 for target 650 (`0x42ff833f`, `0x86e94a65`), 59998 or 59999 for target 600 (`0x041e1599`, `0xfeeac8ed`), and 84998 for target 850 (`0x531b717f` on `0xb4C851B0`, which started at 52416). `pnpm --filter @lifeline/core exec vitest run test/arm-defaults.test.ts` covers 1.5% through 15% and the sentence "Your position is 2.8% from liquidation. Lifeline will act below 4% and restore 6%." The same test shows "Armed: Lifeline will act when distance falls below 3%." and the label "Test Lifeline now".
 
 #### [ ] U4 Pool inventory: demo band, both sides, recycling of unaccepted claims
 - **Type:** AGENT · **Depends on:** U3 · **Amends:** P2, W6, D3
@@ -1496,3 +1496,10 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - W7 | `/admin/breach` does not reactivate `active = 0` | disarm must survive a forced breach | `breachMayReplace(0)` is false; live breach returned `armed:false` and no new action
 - W7 | arm inserts an `inflight` pending row before `sendTransaction` | the keeper tick can otherwise send a second top-up for the same position | five chain distances landed at 59999 with one action each
 - W8 | `GET /twins` lists pair id, market, side, and house-versus-none mandate | U15 needed the list before sandbox arm | `count` 7 on 2026-10-06; distances, actions, outcomes, and `POST /sandbox/arm` are still open
+- U3 | `/claim` prefers the demo band [2.5%, 3.5%], then the closest position above the 1.5% house trigger | a position that has drifted to 2% would otherwise be handed out and might sit above a 4% trigger | `pickPool` test; live arms used 4.5%/6.5% when distance was about 3.2%
+- U3 | arm defaults are `max(4%, roundUp(distance, 0.5%) + 1%)` and target is trigger + 2%, clamped to a 20% target | the judge must see a top-up even when the position is safer than 4% | property test from 1.5% to 15%; cycle 20 armed 6.5%/8.5% from 5.24%
+- U3 | a signed transaction is posted to each testnet RPC, and the nonce falls back to the chain when the stored nonce is more than one ahead | dropped broadcasts had left the worker nonce ahead, so later sends never landed | sponsor nonce stayed 53 until the reset; `0x42ff833f` then confirmed
+- U3 | receipt polls inside one Worker invocation stay at three tries | more polls hit the Worker subrequest cap | claim returns the tx hashes and `arm:demo` waits for them on the local RPC
+- U3 | a failed keeper tick reschedules in 20s | a 2s loop of failing RPC calls kept the endpoint rate-limited | `/health` after a deploy showed the alarm still present
+- U3 | `pool:register` reopens a claimed row whose on-chain owner is still the pool owner and whose pending owner is zero | a broadcast that never landed had marked `0xc4C86A35` claimed | after reopen, `/health` `poolAvailable` was 20 and that proxy was cycle 1
+- U3 | a failed maker cancel does not abort `pool:create` | the cancel reverted after a zero-lot book fill and stopped the remaining opens | later `pool:create done 27/27`

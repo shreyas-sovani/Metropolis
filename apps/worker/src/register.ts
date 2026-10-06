@@ -41,7 +41,7 @@ export async function registerPool(
          market = excluded.market,
          role = excluded.role,
          pair_id = excluded.pair_id,
-         status = CASE WHEN pool.status = 'claimed' THEN pool.status ELSE excluded.status END`,
+         status = CASE WHEN pool.status = 'claimed' AND ? = 0 THEN pool.status ELSE excluded.status END`,
       entry.proxy,
       entry.accountId,
       entry.perpId,
@@ -52,7 +52,9 @@ export async function registerPool(
       entry.market,
       entry.role,
       entry.pairId,
+      entry.reopen ? 1 : 0,
     );
+    if (entry.reopen) sql.exec("DELETE FROM claims WHERE proxy = ?", entry.proxy);
     const message = houseMandate({
       account: entry.proxy,
       perpId: BigInt(entry.perpId),

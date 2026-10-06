@@ -52,7 +52,7 @@ export function median(values: readonly number[]): number {
   return sorted[Math.floor(sorted.length / 2)] ?? 0;
 }
 
-function adminSecret(root: string): string {
+export function adminSecret(root: string): string {
   const file = path.join(root, "secrets", "services.env");
   for (const line of readFileSync(file, "utf8").split("\n")) {
     if (!line.startsWith("ADMIN_SECRET=")) continue;
@@ -69,11 +69,12 @@ function disarmText(proxy: Address, nonce: string): string {
   return `lifeline-disarm:${getAddress(proxy)}:${nonce}`;
 }
 
-async function headersFor(
+export async function headersFor(
   account: PrivateKeyAccount,
   secret: string,
   userId: string,
   nonce: string,
+  ip?: string,
 ): Promise<Record<string, string>> {
   const signature = await account.signMessage({ message: proofMessage(userId, account.address, nonce) });
   return {
@@ -83,6 +84,7 @@ async function headersFor(
     "x-lifeline-address": account.address,
     "x-lifeline-signature": signature,
     "x-lifeline-nonce": nonce,
+    ...(ip ? { "x-lifeline-ip": ip } : {}),
   };
 }
 
@@ -112,7 +114,7 @@ function maintHdths(value: unknown): bigint {
   throw new Error("margin fractions missing");
 }
 
-async function distanceE6Of(client: PublicClient, proxy: Address, perpId: bigint): Promise<bigint> {
+export async function distanceE6Of(client: PublicClient, proxy: Address, perpId: bigint): Promise<bigint> {
   const exchange = ADDRESSES[TESTNET_ID].exchange;
   const account = await readAccountByAddr(client, exchange, proxy);
   const positions = await readPositionsForAccount(client, exchange, account.accountId);
@@ -341,7 +343,7 @@ export async function armTrial(root = workspaceRoot(), argv: readonly string[] =
   return 0;
 }
 
-function jsonMandate(message: ReturnType<typeof buildMandate>) {
+export function jsonMandate(message: ReturnType<typeof buildMandate>) {
   return {
     account: message.account,
     perpIds: message.perpIds.map((id) => id.toString()),

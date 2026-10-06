@@ -23,6 +23,23 @@ describe("claim selection", () => {
     expect(picked?.proxy).toBe(getAddress("0x00000000000000000000000000000000000000a3"));
   });
 
+  it("picks the demo band before a closer position under the house target", () => {
+    const picked = pickPool([
+      btc(20_000n, "0x00000000000000000000000000000000000000a1"),
+      btc(32_000n, "0x00000000000000000000000000000000000000a2"),
+      { ...btc(30_000n, "0x00000000000000000000000000000000000000a4"), market: "ETH" },
+    ]);
+    expect(picked?.proxy).toBe(getAddress("0x00000000000000000000000000000000000000a2"));
+  });
+
+  it("uses a non-BTC position in the demo band before a BTC position outside it", () => {
+    const picked = pickPool([
+      btc(20_000n, "0x00000000000000000000000000000000000000a1"),
+      { ...btc(30_000n, "0x00000000000000000000000000000000000000a4"), market: "ETH" },
+    ]);
+    expect(picked?.market).toBe("ETH");
+  });
+
   it("uses another market only when no BTC position is above the trigger", () => {
     const picked = pickPool([
       btc(10_000n, "0x00000000000000000000000000000000000000a1"),

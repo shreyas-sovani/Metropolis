@@ -20,7 +20,8 @@ export function createReadClient(
       },
     },
     transport: fallback(
-      urls.map((url) => http(url, { timeout, retryCount: 1 })),
+      urls.map((url) => http(url, { timeout, retryCount: 0 })),
+      { rank: false, retryCount: 0 },
     ),
     batch: { multicall: { batchSize: 128, wait: 0 } },
   });

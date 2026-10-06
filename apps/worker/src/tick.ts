@@ -22,9 +22,11 @@ import {
   createWalletClient,
   getAddress,
   http,
+  keccak256,
   type Address,
   type Hex,
   type PublicClient,
+  type TransactionReceipt,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { breachMayReplace, breachTerms, houseMandate, houseTerms, serializeMandate, signMandate, type PoolRole } from "./house.js";
@@ -447,17 +449,87 @@ export async function readAccountState(
   };
 }
 
+const BROADCAST_FEE = 200_000_000_000n;
+const BROADCAST_PRIORITY = 2_000_000_000n;
+
+/** Sign once and submit the same raw transaction to each RPC. */
+export async function broadcastTx(
+  urls: readonly string[],
+  account: ReturnType<typeof privateKeyToAccount>,
+  tx: { to: Address; data: Hex; gas: bigint; value?: bigint; nonce: number },
+): Promise<Hex> {
+  const endpoint = urls.find((url) => url.length > 0);
+  if (!endpoint) throw new Error("no rpc");
+  const wallet = createWalletClient({
+    account,
+    chain: CHAINS[TESTNET_ID],
+    transport: http(endpoint, { timeout: 8_000, retryCount: 0 }),
+  });
+  const serialized = await wallet.signTransaction({
+    account,
+    chain: CHAINS[TESTNET_ID],
+    to: tx.to,
+    data: tx.data,
+    gas: tx.gas,
+    nonce: tx.nonce,
+    value: tx.value ?? 0n,
+    maxFeePerGas: BROADCAST_FEE,
+    maxPriorityFeePerGas: BROADCAST_PRIORITY,
+    type: "eip1559",
+  });
+  const hash = keccak256(serialized);
+  let last = "broadcast failed";
+  for (const url of urls) {
+    if (!url) continue;
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_sendRawTransaction", params: [serialized] }),
+      });
+      const body = (await response.json()) as { error?: { message?: string }; result?: string };
+      if (!body.error && typeof body.result === "string" && body.result.startsWith("0x")) return body.result as Hex;
+      const message = body.error?.message ?? "rpc";
+      if (/already known|nonce too low|already imported/i.test(message)) return hash;
+      last = message;
+    } catch (error) {
+      last = error instanceof Error ? error.message : "rpc";
+    }
+  }
+  throw new Error(last.slice(0, 160));
+}
+
+/** A few receipt polls stay inside the Worker subrequest cap. */
+export async function waitForReceipt(client: PublicClient, hash: Hex): Promise<TransactionReceipt> {
+  let last = "receipt pending";
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await client.getTransactionReceipt({ hash });
+    } catch (error) {
+      last = error instanceof Error ? error.message : "receipt pending";
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+  throw new Error(last.replace(/https?:\/\/\S+/g, "rpc").slice(0, 120));
+}
+
+/** Use the higher of the stored nonce and the chain's pending count. External sends move the chain ahead. */
+export function nextNonce(stored: number | null, chain: number): number {
+  if (stored === null || stored < chain || stored > chain + 1) return chain;
+  return stored;
+}
+
 export async function takeNonce(sql: Sql, client: PublicClient, name: string, address: Address): Promise<number> {
+  const count = await client.getTransactionCount({ address, blockTag: "pending" });
   const row = sql.exec("SELECT next_nonce FROM keys WHERE name = ?", name).toArray()[0] as
     | { next_nonce?: number }
     | undefined;
-  if (row?.next_nonce === undefined) {
-    const count = await client.getTransactionCount({ address, blockTag: "pending" });
-    sql.exec("INSERT INTO keys (name, next_nonce) VALUES (?, ?)", name, count + 1);
-    return count;
-  }
-  const nonce = Number(row.next_nonce);
-  sql.exec("UPDATE keys SET next_nonce = ? WHERE name = ?", nonce + 1, name);
+  const nonce = nextNonce(row?.next_nonce === undefined ? null : Number(row.next_nonce), count);
+  sql.exec(
+    "INSERT INTO keys (name, next_nonce) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET next_nonce = excluded.next_nonce",
+    name,
+    nonce + 1,
+  );
   return nonce;
 }
 

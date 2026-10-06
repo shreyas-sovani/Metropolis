@@ -716,15 +716,20 @@ async function cancelMaker(
   for (const lock of locks) {
     const orderId = BigInt(lock.orderLockId);
     if (orderId === 0n) continue;
-    const order: OrderDesc = orderDesc({
-      perpId,
-      orderType: ORDER_CANCEL,
-      orderId,
-      pricePNS: 1n,
-      lotLNS: lock.lotLNS === 0n ? 1n : lock.lotLNS,
-      leverageHdths: 1500n,
-    });
-    await sendBuilt(client, wallet, maker, execOrderTx(exchange, order), "maker.cancel");
+    try {
+      const order: OrderDesc = orderDesc({
+        perpId,
+        orderType: ORDER_CANCEL,
+        orderId,
+        pricePNS: 1n,
+        lotLNS: lock.lotLNS === 0n ? 1n : lock.lotLNS,
+        leverageHdths: 1500n,
+      });
+      await sendBuilt(client, wallet, maker, execOrderTx(exchange, order), "maker.cancel");
+    } catch (error) {
+      const message = error instanceof Error ? error.message.split("\n")[0] : "reverted";
+      console.log(`maker.cancel ${message?.slice(0, 160)}`);
+    }
   }
 }
 

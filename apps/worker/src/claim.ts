@@ -1,5 +1,4 @@
 import {
-  CHAINS,
   GAS_LIMITS,
   MON_DRIP_WEI,
   TESTNET_ID,
@@ -7,15 +6,18 @@ import {
   openChain,
   transferOwnershipTx,
 } from "@lifeline/core";
-import { createWalletClient, getAddress, http, type Address, type Hex } from "viem";
+import { getAddress, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import type { LifelineEnv } from "./lifeline.js";
 import { addressFromWalletProof, verifyPrivyAccessToken } from "./privy.js";
 import type { Sql } from "./schema.js";
-import { readDistances, takeNonce } from "./tick.js";
+import { broadcastTx, readDistances, takeNonce, waitForReceipt } from "./tick.js";
 
 /** 1.5% in distance units. 1e6 is 100%. */
 export const HOUSE_TRIGGER_E6 = 15_000n;
+/** House target is 2.5%. The demo band runs from there through 3.5%. */
+export const HOUSE_TARGET_E6 = 25_000n;
+export const DEMO_BAND_HIGH_E6 = 35_000n;
 const HOUR_MS = 60 * 60 * 1000;
 const IP_LIMIT = 3;
 
@@ -31,8 +33,10 @@ export interface PoolCandidate {
 
 export function pickPool(rows: readonly PoolCandidate[]): PoolCandidate | null {
   const eligible = rows.filter((row) => row.distanceE6 > HOUSE_TRIGGER_E6);
-  const btc = eligible.filter((row) => row.market === "BTC");
-  const pool = btc.length > 0 ? btc : eligible;
+  const band = eligible.filter((row) => row.distanceE6 >= HOUSE_TARGET_E6 && row.distanceE6 <= DEMO_BAND_HIGH_E6);
+  const source = band.length > 0 ? band : eligible;
+  const btc = source.filter((row) => row.market === "BTC");
+  const pool = btc.length > 0 ? btc : source;
   const ranked = [...pool].sort((left, right) => {
     if (left.distanceE6 < right.distanceE6) return -1;
     if (left.distanceE6 > right.distanceE6) return 1;
@@ -153,15 +157,13 @@ export async function claimPosition(
   const sponsorNonce = await takeNonce(sql, client, "sponsor", sponsor.address);
   const ownerNonce = await takeNonce(sql, client, "pool-owner", owner.address);
   const [dripHash, transferHash] = await Promise.all([
-    sendTx(urls[0] ?? "", sponsor, drip, sponsorNonce),
-    sendTx(urls[0] ?? "", owner, transfer, ownerNonce),
+    broadcastTx(urls, sponsor, { ...drip, nonce: sponsorNonce }),
+    broadcastTx(urls, owner, { ...transfer, nonce: ownerNonce }),
   ]);
-  const [dripReceipt, transferReceipt] = await Promise.all([
-    client.waitForTransactionReceipt({ hash: dripHash }),
-    client.waitForTransactionReceipt({ hash: transferHash }),
-  ]);
-  if (dripReceipt.status !== "success" || transferReceipt.status !== "success") {
-    return Response.json({ error: "reverted" }, { status: 500 });
+  const dripReceipt = await waitForReceipt(client, dripHash).catch(() => null);
+  const transferReceipt = await waitForReceipt(client, transferHash).catch(() => null);
+  if ((dripReceipt && dripReceipt.status !== "success") || (transferReceipt && transferReceipt.status !== "success")) {
+    return Response.json({ error: "reverted", txs: { drip: dripHash, transfer: transferHash } }, { status: 500 });
   }
   sql.exec("UPDATE pool SET status = 'claimed' WHERE proxy = ? AND status = 'available'", picked.proxy);
   sql.exec(
@@ -189,26 +191,4 @@ export async function claimPosition(
 function keyAccount(key: string, label: string) {
   if (!/^0x[0-9a-fA-F]{64}$/.test(key)) throw new Error(`${label} key missing`);
   return privateKeyToAccount(key as Hex);
-}
-
-async function sendTx(
-  url: string,
-  account: ReturnType<typeof privateKeyToAccount>,
-  built: { to: Address; data: Hex; gas: bigint; value: bigint },
-  nonce: number,
-): Promise<Hex> {
-  const wallet = createWalletClient({
-    account,
-    chain: CHAINS[TESTNET_ID],
-    transport: http(url, { timeout: 8_000, retryCount: 1 }),
-  });
-  return wallet.sendTransaction({
-    account,
-    chain: wallet.chain,
-    to: built.to,
-    data: built.data,
-    gas: built.gas,
-    nonce,
-    value: built.value,
-  });
 }

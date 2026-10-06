@@ -127,10 +127,19 @@ export async function poolRegister(root = workspaceRoot(), argv: readonly string
     readJson<TwinsFile>(path.join(root, "cli-state", "twins.json")),
   );
   const client = testnetPublicClient();
+  const poolOwner = loadRoles(root).POOL_OWNER.address;
   const entries = [];
   for (const entry of planned) {
     const accountId = await accountIdOf(client, entry.proxy);
-    entries.push({ ...entry, accountId });
+    const [owner, pending] = await Promise.all([
+      client.readContract({ address: entry.proxy, abi: delegatedAccountAbi, functionName: "owner" }),
+      client.readContract({ address: entry.proxy, abi: delegatedAccountAbi, functionName: "pendingOwner" }),
+    ]);
+    const reopen =
+      entry.role === "pool" &&
+      getAddress(owner) === poolOwner &&
+      getAddress(pending) === "0x0000000000000000000000000000000000000000";
+    entries.push({ ...entry, accountId, reopen });
   }
   const response = await fetch(`${base}/admin/pool`, {
     method: "POST",
@@ -142,12 +151,11 @@ export async function poolRegister(root = workspaceRoot(), argv: readonly string
     console.error(`register failed ${response.status} ${body.error ?? ""}`.trim());
     return 1;
   }
-  const protectedCount = entries.filter((entry) => entry.role !== "twin-unprotected").length;
-  if (body.registered !== entries.length || body.mandates !== protectedCount) {
-    console.error(`register count registered=${body.registered} mandates=${body.mandates} expected=${entries.length}/${protectedCount}`);
+  if (body.registered !== entries.length) {
+    console.error(`register count registered=${body.registered} expected=${entries.length}`);
     return 1;
   }
-  console.log(`registered ${body.registered} mandates ${body.mandates}`);
+  console.log(`registered ${body.registered} mandates ${body.mandates ?? 0}`);
   const owner = loadRoles(root).POOL_OWNER.address;
   for (const entry of entries) {
     const mandate = await fetch(`${base}/mandate/${entry.proxy}`);
