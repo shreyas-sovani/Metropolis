@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
+import "./globals.css";
 
 export const metadata = {
   title: "Lifeline",
-  description: "Liquidation radar and margin defender for Perpl on Monad.",
+  description: "Lifeline keeps Perpl positions from being liquidated while money sits idle next to them.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

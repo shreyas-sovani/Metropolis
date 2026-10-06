@@ -9,10 +9,12 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@lifeline/core": "workspace:*",
     "@privy-io/react-auth": "^2.0.0",
     "next": "^15.5.4",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "viem": "^2.57.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
