@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { ExactBadge } from "../exact-badge";
+import { bucketHit, crashLine } from "../../lib/crash-line";
 import { formatPct, formatUsd } from "../../lib/format";
+import type { CompactPosition } from "../../../../packages/core/src/radar/schema";
 
 interface Bucket {
   index: number;
@@ -37,6 +39,7 @@ interface RadarPayload {
     idleMicro: string;
   };
   markets: Market[];
+  positions?: CompactPosition[];
   penalties?: { paidUsd: string; avoidableUsd: string; atStakeUsd: string };
   saves?: { count: number };
   calibrated?: boolean;
@@ -64,6 +67,7 @@ export function RadarBoard() {
   const [picked, setPicked] = useState<AtRisk | null>(null);
   const [hover, setHover] = useState<string>("");
   const [error, setError] = useState("");
+  const [shocks, setShocks] = useState<Record<number, number>>({});
 
   useEffect(() => {
     let gone = false;
@@ -162,13 +166,31 @@ export function RadarBoard() {
                     <span className="mark-price">{formatUsd(market.markMicro)}</span>
                   </h2>
                   <Spark points={data.sparks?.[String(market.perpId)] ?? []} />
+                  <CrashSlider
+                    perpId={market.perpId}
+                    symbol={market.symbol}
+                    shock={shocks[market.perpId] ?? 0}
+                    positions={data.positions ?? []}
+                    onChange={(value) => {
+                      performance.mark(`crash-${market.perpId}-start`);
+                      setShocks((current) => ({ ...current, [market.perpId]: value }));
+                      requestAnimationFrame(() => {
+                        performance.mark(`crash-${market.perpId}-end`);
+                        performance.measure(
+                          `crash-${market.perpId}`,
+                          `crash-${market.perpId}-start`,
+                          `crash-${market.perpId}-end`,
+                        );
+                      });
+                    }}
+                  />
                   <div className="buckets">
                     <div className="mark-line" aria-hidden="true" />
                     {market.buckets.map((bucket) => (
                       <button
                         key={`${bucket.side}-${bucket.index}`}
                         type="button"
-                        className={`bucket ${bucket.side}`}
+                        className={`bucket ${bucket.side}${bucketHit(bucket.index, bucket.side, shocks[market.perpId] ?? 0) ? " hit" : ""}`}
                         data-testid="bucket"
                         style={{ height: `${12 + Math.min(bucket.count, 20) * 4}px` }}
                         onMouseEnter={() => setHover(bucketDetail(bucket))}
@@ -219,6 +241,42 @@ export function RadarBoard() {
       ) : (
         <p className="lede">Reading the book.</p>
       )}
+    </div>
+  );
+}
+
+function CrashSlider({
+  perpId,
+  symbol,
+  shock,
+  positions,
+  onChange,
+}: {
+  perpId: number;
+  symbol: string;
+  shock: number;
+  positions: CompactPosition[];
+  onChange: (value: number) => void;
+}) {
+  const line = crashLine(positions, perpId, symbol, shock);
+  return (
+    <div className="crash">
+      <label>
+        Shock {symbol}
+        <input
+          type="range"
+          min={-10}
+          max={10}
+          step={1}
+          value={shock}
+          aria-label={`Shock ${symbol}`}
+          onChange={(event) => onChange(Number(event.target.value))}
+        />
+      </label>
+      <p data-testid="crash-line">{line.text}</p>
+      <p className="bands" data-testid="crash-label">
+        {line.label}
+      </p>
     </div>
   );
 }

@@ -88,6 +88,10 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--amber); outline
 .bucket { width: 8px; border: 0; padding: 0; cursor: pointer; }
 .bucket.long { background: var(--danger); }
 .bucket.short { background: var(--ok); }
+.bucket.hit { outline: 2px solid var(--amber); }
+.crash { margin: 8px 0 12px; }
+.crash input { width: 100%; accent-color: var(--amber); }
+.crash label { display: block; font-family: var(--data); font-size: 12px; color: var(--muted); }
 .mark-line { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--amber); }
 .spark { width: 120px; height: 24px; }
 .spark path { fill: none; stroke: var(--amber); stroke-width: 1.4; }

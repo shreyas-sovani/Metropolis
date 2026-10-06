@@ -56,6 +56,7 @@ test("radar matches the payload", async ({ page }) => {
   await expect(page.getByTestId("penalties")).toContainText("Liquidation penalties paid in 30 days: $12");
   await expect(page.getByTestId("at-stake")).toContainText("Penalty at stake now: $3");
   await expect(page.getByTestId("saves")).toHaveText("Saves 0");
+  await expect(page.getByTestId("crash-label").first()).toHaveText("first-order: excludes cascade price impact");
   await expect(page.getByRole("heading", { name: /Bitcoin/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "ETH" })).toBeVisible();
   await expect(page.getByTestId("spark")).toBeVisible();

@@ -15,8 +15,8 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A4, U8, U9, U10, U13, and U16 are done. The §7A order's next item is A5.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A4, U8, U9, U10, U13, and U16 are done. The next item is A5.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A5, U8, U9, U10, U13, and U16 are done. The §7A order's next item is A6.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A5, U8, U9, U10, U13, and U16 are done. The next item is A6.
 
 ---
 
@@ -847,14 +847,14 @@ The human can prepare these in advance.
   - Screenshots are saved to `apps/web/e2e/artifacts/`.
 - **Evidence:** Playwright `e2e/radar.spec.ts` passed. Headline text matched the mocked payload: open interest `$1,500`, at risk `2 · $400`, idle `$25`, block `110`. Bitcoin and ETH both rendered. Hover showed the long-bucket detail. The testnet toggle requested `chain=10143`. The map text matched no `0x` address. Screenshots: `apps/web/e2e/artifacts/radar-1440.png` and `radar-390.png`. The blocked-Perpl case still rendered BTC and ETH from the onchain payload, and the browser log had zero `perpl.xyz` requests.
 
-#### [ ] A5 Crash simulator UI
+#### [x] A5 Crash simulator UI
 - **Type:** AGENT · **Depends on:** C4, A4 · **PRD:** §F2
 - **Do:** A per-market slider (±10%) runs C4 in the browser. It highlights buckets that would liquidate, shows the "liquidated / saved" line, and carries the "first-order: excludes cascade price impact" label.
 - **Pass:**
   - Each slider step re-renders in ≤ 100 ms with 600+ positions (measured with a performance mark).
   - Displayed numbers equal `simulate()` for 3 sampled shocks.
   - The label is present.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/web exec vitest run test/crash-ui.test.ts` passed. Shocks −3%, −7%, and +5% on a 3-position BTC book match `simulate()` for liquidated and saved counts and notionals. A 650-position step measured with `performance.measure` finished within 100 ms. Each market slider runs from −10% to +10%. The line reads “N positions / $X liquidated · Lifeline could save M / $Y using their own idle AUSD.” The label is `first-order: excludes cascade price impact`. Buckets inside the shock pick up the `hit` class.
 
 #### [ ] A6 Account lookup and dry run
 - **Type:** AGENT · **Depends on:** A3 · **PRD:** §F3
@@ -1160,7 +1160,7 @@ These tasks come from a review of the build's progress against the prize targets
 3. Finish **W7**, then **U3**, then the rest of W8 and W9. Done.
 4. **U4** and **U5**. Done. Next is U7.
 5. **U7**, then A1–A3. Done.
-6. A4–A6 together with **U8, U9, U10, U13, U16**. A4, U8, U9, U10, U13, and U16 are done. Next is A5.
+6. A4–A6 together with **U8, U9, U10, U13, U16**. A4, A5, U8, U9, U10, U13, and U16 are done. Next is A6.
 7. A7 with **U6**, then A8–A10.
 8. **U12** (it has a HUMAN step), then D1–D4.
 9. D5, using U6's criteria.
@@ -1533,3 +1533,4 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - U13 | a save is the first mark that crosses the stored pre-top-up liquidation price while the position is still open | a liquidation on that same block is not a save, and an empty ledger stays at 0 | `judgeSave` tests; radar `Saves 0`
 - U16 | `/api/v1/risk` reuses the account dry run and adds the forfeit | integrators need the same numbers as `/api/account`, with a public rate limit | 60/min then 429; README curl
 - A4 | the map shows anonymized bucket sizes and 8-hex risk ids | the snapshot does not carry account addresses, so the detail view stays on the id | Playwright map check; screenshots `radar-1440.png` and `radar-390.png`
+- A5 | the slider calls `simulate` in the browser on the snapshot positions | the crash pass is a first-order reprice, and the same function is what the numbers must match | `crash-ui` shocks −3/−7/+5; 650 positions within 100 ms
