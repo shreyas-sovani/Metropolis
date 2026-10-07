@@ -994,7 +994,7 @@ The human can prepare these in advance.
   - **Amended by U3:** all 3 runs show a confirmed top-up at the arm step (no `ABOVE_TRIGGER` skips).
   - The receipt shows the "Contract-exact" badge (U9).
   - **Only when D5 passes may Phase 8 start.**
-- **Evidence:**
+- **Evidence:** Three fresh production contexts on `https://lifeline-five-murex.vercel.app` passed the public steps. Radar load was 2537 ms, 350 ms, and 355 ms, with open interest about `$3,194,555`. The BTC slider at −3% changed the crash line (38 positions / `$67,671.09` liquidated on the first two runs). The at-risk card opened for `20ce239a`. Lookup of mainnet `0x77A89C51f106D6cD547542a3A83FE73cB4459135` rendered the dry-run sentence and the API-key suffix. `/twins` showed 7 protected legs. The browser made zero requests to `perpl.xyz`. Claim, accept, arm, withdraw, and the human Privy run are still open: a headless guest falls through to sandbox, and the production bundle has no test signer.
 
 #### [ ] D6 Ops runbook
 - **Type:** AGENT · **Depends on:** D5 · **PRD:** §5.5, §5.9
