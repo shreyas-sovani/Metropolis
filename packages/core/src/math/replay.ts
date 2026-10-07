@@ -42,6 +42,18 @@ function sideOf(positionType: number): 1n | -1n {
   return positionType === 0 ? 1n : -1n;
 }
 
+/** 4% in distance units. Lifeline's default trigger. */
+export const REPLAY_TRIGGER_E6 = 40_000n;
+
+/** The earliest sample whose distance is already inside the trigger. */
+export function firstSampleBelowTrigger<T extends { block: number; distanceE6: string }>(
+  samples: readonly T[],
+  triggerE6 = REPLAY_TRIGGER_E6,
+): T | null {
+  const ordered = [...samples].sort((left, right) => left.block - right.block);
+  return ordered.find((sample) => BigInt(sample.distanceE6) < triggerE6) ?? null;
+}
+
 /** Replay entry, lot, and deposit up to, but not including, a later block. */
 export function replayPosition(steps: readonly LifecycleStep[], beforeBlock: number): ReplayedPosition | null {
   const ordered = [...steps]

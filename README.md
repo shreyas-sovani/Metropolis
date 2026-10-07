@@ -96,3 +96,5 @@ The same map with the live links is at [/judges](https://lifeline-five-murex.ver
 | Envio | [Liquidation history](https://lifeline-five-murex.vercel.app/api/liquidations) |
 | Privy | [Guest acceptOwnership](https://testnet.monadexplorer.com/tx/0xaa32f3a1aeace9c5582de8f31ec49499af4673fd6d89762de88cc50b10f73dac) |
 | Track 1 | [Top-up](https://testnet.monadexplorer.com/tx/0xf322eed96f2f1460cc6477b3037ce2a7cfd56d3a31198242712d236644099d85) |
+
+A stored replay of a real mainnet Bitcoin liquidation is at [/replay](https://lifeline-five-murex.vercel.app/replay). The page reads `apps/web/data/mainnet-replay.json` and does not call an archive node.

@@ -1,0 +1,263 @@
+{
+  "market": "Bitcoin",
+  "perpId": "1",
+  "side": "long",
+  "accountId": "4248",
+  "account": "0xC06d091A7013d084a5c7D5ACdf84c8f9D5d195b3",
+  "liquidationBlock": 111199304,
+  "forkBlock": 111199303,
+  "tx": "0xdaf150e52398d75c83bb42d7eefa2bcb3d97b7b09f2d831de610e72f54539c10",
+  "eventLiqPricePNS": "837023",
+  "forkLiqPricePNS": "837023",
+  "markAtLiquidationPNS": "836166",
+  "idleCNS": "41335147",
+  "depositCNS": "286877841",
+  "triggerE6": "40000",
+  "samples": [
+    {
+      "block": 111008000,
+      "markPNS": "860562",
+      "distanceE6": "28297"
+    },
+    {
+      "block": 111012000,
+      "markPNS": "860857",
+      "distanceE6": "28630"
+    },
+    {
+      "block": 111016000,
+      "markPNS": "860096",
+      "distanceE6": "27771"
+    },
+    {
+      "block": 111020000,
+      "markPNS": "861634",
+      "distanceE6": "29506"
+    },
+    {
+      "block": 111024000,
+      "markPNS": "863258",
+      "distanceE6": "31332"
+    },
+    {
+      "block": 111028000,
+      "markPNS": "862540",
+      "distanceE6": "30526"
+    },
+    {
+      "block": 111032000,
+      "markPNS": "862537",
+      "distanceE6": "30522"
+    },
+    {
+      "block": 111036000,
+      "markPNS": "862553",
+      "distanceE6": "30540"
+    },
+    {
+      "block": 111040000,
+      "markPNS": "861412",
+      "distanceE6": "29256"
+    },
+    {
+      "block": 111044000,
+      "markPNS": "861985",
+      "distanceE6": "29901"
+    },
+    {
+      "block": 111048000,
+      "markPNS": "859513",
+      "distanceE6": "27111"
+    },
+    {
+      "block": 111052000,
+      "markPNS": "861654",
+      "distanceE6": "29529"
+    },
+    {
+      "block": 111056000,
+      "markPNS": "862470",
+      "distanceE6": "30447"
+    },
+    {
+      "block": 111060000,
+      "markPNS": "860916",
+      "distanceE6": "28697"
+    },
+    {
+      "block": 111064000,
+      "markPNS": "861726",
+      "distanceE6": "29610"
+    },
+    {
+      "block": 111068000,
+      "markPNS": "865718",
+      "distanceE6": "34085"
+    },
+    {
+      "block": 111072000,
+      "markPNS": "865536",
+      "distanceE6": "33881"
+    },
+    {
+      "block": 111076000,
+      "markPNS": "861648",
+      "distanceE6": "29522"
+    },
+    {
+      "block": 111080000,
+      "markPNS": "857156",
+      "distanceE6": "24436"
+    },
+    {
+      "block": 111084000,
+      "markPNS": "857496",
+      "distanceE6": "24823"
+    },
+    {
+      "block": 111088000,
+      "markPNS": "855981",
+      "distanceE6": "23097"
+    },
+    {
+      "block": 111092000,
+      "markPNS": "855803",
+      "distanceE6": "22894"
+    },
+    {
+      "block": 111096000,
+      "markPNS": "854964",
+      "distanceE6": "21935"
+    },
+    {
+      "block": 111100000,
+      "markPNS": "855560",
+      "distanceE6": "22616"
+    },
+    {
+      "block": 111104000,
+      "markPNS": "857540",
+      "distanceE6": "24873"
+    },
+    {
+      "block": 111108000,
+      "markPNS": "857114",
+      "distanceE6": "24388"
+    },
+    {
+      "block": 111112000,
+      "markPNS": "855617",
+      "distanceE6": "22681"
+    },
+    {
+      "block": 111116000,
+      "markPNS": "854991",
+      "distanceE6": "21966"
+    },
+    {
+      "block": 111120000,
+      "markPNS": "854778",
+      "distanceE6": "21722"
+    },
+    {
+      "block": 111124000,
+      "markPNS": "855231",
+      "distanceE6": "22240"
+    },
+    {
+      "block": 111128000,
+      "markPNS": "855991",
+      "distanceE6": "23108"
+    },
+    {
+      "block": 111132000,
+      "markPNS": "856123",
+      "distanceE6": "23259"
+    },
+    {
+      "block": 111136000,
+      "markPNS": "856329",
+      "distanceE6": "23494"
+    },
+    {
+      "block": 111140000,
+      "markPNS": "855648",
+      "distanceE6": "22717"
+    },
+    {
+      "block": 111144000,
+      "markPNS": "855156",
+      "distanceE6": "22155"
+    },
+    {
+      "block": 111148000,
+      "markPNS": "855862",
+      "distanceE6": "22961"
+    },
+    {
+      "block": 111152000,
+      "markPNS": "855825",
+      "distanceE6": "22919"
+    },
+    {
+      "block": 111156000,
+      "markPNS": "855886",
+      "distanceE6": "22989"
+    },
+    {
+      "block": 111160000,
+      "markPNS": "855367",
+      "distanceE6": "22396"
+    },
+    {
+      "block": 111164000,
+      "markPNS": "855409",
+      "distanceE6": "22444"
+    },
+    {
+      "block": 111168000,
+      "markPNS": "855123",
+      "distanceE6": "22117"
+    },
+    {
+      "block": 111172000,
+      "markPNS": "855394",
+      "distanceE6": "22427"
+    },
+    {
+      "block": 111176000,
+      "markPNS": "855111",
+      "distanceE6": "22103"
+    },
+    {
+      "block": 111180000,
+      "markPNS": "854557",
+      "distanceE6": "21469"
+    },
+    {
+      "block": 111184000,
+      "markPNS": "854984",
+      "distanceE6": "21958"
+    },
+    {
+      "block": 111188000,
+      "markPNS": "854342",
+      "distanceE6": "21223"
+    },
+    {
+      "block": 111192000,
+      "markPNS": "853053",
+      "distanceE6": "19744"
+    },
+    {
+      "block": 111196000,
+      "markPNS": "852687",
+      "distanceE6": "19323"
+    }
+  ],
+  "wouldAct": {
+    "block": 111008000,
+    "distanceE6": "28297",
+    "amountCNS": "41335147"
+  }
+}

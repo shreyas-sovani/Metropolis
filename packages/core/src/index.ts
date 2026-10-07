@@ -69,6 +69,8 @@ export {
   notionalMicro,
   maintenanceMargin,
   priceToMicro,
+  REPLAY_TRIGGER_E6,
+  firstSampleBelowTrigger,
   replayPosition,
   sizeTopUp,
   type LifecycleStep,

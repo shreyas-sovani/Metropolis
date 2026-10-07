@@ -25,7 +25,13 @@ export {
   notionalMicro,
   targetPriceMicro,
 } from "./liquidation.js";
-export { replayPosition, type LifecycleStep, type ReplayedPosition } from "./replay.js";
+export {
+  REPLAY_TRIGGER_E6,
+  firstSampleBelowTrigger,
+  replayPosition,
+  type LifecycleStep,
+  type ReplayedPosition,
+} from "./replay.js";
 export {
   bucketIndex,
   couldProtectNow,

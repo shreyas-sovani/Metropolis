@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BOUNTIES, JUDGE_PATH, proofUrl } from "../lib/bounties";
 
 async function txExists(url: string): Promise<boolean> {
-  const hash = url.split("/tx/")[1];
+  const hash = url.split("/tx/")[1] ?? "";
   const response = await fetch("https://testnet-rpc.monad.xyz", {
     method: "POST",
     headers: { "content-type": "application/json" },

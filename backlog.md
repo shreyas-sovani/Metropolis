@@ -15,10 +15,10 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 are done. The §7A order's next item is U11.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 are done. The next item is U11.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 and U11 and U14 are done. The §7A order's next item is D7.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6, U11, and U14 are done. The next item is D7.
 
-**Where the build stands (2026-10-07).** Phases 0–5 and every U-task except U14 are `[x]`. D1–D6 and U11 are `[x]`. The site is `https://lifeline-five-murex.vercel.app` and the Worker is `https://lifeline.lifeline-shreyas.workers.dev`. The next task is the mainnet liquidation replay, U14.
+**Where the build stands (2026-10-07).** Phases 0–5 and every U-task are `[x]`. D1–D6 are `[x]`. The site is `https://lifeline-five-murex.vercel.app` and the Worker is `https://lifeline.lifeline-shreyas.workers.dev`. The next task is the judge rehearsal on a phone and a laptop, D7.
 
 **Still required to finish the core, in order:**
 
@@ -31,7 +31,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 | 5 | D5 | Done | Three production public runs, plus one human Privy claim verified onchain. |
 | 6 | D6 | Done | Ops runbook in `README.md`. Refill and the kill switch were dry-run. |
 | 6b | U11 | Done | `/judges` bounty map. Proof links answered. |
-| 7 | U14 | Agent | Replay one recent mainnet liquidation into static JSON. Do this before the video. |
+| 7 | U14 | Done | Static replay of mainnet Bitcoin liquidation block 111199304. |
 | 8 | D7 | Human | Run the demo on a phone and a laptop. |
 | 9 | D8 | Human | Record the ≤ 3 minute demo and send the link. |
 | 10 | R1 | Agent | README, MIT license, clean `secrets:check`. |
@@ -1183,9 +1183,9 @@ These tasks come from a review of the build's progress against the prize targets
 5. **U7**, then A1–A3. Done.
 6. A4–A6 together with **U8, U9, U10, U13, U16**. Done.
 7. A7 with **U6**, then A8–A10. Done.
-8. **U12** (it has a HUMAN step), then D1–D4. U12, D1–D6, and U11 are done. Next is U14.
+8. **U12** (it has a HUMAN step), then D1–D4. U12, D1–D6, U11, and U14 are done. Next is D7.
 9. D5, using U6's criteria. Done. The production wallet path is the human Privy run, verified onchain.
-10. **U11** before R1 and R2. **U14** before D8, so the replay can appear in the video.
+10. **U11** before R1 and R2. Done. **U14** before D8, so the replay can appear in the video. Done. Next is D7.
 
 **Prize mapping.** Each task's **Why** line names the prize it strengthens: Perpl API $5k, Perpl Analytics/Risk $3k, Envio $1k, Privy $5k, Track 1 $10k, or Grand Champion.
 
@@ -1412,7 +1412,7 @@ These tasks come from a review of the build's progress against the prize targets
 - **Pass:** Every claim has a working link (an automated link check), and the human reviews the page in R2.
 - **Evidence:** `/judges` lists Perpl API, Perpl Analytics, Envio, Privy, and Track 1, each with a code path and a proof. The 90-second path links to the pre-filled mainnet lookup, `/lifeline`, and `/twins`. `pnpm --filter @lifeline/web exec vitest run test/bounties.test.ts` passed: site routes returned under 400, and both explorer transactions exist on the testnet RPC. The README bounty map points at the same proofs. The human still reviews the page at R2.
 
-#### [ ] U14 Replay a recent real mainnet liquidation (replaces X5)
+#### [x] U14 Replay a recent real mainnet liquidation (replaces X5)
 - **Type:** AGENT · **Depends on:** U1, U2, U10 · **Supersedes:** X5
 - **Why:** It's a real person's real loss, shown with what Lifeline would have done. That's the strongest storytelling beat for the video and Track 1.
 - **Constraint:** The public mainnet RPC serves only recent state. Block 110,000,000 (about 816k blocks back) was readable; 105,000,000 was not. Use a liquidation from the last 3 days.
@@ -1426,7 +1426,7 @@ These tasks come from a review of the build's progress against the prize targets
   - The replayed event matches to the exact tick.
   - The page renders from the stored JSON.
   - The "would act" block is the first sampled block below the trigger.
-- **Evidence:**
+- **Evidence:** Mainnet `PositionLiquidated` in `0xdaf150e5` at block 111199304, Bitcoin long account 4248. Anvil fork at block 111199303 called `liquidations()` and emitted `liqPricePNS` 837023, the same tick as the event. `apps/web/data/mainnet-replay.json` holds 48 mark samples. `firstSampleBelowTrigger` selects block 111008000 at distance 28297, and the stored top-up is the full idle balance 41335147. `/replay` renders those fields. `pnpm --filter @lifeline/web exec vitest run test/replay.test.ts` passed.
 
 ---
 
@@ -1559,6 +1559,7 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - A7 | arm defaults come from `armDefaults` on the live distance, and the test wallet is server-side | a headless Privy guest never finishes, and the owner key must not reach the browser | 3 Playwright runs; AUSD +50; mandate 404 after disarm
 - A7 | claim distance reads use one aggregate3 on the first testnet RPC | the batched public client was one subrequest per pool position and tripped the Worker cap at 30 accounts | worker `4cf9d1af`; claim HTTP 200
 - D5 | the production wallet proof is one human Privy run | the production bundle has no test signer, and a headless guest falls through to sandbox | guest `0x68927BE5` owns `0xC0385344`; top-up `0xf322eed9`; withdraw `0xcdb24f69`; mandate 404
+- U14 | the replay stores the fork `liquidations()` price, not the closed-form rule | on this on-book Bitcoin long the closed form is 836210 and the exchange emitted 837023, which matches the event | anvil at block 111199303; `0xdaf150e5`
 - D2 | the read client does not enable viem multicall batching | with batching on, an explicit multicall becomes one HTTP call per contract and the keeper alarm dies at about 50 subrequests | worker `9a979d5c`; `/health` `ticksLast10m` 285 and `degraded:false`
 - U6 | `E2E_WALLET=test` aliases in the test wallet, and production resolves the absent module | the pass needs three automated runs and a production bundle without the adapter | production grep clean
 - A8 | twin actions link to `testnet.monadexplorer.com` | the panel has to point at the chain event, not only the database row | `0x96442cfb` amount and account match
