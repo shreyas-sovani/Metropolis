@@ -2,17 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-interface TurnstileApi {
-  render: (node: HTMLElement, options: Record<string, unknown>) => string;
-  remove: (id: string) => void;
-}
-
-declare global {
-  interface Window {
-    turnstile?: TurnstileApi;
-  }
-}
-
 /** Managed widget. `interaction-only` stays blank unless Cloudflare asks for a check. */
 export function TurnstileBox({ onToken }: { onToken: (token: string) => void }) {
   const host = useRef<HTMLDivElement>(null);
@@ -34,15 +23,16 @@ export function TurnstileBox({ onToken }: { onToken: (token: string) => void }) 
           .then((response) => response.json())
           .then((body: { siteKey?: string }) => {
             if (gone || !body.siteKey || !host.current || !window.turnstile) return;
-            widgetId = window.turnstile.render(host.current, {
-              sitekey: body.siteKey,
-              appearance: "interaction-only",
-              callback: (token: string) => {
-                setReady(true);
-                onTokenRef.current(token);
-              },
-              "error-callback": (code: string) => setProblem(String(code)),
-            });
+            widgetId =
+              window.turnstile.render(host.current, {
+                sitekey: body.siteKey,
+                appearance: "interaction-only",
+                callback: (token: string) => {
+                  setReady(true);
+                  onTokenRef.current(token);
+                },
+                "error-callback": () => setProblem("challenge"),
+              }) ?? "";
           })
           .catch(() => undefined);
       };

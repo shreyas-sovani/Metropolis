@@ -16,6 +16,7 @@ import { armDemo } from "./commands/arm-demo.js";
 import { armTrial } from "./commands/arm-trial.js";
 import { twinsVolatile } from "./commands/twins-volatile.js";
 import { keysGenerate } from "./commands/keys-generate.js";
+import { secretsSyncVercel } from "./commands/secrets-sync-vercel.js";
 import { secretsSyncWorker } from "./commands/secrets-sync-worker.js";
 import { status } from "./commands/status.js";
 import { verifyAddresses } from "./commands/verify-addresses.js";
@@ -37,6 +38,7 @@ export async function run(argv: readonly string[]): Promise<number> {
     console.log("  arm:trial");
     console.log("  arm:demo --count 20");
     console.log("  secrets:sync-worker");
+    console.log("  secrets:sync-vercel");
     console.log("  gate:1");
     console.log("  gate:2 handoff <guest>");
     console.log("  gate:2 check <proxy> <guest> <signature> <token>");
@@ -60,6 +62,7 @@ export async function run(argv: readonly string[]): Promise<number> {
   if (command === "arm:trial") return armTrial(workspaceRoot(), argv.slice(1));
   if (command === "arm:demo") return armDemo(workspaceRoot(), argv.slice(1));
   if (command === "secrets:sync-worker") return secretsSyncWorker(workspaceRoot());
+  if (command === "secrets:sync-vercel") return secretsSyncVercel(workspaceRoot());
   if (command === "gate:1") return gate1();
   if (command === "gate:2") return gate2(argv.slice(1));
   if (command === "gate:4") return gate4(workspaceRoot(), argv.slice(1));

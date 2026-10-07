@@ -16,3 +16,4 @@ cli-state/
 .env*
 !.env.example
 .dev.vars
+.vercel

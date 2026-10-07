@@ -23,6 +23,7 @@ export function createReadClient(
       urls.map((url) => http(url, { timeout, retryCount: 0 })),
       { rank: false, retryCount: 0 },
     ),
-    batch: { multicall: { batchSize: 128, wait: 0 } },
+    // Leave multicall batching off. When it is on, viem splits an explicit
+    // multicall into one HTTP call per contract, which crosses the Worker cap.
   });
 }
