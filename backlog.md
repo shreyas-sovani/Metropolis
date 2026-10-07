@@ -15,8 +15,28 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. The §7A order's next item is D1, which stops for a human Vercel login.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. The next item is D1.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D2 and D3 are done. D1 is deployed; its pass still needs the production origin on the Privy and Turnstile allowlists.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D2 and D3 are done. Next is the D1 origin allowlist, then D4.
+
+**Where the build stands (2026-10-07).** Phases 0–5 and every U-task except U11 and U14 are `[x]`. The Worker is at `https://lifeline.lifeline-shreyas.workers.dev` and the site is at `https://lifeline-five-murex.vercel.app`. D2 and D3 pass. D1's deploy is up; Privy still frames only `http://localhost:3000`, so the guest console is not clean until that origin is allowed.
+
+**Still required to finish the core, in order:**
+
+| Next | Task | Who | What it takes |
+|---|---|---|---|
+| 1 | D1 | Human | Add `https://lifeline-five-murex.vercel.app` to the Privy allowed origins and to the Turnstile widget hostnames. The Vercel project is already live. |
+| 2 | D2 | Done | `/health` is `degraded:false` with `ticksLast10m` 285. |
+| 3 | D3 | Done | `budget ok`, pool 31 available (27 BTC, 4 ETH), twins 7, every free position above the house trigger. |
+| 4 | D4 | Human | Free UptimeRobot monitors on Worker `/health` and the Vercel site, plus one test alert. |
+| 5 | D5 | Agent, plus one human Privy run | Three production demo runs, then you claim once in a real browser. |
+| 6 | D6, U11 | Agent | Ops runbook, and the `/judges` bounty map. |
+| 7 | U14 | Agent | Replay one recent mainnet liquidation into static JSON. Do this before the video. |
+| 8 | D7 | Human | Run the demo on a phone and a laptop. |
+| 9 | D8 | Human | Record the ≤ 3 minute demo and send the link. |
+| 10 | R1 | Agent | README, MIT license, clean `secrets:check`. |
+| 11 | R2 | Human | Submit on the Metropolis portal: Track 1, plus Perpl API, Perpl Analytics, Envio, and Privy. |
+
+Phase 8 (X1–X9, B1–B7) starts only after D5. X5 is already `[-]`, replaced by U14. Those items are not required to submit.
 
 ---
 
@@ -928,15 +948,15 @@ The human can prepare these in advance.
 - **Pass:**
   - The production URL serves `/` with live radar data.
   - The Privy guest flow initializes on the production origin, with no origin error in the console.
-- **Evidence:**
+- **Evidence:** Project `lifeline` on team `shreyas-sovanis-projects`, root `apps/web`, Node 22. Production `https://lifeline-five-murex.vercel.app` returns `/` with the opening line and live dollar figures. `/api/radar` returned block data, headline `positionCount` 608, and BTC among 17 markets. The production bundle contains Privy and the app id. A headless load of `/` still logs `Framing 'https://auth.privy.io/' violates ... frame-ancestors 'self' http://localhost:3000 https://auth.privy.io`. That allowlist, and the Turnstile hostname, are the remaining human step. Not checked off until the console is clean.
 
-#### [ ] D2 Production Worker
+#### [x] D2 Production Worker
 - **Type:** AGENT · **Depends on:** W1–W9 · **PRD:** §5.5
 - **Do:** Run `secrets:sync-worker` and `wrangler deploy`, and set `NEXT_PUBLIC_WORKER_URL` and `WORKER_HEALTH_URL` in Vercel.
 - **Pass:** Production `/health` returns `degraded:false` and `ticksLast10m ≥ 285`.
-- **Evidence:**
+- **Evidence:** Worker version `9a979d5c-6047-4d3b-a326-2eb38d0b9402`. After the multicall batching was turned off, `/health` climbed through a 10-minute window and returned `degraded:false`, `ticksLast10m` 285, `paused:false`. A later read was still `degraded:false` with `ticksLast10m` 285. `NEXT_PUBLIC_WORKER_URL` and `WORKER_HEALTH_URL` are set on the Vercel project.
 
-#### [ ] D3 Production pool and twins
+#### [x] D3 Production pool and twins
 - **Type:** AGENT · **Depends on:** D2, P2, P3 · **PRD:** §5.9
 - **Do:**
   - Top up funds: prompt S0.4 if the sponsor is below 15 MON cumulative.
@@ -947,7 +967,7 @@ The human can prepare these in advance.
   - `/health` shows `poolAvailable ≥ 20`.
   - `pnpm cli status` shows no `LOW:` lines.
   - Every pool position's distance is above its house trigger.
-- **Evidence:**
+- **Evidence:** `pnpm cli status` exited 0 with `budget ok need=31.1400 sponsor=33.6809` and no `LOW:` or `SHORT:` lines. `pool:create --count 4 --market ETH` exited 0 (`done 4/4`); the four proxies sit at distance 33147–33526, inside the demo band, two long and two short. `pool:register` exited 0 (`registered 75 mandates 41`). `/health` then showed `poolAvailable` 31, `poolInBand` 16, `poolBySide` `{"long":14,"short":17}`, `low` false. An independent read of every free pool account found 31 above the 1.5% house trigger and 0 below (27 BTC, 4 ETH). `GET /twins` returned `count` 7.
 
 #### [ ] D4 Uptime monitoring
 - **Type:** **HUMAN** · **Depends on:** D2 · **PRD:** §5.5
@@ -1158,11 +1178,11 @@ These tasks come from a review of the build's progress against the prize targets
 1. **U2 → U1 → finish G4** (`CALIBRATED=true`). Done.
 2. **U15** (time-sensitive: twins need time and volatility to show a real liquidation). Done. `GET /twins` lists the pairs with distances and outcomes, and sandbox arm is done.
 3. Finish **W7**, then **U3**, then the rest of W8 and W9. Done.
-4. **U4** and **U5**. Done. Next is U7.
+4. **U4** and **U5**. Done.
 5. **U7**, then A1–A3. Done.
 6. A4–A6 together with **U8, U9, U10, U13, U16**. Done.
 7. A7 with **U6**, then A8–A10. Done.
-8. **U12** (it has a HUMAN step), then D1–D4. U12 is done. Next is D1.
+8. **U12** (it has a HUMAN step), then D1–D4. U12, D2, and D3 are done. D1 is deployed and waiting on the Privy and Turnstile origins. Next is that allowlist, then D4.
 9. D5, using U6's criteria.
 10. **U11** before R1 and R2. **U14** before D8, so the replay can appear in the video.
 
@@ -1537,6 +1557,7 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - A6 | the dry-run sentence uses the 4%/6% evaluator and names the market side | the card has to read the same payload as `/api/account` | template `152 AUSD` / `2.1% → 6.0%`; live mainnet `0x77A89C51` suffix present, testnet `0xe3929EB4` suffix absent
 - A7 | arm defaults come from `armDefaults` on the live distance, and the test wallet is server-side | a headless Privy guest never finishes, and the owner key must not reach the browser | 3 Playwright runs; AUSD +50; mandate 404 after disarm
 - A7 | claim distance reads use one aggregate3 on the first testnet RPC | the batched public client was one subrequest per pool position and tripped the Worker cap at 30 accounts | worker `4cf9d1af`; claim HTTP 200
+- D2 | the read client does not enable viem multicall batching | with batching on, an explicit multicall becomes one HTTP call per contract and the keeper alarm dies at about 50 subrequests | worker `9a979d5c`; `/health` `ticksLast10m` 285 and `degraded:false`
 - U6 | `E2E_WALLET=test` aliases in the test wallet, and production resolves the absent module | the pass needs three automated runs and a production bundle without the adapter | production grep clean
 - A8 | twin actions link to `testnet.monadexplorer.com` | the panel has to point at the chain event, not only the database row | `0x96442cfb` amount and account match
 - A9 | sandbox is the path when Privy throws or claim returns 503 `sandbox:true` | the judge still needs an arm receipt when the pool or the wallet is down | `e2e/fallbacks.spec.ts`
