@@ -149,6 +149,29 @@ const STEPS: { version: number; apply: (sql: Sql) => void }[] = [
       sql.exec("CREATE INDEX IF NOT EXISTS idx_claims_unaccepted ON claims(proxy) WHERE accepted_at IS NULL");
     },
   },
+  {
+    version: 10,
+    apply(sql) {
+      addColumn(sql, "claims", "transfer_tx", "transfer_tx TEXT");
+      addColumn(sql, "claims", "drip_tx", "drip_tx TEXT");
+      addColumn(sql, "claims", "accept_tx", "accept_tx TEXT");
+      addColumn(sql, "keeper_stats", "saves_scanned_at", "saves_scanned_at INTEGER");
+      sql.exec(`CREATE TABLE IF NOT EXISTS saves (
+        tx_hash TEXT PRIMARY KEY,
+        proxy TEXT,
+        perp_id TEXT,
+        side TEXT,
+        pre_liq TEXT,
+        cross_block INTEGER,
+        cross_mark TEXT,
+        added_cns TEXT,
+        recorded_at INTEGER
+      )`);
+      sql.exec(
+        "CREATE INDEX IF NOT EXISTS idx_actions_watched ON actions(proxy) WHERE status = 'confirmed' AND liq_before IS NOT NULL",
+      );
+    },
+  },
 ];
 
 export function migrate(sql: Sql): number[] {

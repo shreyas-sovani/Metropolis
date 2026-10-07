@@ -11,6 +11,19 @@ export interface RefillTarget {
   inBand: number;
 }
 
+export const DEFAULT_MAX_NEW = 4;
+
+/** Exit before any send when the register step would fail. */
+export function refillPreflight(adminSecret: string, workerUrl: string): string | null {
+  if (!adminSecret.trim()) return "ADMIN_SECRET missing";
+  if (!workerUrl.trim().startsWith("https://")) return "worker url missing";
+  return null;
+}
+
+export function createsAllowed(created: number, maxNew: number): boolean {
+  return created < maxNew;
+}
+
 /** The next side to open, or null when every target is already met. */
 export function nextRefillSide(inventory: RefillInventory, target: RefillTarget): "long" | "short" | null {
   const met =

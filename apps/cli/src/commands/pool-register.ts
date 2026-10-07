@@ -14,12 +14,12 @@ export interface PlannedEntry {
   side: "long" | "short";
   leverage: string;
   market: string;
-  role: "pool" | "twin-protected" | "twin-unprotected";
+  role: "pool" | "twin-protected" | "twin-unprotected" | "sandbox";
   pairId: string;
 }
 
 interface PoolFile {
-  accounts?: { proxy?: string; market?: string; side?: string; perpId?: string }[];
+  accounts?: { proxy?: string; market?: string; side?: string; perpId?: string; role?: string }[];
 }
 
 interface TwinsFile {
@@ -55,7 +55,7 @@ export function planEntries(pool: PoolFile, twins: TwinsFile): PlannedEntry[] {
       side: sideOf(account.side, account.proxy),
       leverage: poolLeverage(account.market),
       market: account.market,
-      role: "pool",
+      role: account.role === "sandbox" ? "sandbox" : "pool",
       pairId: "",
     });
   }
@@ -139,7 +139,15 @@ export async function poolRegister(root = workspaceRoot(), argv: readonly string
       entry.role === "pool" &&
       getAddress(owner) === poolOwner &&
       getAddress(pending) === "0x0000000000000000000000000000000000000000";
-    entries.push({ ...entry, accountId, reopen });
+    let replaceMandate = false;
+    if (argv.includes("--restore-twins") && entry.role === "twin-protected") {
+      const existing = await fetch(`${base}/mandate/${entry.proxy}`);
+      if (existing.ok) {
+        const stored = (await existing.json()) as { kind?: string };
+        replaceMandate = stored.kind === "user";
+      }
+    }
+    entries.push({ ...entry, accountId, reopen, replaceMandate });
   }
   const response = await fetch(`${base}/admin/pool`, {
     method: "POST",

@@ -37,7 +37,9 @@ const armed = {
 
 test("a blocked Privy call falls through to a sandbox arm", async ({ page }) => {
   test.setTimeout(40_000);
-  await page.route("**/api/twins", (route) => route.fulfill({ json: house }));
+  await page.route("**/api/lifeline/sandbox-accounts", (route) =>
+    route.fulfill({ json: { accounts: [{ proxy: house.pairs[0]?.protected.proxy, distanceE6: "27000" }] } }),
+  );
   await page.route("**/api/saves", (route) => route.fulfill({ json: { count: 0 } }));
   await page.route("**/api/lifeline/sandbox", (route) => route.fulfill({ json: armed }));
   await page.goto("/lifeline", { waitUntil: "domcontentloaded" });
@@ -52,7 +54,9 @@ test("a blocked Privy call falls through to a sandbox arm", async ({ page }) => 
 
 test("an empty pool opens sandbox", async ({ page }) => {
   await page.route("**/api/lifeline/claim", (route) => route.fulfill({ status: 503, json: { error: "empty", sandbox: true } }));
-  await page.route("**/api/twins", (route) => route.fulfill({ json: house }));
+  await page.route("**/api/lifeline/sandbox-accounts", (route) =>
+    route.fulfill({ json: { accounts: [{ proxy: house.pairs[0]?.protected.proxy, distanceE6: "27000" }] } }),
+  );
   await page.route("**/api/lifeline/sandbox", (route) => route.fulfill({ json: armed }));
   await page.goto("/lifeline?fault=pool", { waitUntil: "domcontentloaded" });
   const start = page.getByRole("button", { name: "Try Lifeline live" });

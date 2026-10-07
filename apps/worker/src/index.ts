@@ -30,6 +30,15 @@ const handler: ExportedHandler<Env> = {
     if (url.pathname === "/saves" && request.method === "GET") {
       return stub.fetch(request);
     }
+    if (url.pathname === "/me" && request.method === "GET") {
+      return stub.fetch(request);
+    }
+    if (url.pathname === "/claim/accepted" && request.method === "POST") {
+      return stub.fetch(request);
+    }
+    if (url.pathname === "/sandbox/accounts" && request.method === "GET") {
+      return stub.fetch(request);
+    }
     if (url.pathname === "/claim" && request.method === "POST") {
       return stub.fetch(request);
     }

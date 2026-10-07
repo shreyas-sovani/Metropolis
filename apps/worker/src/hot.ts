@@ -76,6 +76,7 @@ export interface HotState {
   maxGapMs: number;
   lastError: string | null;
   canaryProxy: { proxy: string; perp_id: string } | null;
+  claimsToday: number;
 }
 
 export function blankHot(): HotState {
@@ -95,6 +96,7 @@ export function blankHot(): HotState {
     maxGapMs: 0,
     lastError: null,
     canaryProxy: null,
+    claimsToday: 0,
   };
 }
 
@@ -245,6 +247,9 @@ export function hydrateHot(sql: Sql, hot: HotState, now: number): void {
   hot.canaryAt = int(stats?.canary_at);
   hot.recycledAt = int(stats?.recycled_at);
   hot.lastError = health?.last_error == null ? null : String(health.last_error);
+  const dayAgo = now - 24 * 60 * 60 * 1000;
+  const today = sql.exec("SELECT COUNT(*) AS n FROM claims WHERE claimed_at >= ?", dayAgo).toArray()[0];
+  hot.claimsToday = int(today?.n) ?? 0;
   hot.at = now;
   hot.loaded = true;
 }

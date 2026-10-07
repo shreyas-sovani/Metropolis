@@ -24,7 +24,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @lifeline/core build && pnpm --filter @lifeline/cli build
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         with:
           path: cli-state
           key: lifeline-cli-state-${{ github.run_id }}
@@ -41,7 +41,15 @@ jobs:
           CALIBRATION_PK: ${{ secrets.CALIBRATION_PK }}
           TEST_OWNER_PK: ${{ secrets.TEST_OWNER_PK }}
           ALCHEMY_MONAD_TESTNET_URL: ${{ secrets.ALCHEMY_MONAD_TESTNET_URL }}
+          ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
+          PROXY_SECRET: ${{ secrets.PROXY_SECRET }}
         run: node scripts/ops-prepare.mjs
-      - run: pnpm cli pool:refill --target 30 --per-side 12 --in-band 10
+      - run: pnpm cli pool:refill --target 30 --per-side 12 --in-band 10 --max-new 4
+      - run: pnpm cli pool:register
       - run: pnpm cli faucet:ausd
       - run: pnpm cli status
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: cli-state
+          key: lifeline-cli-state-${{ github.run_id }}

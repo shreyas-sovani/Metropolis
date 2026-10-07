@@ -77,19 +77,19 @@ export function TryPanel({ client }: { client: TryClient }) {
   async function openSandbox() {
     setPhase("sandbox");
     setError("");
-    const response = await fetch("/api/twins");
+    const response = await fetch("/api/lifeline/sandbox-accounts");
     if (!response.ok) {
       setError("Sandbox has no house position right now.");
       return;
     }
-    const body = (await response.json()) as { pairs?: { protected: { proxy: string; mandate: string; distanceE6: string | null } | null }[] };
-    const proxy = sandboxProxy(body.pairs ?? []);
+    const body = (await response.json()) as { accounts?: { proxy: string; distanceE6?: string | null }[] };
+    const proxy = sandboxProxy(body.accounts ?? []);
     if (!proxy) {
       setError("Sandbox has no house position right now.");
       return;
     }
     setSandboxAccount(proxy);
-    const distance = body.pairs?.find((pair) => pair.protected?.proxy === proxy)?.protected?.distanceE6 ?? "27000";
+    const distance = body.accounts?.find((account) => account.proxy === proxy)?.distanceE6 ?? "27000";
     applyDistance(distance);
   }
 

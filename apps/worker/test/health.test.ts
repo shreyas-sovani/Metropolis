@@ -38,6 +38,9 @@ describe("worker health", () => {
       poolBySide: { long: 0, short: 0 },
       low: true,
       version: WORKER_VERSION,
+      armed: 0,
+      lastBlock: null,
+      claimsToday: 0,
     });
   });
 

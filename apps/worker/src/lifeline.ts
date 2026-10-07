@@ -9,7 +9,9 @@ import { parseRegistrations, signMandate } from "./house.js";
 import { registerPool } from "./register.js";
 import { crudRoundTrip, migrate } from "./schema.js";
 import { armPosition, disarmPosition, mandateFromBody } from "./arm.js";
-import { claimPosition, readClaimant } from "./claim.js";
+import { clientIpFrom } from "./client-ip.js";
+import { claimPosition, readClaimant, readUser } from "./claim.js";
+import { meFor, storeAcceptTx } from "./me.js";
 import { armBreach, noteGap, resetSoak, runKeeper, soakReport } from "./tick.js";
 import { recycleClaims } from "./recycle.js";
 import { sandboxArm } from "./sandbox.js";
@@ -17,12 +19,8 @@ import { readLegStates } from "./tick.js";
 import { planTurnstile, tokenFrom, turnstileDenied, verifyTurnstile } from "./turnstile.js";
 import { assembleTwinPairs, twinOutcome, type TwinAction, type TwinLegRow } from "./twins.js";
 
-function clientIp(request: Request): string {
-  return (
-    request.headers.get("cf-connecting-ip") ||
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    "unknown"
-  );
+function clientIp(request: Request, env: { ADMIN_SECRET?: string; PROXY_SECRET?: string }): string {
+  return clientIpFrom(request, env);
 }
 
 /** Stays at 2s. 43,200 alarm requests/day is inside the free Durable Object request cap. */
@@ -39,6 +37,7 @@ export interface LifelineEnv {
   RPC_URLS_TESTNET: string;
   LIFELINE_PAUSED?: string;
   TURNSTILE_SECRET?: string;
+  PROXY_SECRET?: string;
 }
 
 export class Lifeline extends DurableObject<LifelineEnv> {
@@ -49,6 +48,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
   private opsFlight: Promise<void> | null = null;
   private hot = blankHot();
   private degraded: string | null = null;
+  private lastBlock: number | null = null;
 
   constructor(ctx: DurableObjectState, env: LifelineEnv) {
     super(ctx, env);
@@ -94,7 +94,8 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       if (typeof coreEvaluator() !== "function") throw new Error("core missing");
       this.ensureHot(started);
       this.gap = noteGap(this.ctx.storage.sql, started, prior, this.gap);
-      await runKeeper(this.ctx.storage.sql, this.env, started, this.hot);
+      const keeper = await runKeeper(this.ctx.storage.sql, this.env, started, this.hot);
+      if (keeper.block != null) this.lastBlock = keeper.block;
       await recycleClaims(this.ctx.storage.sql, this.env, started, this.hot);
       this.rememberError(null);
     } catch (caught) {
@@ -130,6 +131,9 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     if (url.pathname === "/sandbox/arm" && request.method === "POST") return this.sandbox(request);
     if (url.pathname === "/admin/alarm/clear" && request.method === "POST") return this.clearAlarm(request);
     if (url.pathname === "/admin/alarm" && request.method === "GET") return this.readAlarm(request);
+    if (url.pathname === "/me" && request.method === "GET") return this.me(request);
+    if (url.pathname === "/claim/accepted" && request.method === "POST") return this.claimAccepted(request);
+    if (url.pathname === "/sandbox/accounts" && request.method === "GET") return this.sandboxAccounts();
     if (url.pathname === "/claim" && request.method === "POST") return this.claim(request);
     if (url.pathname === "/arm" && request.method === "POST") return this.arm(request);
     if (url.pathname === "/disarm" && request.method === "POST") return this.disarm(request);
@@ -159,10 +163,19 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     const proxy = getAddress(account);
     const rows = this.ctx.storage.sql
       .exec(
-        "SELECT tx_hash, block, amount_cns, perp_id, status FROM actions WHERE proxy = ? ORDER BY id",
+        "SELECT tx_hash, block, amount_cns, perp_id, status, dist_before, dist_after, reason FROM actions WHERE proxy = ? ORDER BY id",
         proxy,
       )
-      .toArray() as { tx_hash?: string | null; block?: number | null; amount_cns?: string; perp_id?: string; status?: string }[];
+      .toArray() as {
+      tx_hash?: string | null;
+      block?: number | null;
+      amount_cns?: string;
+      perp_id?: string;
+      status?: string;
+      dist_before?: string | null;
+      dist_after?: string | null;
+      reason?: string | null;
+    }[];
     return Response.json({
       account: proxy,
       actions: rows.flatMap((row) => {
@@ -174,6 +187,9 @@ export class Lifeline extends DurableObject<LifelineEnv> {
             amountCNS: row.amount_cns ?? "0",
             perpId: row.perp_id ?? "",
             status: row.status ?? "",
+            distBefore: row.dist_before ?? null,
+            distAfter: row.dist_after ?? null,
+            reason: row.reason ?? "",
           },
         ];
       }),
@@ -203,7 +219,37 @@ export class Lifeline extends DurableObject<LifelineEnv> {
         },
       ];
     });
-    return Response.json({ count: 0, watched: saves.length, saves: [] });
+    const recorded = this.ctx.storage.sql
+      .exec(
+        "SELECT tx_hash, proxy, side, cross_block, added_cns FROM saves ORDER BY recorded_at DESC LIMIT ?",
+        HISTORY_LIMIT,
+      )
+      .toArray() as {
+      tx_hash?: string;
+      proxy?: string;
+      side?: string;
+      cross_block?: number | null;
+      added_cns?: string;
+      perp_id?: string;
+    }[];
+    const markets = new Map(this.hot.pools.map((row) => [row.proxy, row.market]));
+    return Response.json({
+      count: recorded.length,
+      watched: saves.length,
+      saves: recorded.flatMap((row) => {
+        if (!row.tx_hash || !row.proxy) return [];
+        return [
+          {
+            txHash: row.tx_hash,
+            proxy: row.proxy,
+            market: markets.get(row.proxy) ?? "",
+            side: row.side ?? "",
+            crossBlock: row.cross_block ?? null,
+            addedCNS: row.added_cns ?? "0",
+          },
+        ];
+      }),
+    });
   }
 
   private admin(request: Request): boolean {
@@ -304,12 +350,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       if (row.account_id && row.perp_id) readable.push({ proxy: row.proxy, account_id: row.account_id, perp_id: row.perp_id });
     }
     const pairs = assembleTwinPairs(legs);
-    let states = new Map<string, { distanceE6: bigint; open: boolean; block: number }>();
-    try {
-      states = await readLegStates(this.env, readable);
-    } catch {
-      states = new Map();
-    }
+    const states = await readLegStates(this.env, readable);
     for (const pair of pairs) {
       this.fillLeg(pair.protected);
       this.fillLeg(pair.unprotected);
@@ -317,6 +358,11 @@ export class Lifeline extends DurableObject<LifelineEnv> {
         if (!leg) continue;
         const state = states.get(getAddress(leg.proxy));
         if (!state) continue;
+        if (state.distanceError) {
+          leg.distanceError = state.distanceError;
+          continue;
+        }
+        if (state.distanceE6 == null) continue;
         leg.distanceE6 = state.distanceE6.toString();
         leg.outcome = twinOutcome(state.open, state.distanceE6, state.block);
       }
@@ -345,7 +391,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
   private async sandbox(request: Request): Promise<Response> {
     try {
       const body = (await request.json()) as { proxy?: string; triggerBps?: number; targetBps?: number; turnstileToken?: string };
-      const ip = clientIp(request);
+      const ip = clientIp(request, this.env);
       const allowed = await this.allowTurnstile(request, body.turnstileToken ?? "", ip);
       if (allowed) return allowed;
       const started = Date.now();
@@ -377,7 +423,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
         bodyToken = "";
       }
     }
-    const allowed = await this.allowTurnstile(request, bodyToken, clientIp(request));
+    const allowed = await this.allowTurnstile(request, bodyToken, clientIp(request, this.env));
     if (allowed) return allowed;
     const claimant = await readClaimant(request, this.env);
     if (claimant instanceof Response) return claimant;
@@ -505,6 +551,8 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     const last = ticks[ticks.length - 1] ?? null;
     const available = this.hot.pools.filter((row) => row.status === "available");
     const ops = this.ops;
+    const claimsToday = this.hot.claimsToday;
+    const armed = this.hot.armed.length;
     return healthReport({
       lastAlarmAt: last,
       ticksLast10m: ticks.length,
@@ -515,7 +563,48 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       operatorWei: ops?.operatorWei ?? 0n,
       poolInBand: ops?.poolInBand ?? 0,
       poolBySide: countBySide(available.map((row) => row.side)),
+      armed,
+      lastBlock: this.lastBlock,
+      claimsToday,
     });
+  }
+
+  private async me(request: Request): Promise<Response> {
+    const user = await readUser(request, this.env);
+    if (user instanceof Response) return user;
+    try {
+      this.ensureHot(Date.now());
+      return await meFor(this.ctx.storage.sql, this.env, user.userId, Date.now());
+    } catch (error) {
+      return Response.json({ error: clientError(error) }, { status: 500 });
+    }
+  }
+
+  private async claimAccepted(request: Request): Promise<Response> {
+    const user = await readUser(request, this.env);
+    if (user instanceof Response) return user;
+    let txHash = "";
+    try {
+      const body = (await request.json()) as { txHash?: string };
+      txHash = body.txHash ?? "";
+    } catch {
+      return Response.json({ error: "tx" }, { status: 400 });
+    }
+    return storeAcceptTx(this.ctx.storage.sql, user.userId, txHash);
+  }
+
+  private sandboxAccounts(): Response {
+    this.ensureHot(Date.now());
+    const accounts = this.hot.pools
+      .filter((row) => row.role === "sandbox")
+      .map((row) => ({
+        proxy: row.proxy,
+        market: row.market,
+        side: row.side,
+        leverage: row.leverage,
+        perpId: row.perp_id,
+      }));
+    return Response.json({ accounts });
   }
 }
 

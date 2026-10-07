@@ -30,7 +30,8 @@ describe("try lifeline copy", () => {
     expect(useSandbox({ privyFailed: true })).toBe(true);
     expect(useSandbox({ privyFailed: false, status: 503, sandbox: true })).toBe(true);
     expect(useSandbox({ privyFailed: false, status: 409, sandbox: false })).toBe(false);
-    expect(sandboxProxy([{ protected: { proxy: "0xabc", mandate: "house" } }])).toBe("0xabc");
+    expect(sandboxProxy([{ proxy: "0xabc" }])).toBe("0xabc");
+    expect(sandboxProxy([])).toBeNull();
   });
 
   it("formats the receipt", () => {

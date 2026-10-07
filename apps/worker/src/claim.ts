@@ -8,6 +8,7 @@ import {
 } from "@lifeline/core";
 import { getAddress, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { clientIpFrom } from "./client-ip.js";
 import { addOpenClaim, markClaimed, type HotState } from "./hot.js";
 import type { LifelineEnv } from "./lifeline.js";
 import { addressFromWalletProof, verifyPrivyAccessToken } from "./privy.js";
@@ -22,7 +23,8 @@ export const DEMO_BAND_HIGH_E6 = 35_000n;
 /** Above 6% the position is still offered, but only after every closer account. */
 export const RESERVE_DISTANCE_E6 = 60_000n;
 const HOUR_MS = 60 * 60 * 1000;
-const IP_LIMIT = 3;
+/** Venue Wi-Fi puts many judges on one address. Turnstile is the main control. */
+export const IP_LIMIT = 10;
 
 export interface PoolCandidate {
   proxy: Address;
@@ -33,6 +35,7 @@ export interface PoolCandidate {
   leverage: string;
   distanceE6: bigint;
   reserve?: boolean;
+  role?: string;
 }
 
 function rankPool(rows: readonly PoolCandidate[]): PoolCandidate | null {
@@ -47,7 +50,7 @@ function rankPool(rows: readonly PoolCandidate[]): PoolCandidate | null {
 }
 
 export function pickPool(rows: readonly PoolCandidate[]): PoolCandidate | null {
-  const eligible = rows.filter((row) => row.distanceE6 > HOUSE_TRIGGER_E6);
+  const eligible = rows.filter((row) => row.role !== "sandbox" && row.distanceE6 > HOUSE_TRIGGER_E6);
   const fresh = eligible.filter((row) => !row.reserve && row.distanceE6 <= RESERVE_DISTANCE_E6);
   const band = fresh.filter((row) => row.distanceE6 >= HOUSE_TARGET_E6 && row.distanceE6 <= DEMO_BAND_HIGH_E6);
   const source = band.length > 0 ? band : fresh.length > 0 ? fresh : eligible;
@@ -69,22 +72,26 @@ export interface Claimant {
   ip: string;
 }
 
-export async function readClaimant(request: Request, env: LifelineEnv): Promise<Claimant | Response> {
+export async function readUser(request: Request, env: LifelineEnv): Promise<{ userId: string } | Response> {
   const admin = Boolean(env.ADMIN_SECRET) && request.headers.get("x-admin-secret") === env.ADMIN_SECRET;
   const header = request.headers.get("authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : "";
-  let userId: string | null = null;
   if (admin && request.headers.get("x-lifeline-user")) {
-    userId = request.headers.get("x-lifeline-user");
-  } else if (token) {
-    const verified = await verifyPrivyAccessToken(token, {
-      verificationKey: env.PRIVY_VERIFICATION_KEY,
-      appId: env.PRIVY_APP_ID,
-    });
-    if (!verified.ok) return Response.json({ error: "unauthorized" }, { status: 401 });
-    userId = verified.identity.userId;
+    return { userId: request.headers.get("x-lifeline-user") as string };
   }
-  if (!userId) return Response.json({ error: "unauthorized" }, { status: 401 });
+  if (!token) return Response.json({ error: "unauthorized" }, { status: 401 });
+  const verified = await verifyPrivyAccessToken(token, {
+    verificationKey: env.PRIVY_VERIFICATION_KEY,
+    appId: env.PRIVY_APP_ID,
+  });
+  if (!verified.ok) return Response.json({ error: "unauthorized" }, { status: 401 });
+  return { userId: verified.identity.userId };
+}
+
+export async function readClaimant(request: Request, env: LifelineEnv): Promise<Claimant | Response> {
+  const user = await readUser(request, env);
+  if (user instanceof Response) return user;
+  const userId = user.userId;
   const wallet = request.headers.get("x-lifeline-address");
   const signature = request.headers.get("x-lifeline-signature");
   const nonce = request.headers.get("x-lifeline-nonce");
@@ -96,13 +103,30 @@ export async function readClaimant(request: Request, env: LifelineEnv): Promise<
     signature: signature as Hex,
   });
   if (!address) return Response.json({ error: "unauthorized" }, { status: 401 });
-  const override = request.headers.get("x-lifeline-ip");
-  const ip = admin && override
-    ? override
-    : request.headers.get("cf-connecting-ip") ||
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      "unknown";
-  return { userId, address: getAddress(address), ip };
+  return { userId, address: getAddress(address), ip: clientIpFrom(request, env) };
+}
+
+export function repeatClaimBody(input: {
+  proxy: string;
+  perpId: string;
+  accountId: string;
+  market: string;
+  side: string;
+  leverage: string;
+  distanceE6: string;
+}) {
+  return {
+    error: "claimed" as const,
+    proxy: input.proxy,
+    perpId: input.perpId,
+    accountId: input.accountId,
+    position: {
+      market: input.market,
+      side: input.side,
+      leverage: input.leverage,
+      distanceE6: input.distanceE6,
+    },
+  };
 }
 
 interface AvailableRow {
@@ -121,8 +145,42 @@ export async function claimPosition(
   claimant: Claimant,
   nowMs: number,
   hot?: HotState | null,
+  distancesOf: typeof readDistances = readDistances,
 ): Promise<Response> {
-  const userRow = sql.exec("SELECT proxy FROM claims WHERE privy_user_id = ?", claimant.userId).toArray()[0];
+  const userRow = sql
+    .exec(
+      `SELECT claims.proxy, pool.perp_id, pool.account_id, pool.market, pool.side, pool.leverage
+       FROM claims JOIN pool ON pool.proxy = claims.proxy
+       WHERE claims.privy_user_id = ?`,
+      claimant.userId,
+    )
+    .toArray()[0] as
+    | { proxy?: string; perp_id?: string; account_id?: string; market?: string; side?: string; leverage?: string }
+    | undefined;
+  if (userRow?.proxy) {
+    let distanceE6 = "0";
+    try {
+      const distances = await distancesOf(env, [
+        { proxy: userRow.proxy, account_id: userRow.account_id ?? "", perp_id: userRow.perp_id ?? "" },
+      ]);
+      distanceE6 = distances.get(getAddress(userRow.proxy))?.toString() ?? "0";
+    } catch {
+      distanceE6 = "0";
+    }
+    return Response.json(
+      repeatClaimBody({
+        proxy: userRow.proxy,
+        perpId: userRow.perp_id ?? "",
+        accountId: userRow.account_id ?? "",
+        market: userRow.market ?? "",
+        side: userRow.side ?? "",
+        leverage: userRow.leverage ?? "",
+        distanceE6,
+      }),
+      { status: 409 },
+    );
+  }
+  const prior = sql.exec("SELECT proxy FROM claims WHERE privy_user_id = ?", claimant.userId).toArray()[0];
   const ipRow = sql
     .exec("SELECT COUNT(*) AS n FROM claims WHERE ip = ? AND claimed_at >= ?", claimant.ip, nowMs - HOUR_MS)
     .toArray()[0] as { n?: number } | undefined;
@@ -136,13 +194,13 @@ export async function claimPosition(
           .toArray() as unknown as AvailableRow[])
   ) as AvailableRow[];
   const gate = claimGate({
-    existingUser: Boolean(userRow),
+    existingUser: Boolean(prior),
     ipCount: Number(ipRow?.n ?? 0),
     available: available.length,
   });
   if (!gate.ok) return Response.json(gate.body, { status: gate.status });
 
-  const distances = await readDistances(
+  const distances = await distancesOf(
     env,
     available.map((row) => ({ proxy: row.proxy, account_id: row.account_id, perp_id: row.perp_id })),
   );
@@ -186,12 +244,15 @@ export async function claimPosition(
   sql.exec("UPDATE pool SET status = 'claimed' WHERE proxy = ? AND status = 'available'", picked.proxy);
   markClaimed(hot, picked.proxy);
   sql.exec(
-    `INSERT INTO claims (proxy, privy_user_id, owner, ip, claimed_at, accepted_at) VALUES (?, ?, ?, ?, ?, NULL)`,
+    `INSERT INTO claims (proxy, privy_user_id, owner, ip, claimed_at, accepted_at, transfer_tx, drip_tx)
+     VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`,
     picked.proxy,
     claimant.userId,
     claimant.address,
     claimant.ip,
     nowMs,
+    transferHash,
+    dripHash,
   );
   addOpenClaim(hot, { proxy: picked.proxy, claimed_at: nowMs });
   return Response.json({

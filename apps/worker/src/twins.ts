@@ -18,6 +18,7 @@ export interface TwinLegView {
   proxy: string;
   mandate: string;
   distanceE6: string | null;
+  distanceError?: "rpc";
   actions: TwinAction[];
   outcome: string;
 }

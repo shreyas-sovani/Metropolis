@@ -24,6 +24,9 @@ export interface HealthReport {
   poolBySide: PoolBySide;
   low: boolean;
   version: string;
+  armed: number;
+  lastBlock: number | null;
+  claimsToday: number;
 }
 
 export function formatMon(wei: bigint): string {
@@ -73,6 +76,9 @@ export function healthReport(input: {
   operatorWei: bigint;
   poolInBand: number;
   poolBySide: PoolBySide;
+  armed?: number;
+  lastBlock?: number | null;
+  claimsToday?: number;
 }): HealthReport {
   return {
     lastAlarmAt: input.lastAlarmAt,
@@ -86,6 +92,9 @@ export function healthReport(input: {
     poolBySide: input.poolBySide,
     low: isOpsLow(input),
     version: WORKER_VERSION,
+    armed: input.armed ?? 0,
+    lastBlock: input.lastBlock ?? null,
+    claimsToday: input.claimsToday ?? 0,
   };
 }
 

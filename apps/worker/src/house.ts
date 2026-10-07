@@ -9,7 +9,7 @@ export const HOUSE_BUDGET_CNS = 300_000_000n;
 /** One day inside the 30-day mandate expiry cap. */
 export const HOUSE_EXPIRY_SEC = 29n * 24n * 60n * 60n;
 
-export type PoolRole = "pool" | "twin-protected" | "twin-unprotected";
+export type PoolRole = "pool" | "twin-protected" | "twin-unprotected" | "sandbox";
 
 export interface PoolRegistration {
   proxy: Address;
@@ -21,18 +21,20 @@ export interface PoolRegistration {
   role: PoolRole;
   pairId: string;
   reopen?: boolean;
+  replaceMandate?: boolean;
 }
 
-const ROLES = new Set<PoolRole>(["pool", "twin-protected", "twin-unprotected"]);
+const ROLES = new Set<PoolRole>(["pool", "twin-protected", "twin-unprotected", "sandbox"]);
 
-export function poolStatus(role: PoolRole): "available" | "twin" | "unprotected" {
+export function poolStatus(role: PoolRole): "available" | "twin" | "unprotected" | "sandbox" {
   if (role === "pool") return "available";
+  if (role === "sandbox") return "sandbox";
   if (role === "twin-protected") return "twin";
   return "unprotected";
 }
 
 export function houseTerms(role: PoolRole): { triggerBps: number; targetBps: number } | null {
-  if (role === "pool") return { triggerBps: 150, targetBps: 250 };
+  if (role === "pool" || role === "sandbox") return { triggerBps: 150, targetBps: 250 };
   if (role === "twin-protected") return { triggerBps: 400, targetBps: 600 };
   return null;
 }
@@ -140,6 +142,7 @@ export function parseRegistrations(body: unknown): PoolRegistration[] {
       role: role as PoolRole,
       pairId: typeof row.pairId === "string" ? row.pairId : "",
       reopen: row.reopen === true,
+      replaceMandate: row.replaceMandate === true,
     };
   });
 }

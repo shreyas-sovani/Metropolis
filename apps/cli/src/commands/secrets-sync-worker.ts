@@ -15,6 +15,7 @@ export const WORKER_SECRET_NAMES = [
   "RPC_URLS_TESTNET",
   "LIFELINE_PAUSED",
   "TURNSTILE_SECRET",
+  "PROXY_SECRET",
 ] as const;
 
 function envMap(file: string): Map<string, string> {
@@ -64,6 +65,7 @@ export async function secretsSyncWorker(root = workspaceRoot()): Promise<number>
     ["RPC_URLS_TESTNET", urls.join(",")],
     ["LIFELINE_PAUSED", services.get("LIFELINE_PAUSED") || "false"],
     ["TURNSTILE_SECRET", services.get("TURNSTILE_SECRET") ?? ""],
+    ["PROXY_SECRET", services.get("PROXY_SECRET") ?? ""],
   ]);
   let failed = false;
   for (const name of WORKER_SECRET_NAMES) {

@@ -174,6 +174,13 @@ export async function handleE2E(request: Request): Promise<Response> {
     if (body.op === "prepare") {
       return Response.json({ address: ownerAccount().address, marker: E2E_ADAPTER_MARKER });
     }
+    if (body.op === "me") {
+      if (!body.userId || !body.nonce) return Response.json({ error: "me" }, { status: 400 });
+      const headers = await authHeaders(body.userId, body.nonce);
+      const response = await fetch(`${workerOrigin()}/me`, { headers });
+      const text = await response.text();
+      return new Response(text, { status: response.status, headers: { "content-type": "application/json" } });
+    }
     if (body.op === "claim") {
       if (!body.userId || !body.nonce) return Response.json({ error: "claim" }, { status: 400 });
       const headers = await authHeaders(body.userId, body.nonce);

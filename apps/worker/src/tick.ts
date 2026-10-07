@@ -33,6 +33,7 @@ import {
   type TransactionReceipt,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { missingWatched, noteSaves, type MarkView } from "./saves.js";
 import {
   cachedBlock,
   HISTORY_LIMIT,
@@ -125,8 +126,17 @@ function keyAccount(key: string, label: string) {
   return privateKeyToAccount(key as Hex);
 }
 
-export async function runKeeper(sql: Sql, env: LifelineEnv, nowMs: number, hot?: HotState | null): Promise<void> {
-  if (!/^0x[0-9a-fA-F]{64}$/.test(env.OPERATOR_PK ?? "") || !/^0x[0-9a-fA-F]{64}$/.test(env.POOL_OWNER_PK ?? "")) return;
+let lastUnarmedScan = 0;
+
+export async function runKeeper(
+  sql: Sql,
+  env: LifelineEnv,
+  nowMs: number,
+  hot?: HotState | null,
+): Promise<{ block: number | null }> {
+  if (!/^0x[0-9a-fA-F]{64}$/.test(env.OPERATOR_PK ?? "") || !/^0x[0-9a-fA-F]{64}$/.test(env.POOL_OWNER_PK ?? "")) {
+    return { block: null };
+  }
   const urls = urlsOf(env);
   const chain = openChain(TESTNET_ID, { urls, timeout: 8_000 });
   const client = chain.client;
@@ -142,7 +152,7 @@ export async function runKeeper(sql: Sql, env: LifelineEnv, nowMs: number, hot?:
            FROM mandates m JOIN pool p ON p.proxy = m.proxy WHERE m.active = 1`,
         )
         .toArray() as unknown as ArmedRow[]);
-  if (armed.length === 0) return;
+  if (armed.length === 0) return { block: null };
   const exchange = ADDRESSES[TESTNET_ID].exchange;
   const accounts = await chain.readAccounts(armed.map((row) => BigInt(row.account_id)));
   const byAccount = new Map(accounts.map((account) => [account.accountId.toString(), account]));
@@ -232,7 +242,49 @@ export async function runKeeper(sql: Sql, env: LifelineEnv, nowMs: number, hot?:
       throw new Error(message.slice(0, 180));
     }
   }
+  const views = new Map<string, MarkView>();
+  for (const row of armed) {
+    const market = markets.get(row.perp_id);
+    const position = positions.get(`${row.proxy}:${row.perp_id}`);
+    if (!market || !position) continue;
+    views.set(`${row.proxy}:${row.perp_id}`, {
+      mark: position.markPNS,
+      open: position.position.lotLNS > 0n,
+      block: Number(block),
+    });
+  }
+  try {
+    noteSaves(sql, views, nowMs);
+    const missing = missingWatched(views);
+    if (missing.length > 0 && nowMs - lastUnarmedScan >= 60_000) {
+      lastUnarmedScan = nowMs;
+      const extraArmed = missing.map((row) => ({
+        proxy: row.proxy,
+        account_id: row.accountId,
+        perp_id: row.perpId,
+        role: "pool",
+        typed_data: "",
+        budget_used_cns: "0",
+        active: 1,
+      }));
+      const extra = await readPositions(client, exchange, extraArmed);
+      for (const row of missing) {
+        const position = extra.get(`${row.proxy}:${row.perpId}`);
+        if (!position) continue;
+        views.set(`${row.proxy}:${row.perpId}`, {
+          mark: position.markPNS,
+          open: position.position.lotLNS > 0n,
+          block: Number(block),
+        });
+      }
+      noteSaves(sql, views, nowMs);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "saves";
+    console.log(`saves ${message.slice(0, 120)}`);
+  }
   await runCanary(sql, env, nowMs, hot);
+  return { block: Number(block) };
 }
 
 const CANARY_MS = 10 * 60 * 1000;
@@ -488,34 +540,65 @@ function toEvalPosition(
   };
 }
 
+export interface LegRead {
+  distanceE6: bigint | null;
+  open: boolean;
+  block: number | null;
+  distanceError?: "rpc";
+}
+
 export async function readLegStates(
   env: LifelineEnv,
   rows: readonly { proxy: string; account_id: string; perp_id: string }[],
-): Promise<Map<string, { distanceE6: bigint; open: boolean; block: number }>> {
-  const out = new Map<string, { distanceE6: bigint; open: boolean; block: number }>();
+): Promise<Map<string, LegRead>> {
+  const out = new Map<string, LegRead>();
   if (rows.length === 0) return out;
-  const chain = openChain(TESTNET_ID, { urls: urlsOf(env), timeout: 8_000 });
-  const armed = rows.map((row) => ({
-    proxy: row.proxy,
-    account_id: row.account_id,
-    perp_id: row.perp_id,
-    role: "twin-protected",
-    typed_data: "",
-    budget_used_cns: "0",
-    active: 1,
-  }));
-  const exchange = ADDRESSES[TESTNET_ID].exchange;
-  const positions = await readPositions(chain.client, exchange, armed);
-  const markets = await readMarkets(chain.client, exchange, [...new Set(rows.map((row) => row.perp_id))]);
-  const block = Number(await chain.client.getBlockNumber());
-  for (const row of rows) {
-    const market = markets.get(row.perp_id);
-    const position = positions.get(`${row.proxy}:${row.perp_id}`);
-    if (!market || !position) continue;
-    const view = toEvalPosition(position, market);
-    out.set(getAddress(row.proxy), { distanceE6: distanceOf(view), open: view.open, block });
+  const failed = (): Map<string, LegRead> => {
+    for (const row of rows) {
+      out.set(getAddress(row.proxy), { distanceE6: null, open: true, block: null, distanceError: "rpc" });
+    }
+    return out;
+  };
+  try {
+    const endpoint = urlsOf(env)[0];
+    if (!endpoint) return failed();
+    const base = CHAINS[TESTNET_ID];
+    const client = createPublicClient({
+      chain: {
+        ...base,
+        contracts: {
+          ...base.contracts,
+          multicall3: { address: ADDRESSES[TESTNET_ID].multicall3 },
+        },
+      },
+      transport: http(endpoint, { timeout: 8_000, retryCount: 0 }),
+    });
+    const armed = rows.map((row) => ({
+      proxy: row.proxy,
+      account_id: row.account_id,
+      perp_id: row.perp_id,
+      role: "twin-protected",
+      typed_data: "",
+      budget_used_cns: "0",
+      active: 1,
+    }));
+    const exchange = ADDRESSES[TESTNET_ID].exchange;
+    const positions = await readPositions(client, exchange, armed);
+    const markets = await readMarkets(client, exchange, [...new Set(rows.map((row) => row.perp_id))]);
+    for (const row of rows) {
+      const market = markets.get(row.perp_id);
+      const position = positions.get(`${row.proxy}:${row.perp_id}`);
+      if (!market || !position) {
+        out.set(getAddress(row.proxy), { distanceE6: null, open: true, block: null, distanceError: "rpc" });
+        continue;
+      }
+      const view = toEvalPosition(position, market);
+      out.set(getAddress(row.proxy), { distanceE6: distanceOf(view), open: view.open, block: null });
+    }
+    return out;
+  } catch {
+    return failed();
   }
-  return out;
 }
 
 export async function readDistances(

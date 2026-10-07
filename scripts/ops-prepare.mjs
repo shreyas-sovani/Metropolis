@@ -31,7 +31,15 @@ for (const name of names) {
 }
 writeFileSync("secrets/testnet-keys.env", `${lines.join("\n")}\n`, { mode: 0o600 });
 const alchemy = process.env.ALCHEMY_MONAD_TESTNET_URL ?? "";
-if (alchemy.startsWith("https://")) {
-  writeFileSync("secrets/services.env", `ALCHEMY_MONAD_TESTNET_URL=${alchemy}\n`, { mode: 0o600 });
+const serviceLines = [];
+if (alchemy.startsWith("https://")) serviceLines.push(`ALCHEMY_MONAD_TESTNET_URL=${alchemy}`);
+for (const name of ["ADMIN_SECRET", "PROXY_SECRET"]) {
+  const value = process.env[name] ?? "";
+  if (!value) {
+    console.error(`${name} missing`);
+    process.exit(1);
+  }
+  serviceLines.push(`${name}=${value}`);
 }
+writeFileSync("secrets/services.env", `${serviceLines.join("\n")}\n`, { mode: 0o600 });
 console.log("testnet keys written");

@@ -6,7 +6,7 @@ import { workspaceRoot } from "./keys-generate.js";
 
 export const WORKER_ORIGIN = "https://lifeline.lifeline-shreyas.workers.dev";
 
-const SECRET_NAMES = new Set(["ENVIO_API_TOKEN", "RADAR_SALT", "RPC_URLS_MAINNET", "RPC_URLS_TESTNET"]);
+const SECRET_NAMES = new Set(["ENVIO_API_TOKEN", "RADAR_SALT", "RPC_URLS_MAINNET", "RPC_URLS_TESTNET", "PROXY_SECRET"]);
 
 export interface VercelEnvItem {
   name: string;
@@ -49,9 +49,10 @@ export function vercelEnvPlan(services: Map<string, string>, workerOrigin = WORK
     ["TURNSTILE_SITE_KEY", services.get("TURNSTILE_SITE_KEY") ?? ""],
     ["RPC_URLS_MAINNET", withAlchemy(PUBLIC_RPC_URLS[MAINNET_ID], services.get("ALCHEMY_MONAD_MAINNET_URL"))],
     ["RPC_URLS_TESTNET", withAlchemy(PUBLIC_RPC_URLS[TESTNET_ID], services.get("ALCHEMY_MONAD_TESTNET_URL"))],
+    ["PROXY_SECRET", services.get("PROXY_SECRET") ?? ""],
   ];
   return rows.flatMap(([name, value]) => {
-    if (name === "NEXT_PUBLIC_PRIVY_CLIENT_ID" && !value) return [];
+    if ((name === "NEXT_PUBLIC_PRIVY_CLIENT_ID" || name === "PROXY_SECRET") && !value) return [];
     return [{ name, value, sensitive: SECRET_NAMES.has(name) }];
   });
 }

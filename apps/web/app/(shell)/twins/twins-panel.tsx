@@ -14,6 +14,7 @@ interface TwinLeg {
   proxy: string;
   mandate: string;
   distanceE6: string | null;
+  distanceError?: "rpc";
   actions: TwinAction[];
   outcome: string;
 }
@@ -31,6 +32,8 @@ export function TwinsPanel() {
   const [saves, setSaves] = useState(0);
   const [error, setError] = useState("");
 
+  const [attempt, setAttempt] = useState(0);
+
   useEffect(() => {
     let gone = false;
     void Promise.all([fetch("/api/twins"), fetch("/api/saves")])
@@ -39,8 +42,11 @@ export function TwinsPanel() {
         const body = (await twins.json()) as { pairs?: TwinPair[] };
         const saveBody = saveResponse.ok ? ((await saveResponse.json()) as { count?: number }) : { count: 0 };
         if (!gone) {
-          setPairs(body.pairs ?? []);
+          const next = body.pairs ?? [];
+          setPairs(next);
           setSaves(saveBody.count ?? 0);
+          const unread = next.some((pair) => pair.protected?.distanceError === "rpc" || pair.unprotected?.distanceError === "rpc");
+          if (unread && attempt < 3) setTimeout(() => setAttempt((value) => value + 1), 3_000);
         }
       })
       .catch(() => {
@@ -49,7 +55,7 @@ export function TwinsPanel() {
     return () => {
       gone = true;
     };
-  }, []);
+  }, [attempt]);
 
   if (error) return <p role="alert">{error}</p>;
   if (!pairs) return <p>Reading twin pairs.</p>;
@@ -82,7 +88,7 @@ function Leg({ title, role, leg }: { title: string; role: "protected" | "unprote
       <p className={`badge ${outcomeTone(leg.outcome)}`} data-testid="outcome">
         {badge}
       </p>
-      <p>Distance {leg.distanceE6 ? formatPct(leg.distanceE6) : "unread"} · mandate {leg.mandate}</p>
+      <p>Distance {leg.distanceError === "rpc" ? "Reading…" : leg.distanceE6 ? formatPct(leg.distanceE6) : "unread"} · mandate {leg.mandate}</p>
       {leg.actions.length === 0 ? <p>No confirmed top-ups yet.</p> : null}
       <ul className="risk-list">
         {leg.actions.map((action) => (

@@ -87,7 +87,7 @@ export async function registerPool(
       hot?.loaded === true
         ? hot.mandates.some((row) => row.proxy === entry.proxy && row.active === 1)
         : activeMandate(sql, entry.proxy);
-    if (already) continue;
+    if (already && !entry.replaceMandate) continue;
     const signed = await sign(message);
     const previous = hot?.mandates.find((row) => row.proxy === entry.proxy);
     sql.exec(

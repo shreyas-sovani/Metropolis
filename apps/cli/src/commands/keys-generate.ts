@@ -12,7 +12,7 @@ export const ROLE_KEYS = [
   "TEST_OWNER_PK",
 ] as const;
 
-const SERVICE_KEYS = ["ADMIN_SECRET", "RADAR_SALT"] as const;
+const SERVICE_KEYS = ["ADMIN_SECRET", "RADAR_SALT", "PROXY_SECRET"] as const;
 
 export function workspaceRoot(start = process.cwd()): string {
   let dir = start;

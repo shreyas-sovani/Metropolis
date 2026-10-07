@@ -8,7 +8,7 @@ import { signMandate } from "./house.js";
 import type { Sql } from "./schema.js";
 
 const HOUR_MS = 60 * 60 * 1000;
-const LIMIT = 3;
+const LIMIT = 10;
 
 export function sandboxLimited(count: number): boolean {
   return count >= LIMIT;
@@ -32,7 +32,7 @@ export async function sandboxArm(
     : (sql.exec("SELECT perp_id, role FROM pool WHERE proxy = ?", proxy).toArray()[0] as
         | { perp_id?: string; role?: string }
         | undefined);
-  if (!pool?.perp_id || (pool.role !== "pool" && pool.role !== "twin-protected")) {
+  if (!pool?.perp_id || pool.role !== "sandbox") {
     return Response.json({ error: "not found" }, { status: 404 });
   }
   sql.exec("INSERT INTO sandbox_hits (ip, at) VALUES (?, ?)", request.ip, nowMs);

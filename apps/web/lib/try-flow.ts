@@ -100,9 +100,7 @@ export function receiptLine(body: ArmBody): string {
   return `Distance ${before} → ${after}. Block ${body.block ?? "unknown"}. ${body.msFromRequest ?? "unknown"} ms.`;
 }
 
-export function sandboxProxy(pairs: readonly { protected: { proxy: string; mandate: string } | null }[]): string | null {
-  for (const pair of pairs) {
-    if (pair.protected?.mandate === "house") return pair.protected.proxy;
-  }
-  return pairs.find((pair) => pair.protected)?.protected?.proxy ?? null;
+export function sandboxProxy(accounts: readonly { proxy?: string }[]): string | null {
+  const proxy = accounts.find((account) => account.proxy)?.proxy;
+  return proxy ?? null;
 }
