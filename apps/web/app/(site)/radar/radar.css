@@ -1,0 +1,295 @@
+.radar-page { padding-block: 48px 64px; display: grid; gap: 24px; min-width: 0; }
+.radar-page > * { min-width: 0; }
+
+.radar-page h1,
+.radar-page h2 { margin: 0; }
+
+.radar-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.radar-sub { margin: 8px 0 0; max-width: 62ch; color: var(--ink-2); }
+
+.radar-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-top: 16px;
+}
+
+.radar-asof { margin: 0; color: var(--muted); }
+
+.radar-chain {
+  display: inline-flex;
+  padding: 4px;
+  gap: 4px;
+  background: var(--well);
+  border-radius: var(--radius-pill);
+}
+
+.radar-chain button {
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.radar-chain button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.radar-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.radar-note { margin: 8px 0 0; color: var(--ink-2); max-width: 66ch; }
+
+.radar-saves { margin: 0; color: var(--muted); }
+
+.radar-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.radar-chip {
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.radar-chip[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--on-ink);
+  border-color: var(--ink);
+}
+
+.radar-market { display: grid; gap: 16px; min-width: 0; }
+
+.radar-market-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+}
+
+.radar-mark-price { color: var(--muted); font-size: 20px; }
+
+.radar-spark { width: 120px; height: 24px; }
+.radar-spark path { fill: none; stroke: var(--ink-2); stroke-width: 1.5; }
+
+.radar-chart-scroll { overflow-x: auto; max-width: 100%; }
+
+.radar-chart { min-width: 880px; display: grid; gap: 8px; }
+
+.radar-y,
+.radar-mark-caption {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-weight: 500;
+}
+
+.radar-mark-caption { color: var(--ink); }
+
+.radar-plot {
+  position: relative;
+  height: 240px;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--surface);
+}
+
+.radar-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--well);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.radar-band span {
+  position: absolute;
+  right: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--font-display), "Poppins", sans-serif;
+}
+
+.band-5 span { top: 6px; }
+.band-2 span { top: 22px; }
+.band-1 span { top: 38px; }
+
+.band-5 { width: 33.333%; opacity: 0.45; }
+.band-2 { width: 13.333%; opacity: 0.75; }
+.band-1 { width: 6.666%; opacity: 1; }
+
+.radar-mark,
+.radar-shock {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  pointer-events: none;
+}
+
+.radar-mark { border-left: 1.5px solid var(--ink); z-index: 1; }
+
+.radar-shock { border-left: 1.5px dashed var(--clay); z-index: 2; }
+
+.radar-bar {
+  position: absolute;
+  bottom: 0;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  min-height: 4px;
+}
+
+.radar-bar.long { background: var(--clay); }
+.radar-bar.short { background: var(--blue); }
+.radar-bar.hit { background: var(--danger); }
+.radar-bar.yours { outline: 2px solid var(--ink); outline-offset: 1px; z-index: 3; }
+
+.radar-axis { position: relative; height: 40px; }
+
+.radar-axis span {
+  position: absolute;
+  top: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateX(-50%);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.radar-axis small { font-size: 11px; }
+
+.radar-axis span:first-child { align-items: flex-start; transform: none; }
+.radar-axis span:last-child { align-items: flex-end; transform: translateX(-100%); }
+
+.radar-tip { margin: 0; min-height: 1.5em; color: var(--ink-2); }
+
+.radar-table-wrap { overflow-x: auto; }
+
+.radar-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.radar-table th,
+.radar-table td {
+  text-align: left;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.radar-table th {
+  color: var(--muted);
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.radar-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.radar-id {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--clay-ink);
+  font-family: var(--font-data), ui-monospace, monospace;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.radar-row-yours { background: var(--well); }
+
+.radar-more {
+  margin-top: 12px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--clay-ink);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.radar-tape { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 8px; }
+.radar-tape a { color: var(--clay-ink); }
+
+.radar-drawer-back {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  background: rgba(20, 20, 19, 0.28);
+  z-index: 40;
+}
+
+.radar-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 41;
+  width: min(420px, 100%);
+  height: 100%;
+  overflow: auto;
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  box-shadow: var(--shadow-pop);
+  padding: 24px;
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.radar-drawer h2 { font-size: 20px; }
+.radar-drawer p { margin: 0; }
+
+.radar-close {
+  justify-self: end;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.radar-skeletons { display: grid; gap: 12px; }
+
+@media (max-width: 800px) {
+  .radar-page { padding-block: 32px 48px; }
+  .radar-stats { grid-template-columns: 1fr 1fr; }
+  .radar-plot { height: 200px; }
+}

@@ -1,21 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ExactBadge } from "../../exact-badge";
-import { ONE_LINER } from "../../../lib/copy";
-import { bucketHit, crashLine } from "../../../lib/crash-line";
+import { ContractExactBadge } from "../../ui/contract-exact-badge";
+import { Skeleton } from "../../ui/skeleton";
+import { Stat } from "../../ui/stat";
 import { MAINNET_ID, blockUrl, txUrl } from "../../../lib/explorer";
-import { formatPct, formatUsd } from "../../../lib/format";
+import { formatAgo, formatPct, formatUsd, formatUsdCompact } from "../../../lib/format";
 import { LIQUIDATIONS_MS, MARKETS_MS, RADAR_MS, SAVES_MS, pollDue } from "../../../lib/poll";
+import {
+  blockAgo,
+  defaultMarketId,
+  emptyMarketLine,
+  emptyMarketSymbols,
+  highlightedBucket,
+  marketsForChart,
+  penaltySentence,
+  riskSentence,
+} from "../../../lib/radar-view";
 import { liquidationTape } from "../../../lib/tape";
 import type { CompactPosition } from "../../../../../packages/core/src/radar/schema";
-
-interface Bucket {
-  index: number;
-  side: "long" | "short";
-  notionalMicro: string;
-  count: number;
-}
+import { RadarChart, type ChartBucket } from "./radar-chart";
+import "./radar.css";
 
 interface AtRisk {
   id: string;
@@ -23,13 +28,16 @@ interface AtRisk {
   distanceE6: string;
   notionalMicro: string;
   freeMicro: string;
+  couldProtectNow?: boolean;
+  bucketIndex?: number;
 }
 
 interface Market {
   perpId: number;
   symbol: string;
   markMicro: string;
-  buckets: Bucket[];
+  atRiskNotionalMicro?: string;
+  buckets: ChartBucket[];
   atRisk: AtRisk[];
 }
 
@@ -49,6 +57,7 @@ interface RadarPayload {
   calibrated?: boolean;
   names?: Record<string, string>;
   sparks?: Record<string, number[]>;
+  highlightId?: string;
 }
 
 interface TapeRow {
@@ -60,49 +69,84 @@ interface TapeRow {
   txHash?: string;
 }
 
-const MARK_INDEX = 60;
+interface RiskPick extends AtRisk {
+  market: string;
+  symbol: string;
+}
 
-function bucketDetail(bucket: Bucket): string {
-  const side = bucket.side === "long" ? "longs" : "shorts";
-  return `${bucket.count} ${side} · ${formatUsd(bucket.notionalMicro)}`;
+const PAGE = 25;
+
+async function fetchPracticeAccount(): Promise<string | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3_000);
+  try {
+    const response = await fetch("/api/lifeline/me", { signal: controller.signal });
+    if (!response.ok) return null;
+    const body = (await response.json()) as { claim?: { proxy?: string } | null };
+    const proxy = body.claim?.proxy;
+    return typeof proxy === "string" && /^0x[0-9a-fA-F]{40}$/.test(proxy) ? proxy : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export function RadarBoard() {
   const [chain, setChain] = useState<"143" | "10143">("143");
   const [data, setData] = useState<RadarPayload | null>(null);
   const [tape, setTape] = useState<TapeRow[]>([]);
-  const [picked, setPicked] = useState<AtRisk | null>(null);
-  const [hover, setHover] = useState<string>("");
+  const [picked, setPicked] = useState<RiskPick | null>(null);
+  const [hover, setHover] = useState("");
   const [error, setError] = useState("");
   const [shocks, setShocks] = useState<Record<number, number>>({});
-  const urlApplied = useRef(false);
-
+  const [marketId, setMarketId] = useState<number | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const [fetchedAt, setFetchedAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const [urlReady, setUrlReady] = useState(false);
   const polled = useRef({ liquidations: null as number | null, markets: null as number | null, saves: null as number | null });
 
   useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!picked) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setPicked(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [picked]);
+
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("chain") === "10143" ? "10143" : "143";
+    setChain(wanted);
+    setUrlReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!urlReady) return;
     let gone = false;
     async function load() {
       if (document.visibilityState !== "visible") return;
       try {
         const params = new URLSearchParams(window.location.search);
-        if (!urlApplied.current) {
-          urlApplied.current = true;
-          if (params.get("chain") === "10143" && chain !== "10143") {
-            setChain("10143");
-            return;
-          }
-        }
-        const now = Date.now();
+        const nowMs = Date.now();
         const fault = process.env.NODE_ENV !== "production" && params.get("rpc") === "dead";
-        const radar = await fetch(`/api/radar?chain=${chain}${fault ? "&rpc=dead" : ""}`);
+        const proxy = chain === "10143" ? await fetchPracticeAccount() : null;
+        const highlight = proxy ? `&highlight=${encodeURIComponent(proxy)}` : "";
+        const radar = await fetch(`/api/radar?chain=${chain}${fault ? "&rpc=dead" : ""}${highlight}`);
         if (!radar.ok) throw new Error("radar");
         const snapshot = (await radar.json()) as RadarPayload;
-        const wantHistory = pollDue(polled.current.liquidations, now, LIQUIDATIONS_MS);
-        const wantMarkets = pollDue(polled.current.markets, now, MARKETS_MS);
-        const wantSaves = pollDue(polled.current.saves, now, SAVES_MS);
-        if (wantHistory) polled.current.liquidations = now;
-        if (wantMarkets) polled.current.markets = now;
-        if (wantSaves) polled.current.saves = now;
+        const wantHistory = pollDue(polled.current.liquidations, nowMs, LIQUIDATIONS_MS);
+        const wantMarkets = pollDue(polled.current.markets, nowMs, MARKETS_MS);
+        const wantSaves = pollDue(polled.current.saves, nowMs, SAVES_MS);
+        if (wantHistory) polled.current.liquidations = nowMs;
+        if (wantMarkets) polled.current.markets = nowMs;
+        if (wantSaves) polled.current.saves = nowMs;
         const [liquidations, markets, saves] = await Promise.all([
           wantHistory ? fetch("/api/liquidations") : Promise.resolve(null),
           wantMarkets ? fetch("/api/markets") : Promise.resolve(null),
@@ -127,10 +171,11 @@ export function RadarBoard() {
             };
           });
           if (history) setTape(history.latest ?? []);
+          setFetchedAt(Date.now());
           setError("");
         }
       } catch {
-        if (!gone) setError("The book did not load. The onchain figures will return on the next refresh.");
+        if (!gone) setError("The market risk map didn't load. It will try again in a moment.");
       }
     }
     void load();
@@ -139,206 +184,234 @@ export function RadarBoard() {
       gone = true;
       clearInterval(timer);
     };
-  }, [chain]);
+  }, [chain, urlReady]);
 
+  const charts = data ? marketsForChart(data.markets) : [];
+  const emptyLine = data ? emptyMarketLine(emptyMarketSymbols(data.markets)) : null;
+  const activeId = charts.some((market) => market.perpId === marketId) ? marketId : defaultMarketId(charts);
+  const active = charts.find((market) => market.perpId === activeId) ?? null;
   const penalties = data?.penalties;
+  const rows = data
+    ? data.markets
+        .flatMap((market) =>
+          market.atRisk.map((row) => ({
+            ...row,
+            market: data.names?.[String(market.perpId)] ?? market.symbol,
+            symbol: market.symbol,
+            perpId: market.perpId,
+          })),
+        )
+        .sort((left, right) => Number(left.distanceE6) - Number(right.distanceE6))
+    : [];
+  const visible = showAll ? rows : rows.slice(0, PAGE);
+  const yours = active ? highlightedBucket(active.atRisk, data?.highlightId) : null;
+
   return (
-    <div className="radar">
-      <div className="radar-head">
-        <div>
-          <h1>Where the book can break</h1>
-          <p className="lede">{ONE_LINER}</p>
-          <ExactBadge calibrated={data?.calibrated !== false} />
-        </div>
-        <div className="toggle" role="group" aria-label="Chain">
-          <button type="button" aria-pressed={chain === "143"} onClick={() => setChain("143")}>
-            Mainnet
-          </button>
-          <button type="button" aria-pressed={chain === "10143"} onClick={() => setChain("10143")}>
-            Testnet
-          </button>
-        </div>
-      </div>
-      {error ? <p className="lede" role="alert">{error}</p> : null}
-      {data && data.markets.length === 0 ? <p>No open positions on this chain yet.</p> : null}
-      {data ? (
-        <>
-          <section className="headline" aria-label="Headline">
-            <div>
-              <span>Open interest</span>
-              <strong data-testid="open-interest">{formatUsd(data.headline.openInterestMicro)}</strong>
-            </div>
-            <div>
-              <span>At risk</span>
-              <strong data-testid="at-risk-count">
-                {data.headline.atRiskCount} · {formatUsd(data.headline.atRiskNotionalMicro)}
-              </strong>
-            </div>
-            <div>
-              <span>Idle beside at-risk</span>
-              <strong data-testid="idle">{formatUsd(data.headline.idleMicro)}</strong>
-            </div>
-            <div>
-              <span>Block</span>
-              <strong data-testid="block">{data.blockNumber}</strong>
-            </div>
-          </section>
-          <p className="penalty" data-testid="penalties">
-            Liquidation penalties paid in 30 days: {penalties?.paidUsd ?? "$0"}. Avoidable with the account&apos;s own idle
-            AUSD: {penalties?.avoidableUsd ?? "$0"}.
-          </p>
-          <p className="penalty" data-testid="at-stake">
-            Penalty at stake now: {penalties?.atStakeUsd ?? "$0"}.
-          </p>
-          <p className="penalty" data-testid="saves">
-            Saves {data.saves?.count ?? 0}
-          </p>
-          <div className="book">
-            <div data-map>
-              {data.markets.map((market) => (
-                <article className="panel map" key={market.perpId}>
-                  <h2>
-                    {data.names?.[String(market.perpId)] ?? market.symbol}{" "}
-                    <span className="mark-price">{formatUsd(market.markMicro)}</span>
-                  </h2>
-                  <Spark points={data.sparks?.[String(market.perpId)] ?? []} />
-                  <CrashSlider
-                    perpId={market.perpId}
-                    symbol={market.symbol}
-                    shock={shocks[market.perpId] ?? 0}
-                    positions={data.positions ?? []}
-                    onChange={(value) => {
-                      performance.mark(`crash-${market.perpId}-start`);
-                      setShocks((current) => ({ ...current, [market.perpId]: value }));
-                      requestAnimationFrame(() => {
-                        performance.mark(`crash-${market.perpId}-end`);
-                        performance.measure(
-                          `crash-${market.perpId}`,
-                          `crash-${market.perpId}-start`,
-                          `crash-${market.perpId}-end`,
-                        );
-                      });
-                    }}
-                  />
-                  <div className="buckets">
-                    <div className="mark-line" aria-hidden="true" />
-                    {market.buckets.map((bucket) => (
-                      <button
-                        key={`${bucket.side}-${bucket.index}`}
-                        type="button"
-                        className={`bucket ${bucket.side}${bucketHit(bucket.index, bucket.side, shocks[market.perpId] ?? 0) ? " hit" : ""}`}
-                        data-testid="bucket"
-                        style={{ height: `${12 + Math.min(bucket.count, 20) * 4}px` }}
-                        onMouseEnter={() => setHover(bucketDetail(bucket))}
-                        onFocus={() => setHover(bucketDetail(bucket))}
-                        onMouseLeave={() => setHover("")}
-                      >
-                        <span className="sr">{bucketDetail(bucket)}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <p className="bands">1% · 2% · 5% around the mark at bucket {MARK_INDEX}</p>
-                </article>
-              ))}
-            </div>
-            <aside className="panel">
-              <h2>At risk</h2>
-              <p data-testid="bucket-detail">{hover || "Hover a bucket for the anonymized size."}</p>
-              <ul className="risk-list">
-                {data.markets.flatMap((market) =>
-                  market.atRisk.map((row) => (
-                    <li key={`${market.perpId}-${row.id}`}>
-                      <button type="button" onClick={() => setPicked(row)}>
-                        {row.id} · {row.side} · {formatPct(row.distanceE6)}
-                      </button>
-                    </li>
-                  )),
-                )}
-              </ul>
-              {picked ? (
-                <div data-testid="risk-detail">
-                  <p>
-                    {picked.id} {picked.side} · {formatUsd(picked.notionalMicro)} notional · {formatPct(picked.distanceE6)} from
-                    liquidation · {formatUsd(picked.freeMicro)} idle
-                  </p>
-                </div>
+    <div className="ui-scope">
+      <div className="container radar-page">
+        <header className="radar-head">
+          <div>
+            <h1>Market risk</h1>
+            <p className="radar-sub body-lg">Every open Perpl position, read from the contract, with its exact liquidation price.</p>
+            <div className="radar-meta">
+              <ContractExactBadge calibrated={data?.calibrated !== false} />
+              {data ? (
+                <p className="radar-asof small">
+                  block <span data-testid="block">{Number(data.blockNumber).toLocaleString("en-US")}</span>
+                  {fetchedAt ? ` · ${formatAgo(fetchedAt, now)}` : null}
+                </p>
               ) : null}
-              <h2>Recent liquidations</h2>
-              <ul className="tape">
+            </div>
+          </div>
+          <div className="radar-chain" role="group" aria-label="Chain">
+            <button type="button" aria-pressed={chain === "143"} onClick={() => setChain("143")}>
+              Mainnet · live, read-only
+            </button>
+            <button type="button" aria-pressed={chain === "10143"} onClick={() => setChain("10143")}>
+              Testnet · where Lifeline acts
+            </button>
+          </div>
+        </header>
+        {error ? (
+          <p className="radar-note" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {!data ? (
+          <div className="radar-skeletons" aria-hidden="true">
+            <Skeleton height={28} width="40%" />
+            <Skeleton height={72} />
+            <Skeleton height={240} />
+          </div>
+        ) : null}
+        {data && data.markets.length === 0 ? <p>No open positions on this chain yet.</p> : null}
+        {data ? (
+          <>
+            <section className="radar-stats" aria-label="Headline">
+              <Stat
+                label="Open interest"
+                value={formatUsdCompact(data.headline.openInterestMicro)}
+                title={formatUsd(data.headline.openInterestMicro)}
+                testId="open-interest"
+              />
+              <Stat
+                label="Within 5% of liquidation"
+                value={`${data.headline.atRiskCount} · ${formatUsdCompact(data.headline.atRiskNotionalMicro)}`}
+                title={formatUsd(data.headline.atRiskNotionalMicro)}
+                testId="at-risk-count"
+              />
+              <Stat
+                label="Idle AUSD beside them"
+                value={formatUsdCompact(data.headline.idleMicro)}
+                title={formatUsd(data.headline.idleMicro)}
+                testId="idle"
+              />
+              <Stat label="Penalties paid in 30 days" value={penalties?.paidUsd ?? "$0"} title={penalties?.paidUsd ?? "$0"} />
+            </section>
+            <p className="radar-note" data-testid="penalties">
+              {penaltySentence(penalties?.paidUsd ?? "$0", penalties?.avoidableUsd ?? "$0")}
+            </p>
+            <p className="radar-note" data-testid="at-stake">
+              Penalty at stake now: {penalties?.atStakeUsd ?? "$0"}.
+            </p>
+            <p className="radar-saves" data-testid="saves">
+              Saves {data.saves?.count ?? 0}
+            </p>
+            {charts.length > 0 ? (
+              <div className="radar-chips" role="group" aria-label="Market">
+                {charts.map((market) => {
+                  const label = data.names?.[String(market.perpId)] ?? market.symbol;
+                  return (
+                    <button
+                      key={market.perpId}
+                      type="button"
+                      className="radar-chip"
+                      aria-pressed={market.perpId === activeId}
+                      onClick={() => setMarketId(market.perpId)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+            {emptyLine ? <p className="radar-note">{emptyLine}</p> : null}
+            {active ? (
+              <RadarChart
+                symbol={active.symbol}
+                name={data.names?.[String(active.perpId)] ?? active.symbol}
+                markMicro={active.markMicro}
+                buckets={active.buckets}
+                shock={shocks[active.perpId] ?? 0}
+                positions={data.positions ?? []}
+                perpId={active.perpId}
+                spark={data.sparks?.[String(active.perpId)] ?? []}
+                yours={yours}
+                onHover={setHover}
+                onShock={(value) => {
+                  performance.mark(`crash-${active.perpId}-start`);
+                  setShocks((current) => ({ ...current, [active.perpId]: value }));
+                  requestAnimationFrame(() => {
+                    performance.mark(`crash-${active.perpId}-end`);
+                    performance.measure(`crash-${active.perpId}`, `crash-${active.perpId}-start`, `crash-${active.perpId}-end`);
+                  });
+                }}
+              />
+            ) : null}
+            <p className="radar-tip" data-testid="bucket-detail">
+              {hover || "Hover a bar for the anonymized size."}
+            </p>
+            <section>
+              <h2>Closest to liquidation</h2>
+              <div className="radar-table-wrap">
+                <table className="radar-table">
+                  <caption className="sr">Open positions within 5% of liquidation</caption>
+                  <thead>
+                    <tr>
+                      <th>Market</th>
+                      <th>Side</th>
+                      <th className="num">Size ($)</th>
+                      <th className="num">Distance</th>
+                      <th className="num">Idle beside it</th>
+                      <th>Lifeline could protect now</th>
+                      <th>Anonymized id</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visible.map((row) => {
+                      const owned = data.highlightId === row.id;
+                      return (
+                        <tr key={`${row.perpId}-${row.id}-${row.side}`} className={owned ? "radar-row-yours" : undefined}>
+                          <td>
+                            {row.market}
+                            {owned ? " · Your position" : ""}
+                          </td>
+                          <td>{row.side}</td>
+                          <td className="num" title={formatUsd(row.notionalMicro)}>
+                            {formatUsdCompact(row.notionalMicro)}
+                          </td>
+                          <td className="num">{formatPct(row.distanceE6)}</td>
+                          <td className="num" title={formatUsd(row.freeMicro)}>
+                            {formatUsdCompact(row.freeMicro)}
+                          </td>
+                          <td>{row.couldProtectNow ? "Yes" : "No"}</td>
+                          <td>
+                            <button type="button" className="radar-id" onClick={() => setPicked(row)}>
+                              {row.id}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {rows.length > PAGE ? (
+                <button type="button" className="radar-more" onClick={() => setShowAll(true)}>
+                  Show all.
+                </button>
+              ) : null}
+            </section>
+            <section>
+              <h2>Recent liquidations (mainnet).</h2>
+              {tape.length === 0 ? <p className="radar-note">None in the last 30 days.</p> : null}
+              <ul className="radar-tape">
                 {tape.slice(-8).map((row) => (
                   <li key={`${row.blockNumber}-${row.perpId}-${row.txHash ?? ""}`}>
-                    <a href={row.txHash ? txUrl(MAINNET_ID, row.txHash) : blockUrl(MAINNET_ID, row.blockNumber)}>
+                    <a
+                      href={row.txHash ? txUrl(MAINNET_ID, row.txHash) : blockUrl(MAINNET_ID, row.blockNumber)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       {liquidationTape({
                         symbol: row.symbol ?? "",
                         side: row.side ?? "",
                         notionalMicro: row.notionalMicro,
                         blockNumber: row.blockNumber,
                       })}
+                      {data ? ` · ${blockAgo(data.blockNumber, row.blockNumber, now)}` : ""}
                     </a>
                   </li>
                 ))}
               </ul>
-            </aside>
-          </div>
+            </section>
+          </>
+        ) : null}
+      </div>
+      {picked ? (
+        <>
+          <button type="button" className="radar-drawer-back" aria-label="Close position details" onClick={() => setPicked(null)} />
+          <aside className="radar-drawer" role="dialog" aria-label="Position" data-testid="risk-detail">
+            <button type="button" className="radar-close" onClick={() => setPicked(null)}>
+              Close
+            </button>
+            <h2>{data?.highlightId === picked.id ? "Your position" : picked.id}</h2>
+            <p>{riskSentence(picked)}</p>
+            <p>{picked.couldProtectNow ? "Lifeline could protect this position now." : "Lifeline could not protect this position now."}</p>
+            <a href="/check">Check an address</a>
+          </aside>
         </>
-      ) : (
-        <p className="lede">Reading the book.</p>
-      )}
+      ) : null}
     </div>
-  );
-}
-
-function CrashSlider({
-  perpId,
-  symbol,
-  shock,
-  positions,
-  onChange,
-}: {
-  perpId: number;
-  symbol: string;
-  shock: number;
-  positions: CompactPosition[];
-  onChange: (value: number) => void;
-}) {
-  const line = crashLine(positions, perpId, symbol, shock);
-  return (
-    <div className="crash">
-      <label>
-        Shock {symbol}
-        <input
-          type="range"
-          min={-10}
-          max={10}
-          step={1}
-          value={shock}
-          aria-label={`Shock ${symbol}`}
-          onChange={(event) => onChange(Number(event.target.value))}
-        />
-      </label>
-      <p data-testid="crash-line">{line.text}</p>
-      <p className="bands" data-testid="crash-label">
-        {line.label}
-      </p>
-    </div>
-  );
-}
-
-function Spark({ points }: { points: number[] }) {
-  if (points.length < 2) return null;
-  const min = Math.min(...points);
-  const max = Math.max(...points);
-  const span = max - min || 1;
-  const path = points
-    .map((point, index) => {
-      const x = (index / (points.length - 1)) * 120;
-      const y = 24 - ((point - min) / span) * 20;
-      return `${index === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
-    })
-    .join(" ");
-  return (
-    <svg className="spark" viewBox="0 0 120 24" aria-hidden="true" data-testid="spark">
-      <path d={path} />
-    </svg>
   );
 }

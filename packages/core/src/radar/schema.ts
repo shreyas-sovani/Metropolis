@@ -32,6 +32,7 @@ export const atRiskSchema = z.object({
   depositMicro: micro,
   freeMicro: micro,
   couldProtectNow: z.boolean(),
+  bucketIndex: z.number().int().nonnegative().optional(),
 });
 
 export const bucketSchema = z.object({
@@ -39,6 +40,7 @@ export const bucketSchema = z.object({
   side: z.union([z.literal("long"), z.literal("short")]),
   notionalMicro: micro,
   count: z.number().int().nonnegative(),
+  idleCount: z.number().int().nonnegative().optional(),
 });
 
 export const marketSnapshotSchema = z.object({

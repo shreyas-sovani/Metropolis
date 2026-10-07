@@ -71,7 +71,7 @@ function addMicro(left: bigint, right: bigint): bigint {
 /** Pure assembly. Drops account ids and addresses. Headline is the sum of the markets. */
 export function assembleSnapshot(draft: SnapshotDraft): RadarSnapshot {
   const markets = draft.markets.map((market) => {
-    const buckets = new Map<string, { index: number; side: "long" | "short"; notionalMicro: bigint; count: number }>();
+    const buckets = new Map<string, { index: number; side: "long" | "short"; notionalMicro: bigint; count: number; idleCount: number }>();
     const atRisk: RadarSnapshot["markets"][number]["atRisk"] = [];
     const positions: CompactPosition[] = [];
     let openInterest = 0n;
@@ -90,9 +90,10 @@ export function assembleSnapshot(draft: SnapshotDraft): RadarSnapshot {
       if (index !== null) {
         const side = sideName(position.side);
         const key = `${side}:${index}`;
-        const bucket = buckets.get(key) ?? { index, side, notionalMicro: 0n, count: 0 };
+        const bucket = buckets.get(key) ?? { index, side, notionalMicro: 0n, count: 0, idleCount: 0 };
         bucket.notionalMicro += position.notionalMicro;
         bucket.count += 1;
+        if ((position.idleMicro ?? 0n) > 0n) bucket.idleCount += 1;
         buckets.set(key, bucket);
       }
       const idleMicro = position.idleMicro ?? 0n;
@@ -144,6 +145,7 @@ export function assembleSnapshot(draft: SnapshotDraft): RadarSnapshot {
         depositMicro: dec(position.depositMicro),
         freeMicro: dec(free),
         couldProtectNow: protectNow,
+        ...(index !== null ? { bucketIndex: index } : {}),
       });
     }
     atRisk.sort((a, b) => {

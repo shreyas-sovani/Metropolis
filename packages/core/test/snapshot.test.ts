@@ -65,6 +65,8 @@ describe("radar snapshot", () => {
     expect(json).not.toContain("424242424242");
     expect(json).not.toContain("424242424243");
     expect(snapshot.markets[0]?.atRisk[0]?.id).toMatch(/^[0-9a-f]{8}$/);
+    expect(snapshot.markets[0]?.buckets[0]?.idleCount).toBeGreaterThan(0);
+    expect(snapshot.markets[0]?.atRisk[0]?.bucketIndex).toEqual(expect.any(Number));
     expect(snapshot.positions).toHaveLength(2);
   });
 });

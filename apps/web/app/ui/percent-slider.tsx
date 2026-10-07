@@ -9,23 +9,27 @@ export function PercentSlider({
   onChange,
   min = 0,
   max = 100,
+  step = 0.5,
   preview,
   id,
+  ariaLabel,
 }: {
   label: string;
   value: number;
   onChange: (value: number) => void;
   min?: number;
   max?: number;
+  step?: number;
   preview?: string;
   id: string;
+  ariaLabel?: string;
 }) {
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (!event.shiftKey) return;
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight" && event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
     event.preventDefault();
     const direction = event.key === "ArrowLeft" || event.key === "ArrowDown" ? -1 : 1;
-    const next = Math.min(max, Math.max(min, Math.round((value + direction) * 2) / 2));
+    const next = Math.min(max, Math.max(min, value + direction * step * 2));
     onChange(next);
   }
   const shown = Number.isInteger(value) ? `${value}%` : `${value.toFixed(1)}%`;
@@ -40,8 +44,9 @@ export function PercentSlider({
         type="range"
         min={min}
         max={max}
-        step={0.5}
+        step={step}
         value={value}
+        aria-label={ariaLabel}
         onChange={(event) => onChange(Number(event.target.value))}
         onKeyDown={onKeyDown}
       />
