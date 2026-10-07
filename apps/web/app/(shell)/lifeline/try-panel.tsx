@@ -1,8 +1,9 @@
 "use client";
 
-import { acceptOwnershipTx, armDefaults, buildMandate, testNowTerms, withdrawCollateralTx } from "@lifeline/core";
+import { CALIBRATED, acceptOwnershipTx, armDefaults, buildMandate, testNowTerms, withdrawCollateralTx } from "@lifeline/core";
 import { useEffect, useRef, useState } from "react";
 import { getAddress, type Address } from "viem";
+import { ExactBadge } from "../../exact-badge";
 import { PENDING_OWNER, REVOKED_SELECTORS, TRADEOFF, WITHDRAW_AUSD, WITHDRAW_NOTE } from "../../../lib/copy";
 import { formatUsd } from "../../../lib/format";
 import {
@@ -304,6 +305,7 @@ export function TryPanel({ client }: { client: TryClient }) {
           aria-live="polite"
         >
           <h2>Receipt</h2>
+          <ExactBadge calibrated={CALIBRATED} />
           <Marker beforeE6={receipt.distBefore ?? "0"} afterE6={receipt.distAfter ?? receipt.distBefore ?? "0"} />
           <p>{receiptLine(receipt)}</p>
           <p>

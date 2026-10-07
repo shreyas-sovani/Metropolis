@@ -17,6 +17,7 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
             <a href="/">Radar</a>
             <a href="/lifeline">Try it</a>
             <a href="/twins">Twins</a>
+            <a href="/judges">Judges</a>
           </nav>
         </header>
         <HealthBanner />

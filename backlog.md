@@ -15,10 +15,10 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D4 are done. The §7A order's next item is D5.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D4 are done. The next item is D5.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 are done. The §7A order's next item is U11.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 are done. The next item is U11.
 
-**Where the build stands (2026-10-07).** Phases 0–5 and every U-task except U11 and U14 are `[x]`. D1–D4 are `[x]`. The site is `https://lifeline-five-murex.vercel.app` and the Worker is `https://lifeline.lifeline-shreyas.workers.dev`. The next task is the production demo check, D5.
+**Where the build stands (2026-10-07).** Phases 0–5 and every U-task except U14 are `[x]`. D1–D6 and U11 are `[x]`. The site is `https://lifeline-five-murex.vercel.app` and the Worker is `https://lifeline.lifeline-shreyas.workers.dev`. The next task is the mainnet liquidation replay, U14.
 
 **Still required to finish the core, in order:**
 
@@ -28,8 +28,9 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 | 2 | D2 | Done | `/health` is `degraded:false` with `ticksLast10m` 285. |
 | 3 | D3 | Done | `budget ok`, pool 31 available (27 BTC, 4 ETH), twins 7, every free position above the house trigger. |
 | 4 | D4 | Done | Uptime monitors are up. The human received the test email. |
-| 5 | D5 | Agent, plus one human Privy run | Three production demo runs, then you claim once in a real browser. |
-| 6 | D6, U11 | Agent | Ops runbook, and the `/judges` bounty map. |
+| 5 | D5 | Done | Three production public runs, plus one human Privy claim verified onchain. |
+| 6 | D6 | Done | Ops runbook in `README.md`. Refill and the kill switch were dry-run. |
+| 6b | U11 | Done | `/judges` bounty map. Proof links answered. |
 | 7 | U14 | Agent | Replay one recent mainnet liquidation into static JSON. Do this before the video. |
 | 8 | D7 | Human | Run the demo on a phone and a laptop. |
 | 9 | D8 | Human | Record the ≤ 3 minute demo and send the link. |
@@ -977,7 +978,7 @@ The human can prepare these in advance.
 - **Pass:** Both monitors show "up," and a test alert (pause the Worker briefly with `LIFELINE_PAUSED` or make `/health` fail) reaches the human. The human confirms.
 - **Evidence:** The human set up the UptimeRobot monitors on Worker `/health` and the Vercel site, sent a test notification, and confirmed the email arrived on 2026-10-07. No pause of the Worker was required.
 
-#### [ ] D5 Production end-to-end demo check
+#### [x] D5 Production end-to-end demo check
 - **Type:** AGENT · **Depends on:** D1–D4, A1–A10 · **PRD:** §9
 - **Do:** Run the PRD §9 demo script against production with Playwright, on fresh contexts, **3 consecutive times**, measuring every step.
 - **Pass:**
@@ -994,13 +995,13 @@ The human can prepare these in advance.
   - **Amended by U3:** all 3 runs show a confirmed top-up at the arm step (no `ABOVE_TRIGGER` skips).
   - The receipt shows the "Contract-exact" badge (U9).
   - **Only when D5 passes may Phase 8 start.**
-- **Evidence:** Three fresh production contexts on `https://lifeline-five-murex.vercel.app` passed the public steps. Radar load was 2537 ms, 350 ms, and 355 ms, with open interest about `$3,194,555`. The BTC slider at −3% changed the crash line (38 positions / `$67,671.09` liquidated on the first two runs). The at-risk card opened for `20ce239a`. Lookup of mainnet `0x77A89C51f106D6cD547542a3A83FE73cB4459135` rendered the dry-run sentence and the API-key suffix. `/twins` showed 7 protected legs. The browser made zero requests to `perpl.xyz`. Claim, accept, arm, withdraw, and the human Privy run are still open: a headless guest falls through to sandbox, and the production bundle has no test signer.
+- **Evidence:** Three fresh production contexts on `https://lifeline-five-murex.vercel.app` passed the public steps. Radar load was 2537 ms, 350 ms, and 355 ms, with open interest about `$3,194,555`. The BTC slider at −3% changed the crash line (38 positions / `$67,671.09` liquidated on the first two runs). The at-risk card opened for `20ce239a`. Lookup of mainnet `0x77A89C51f106D6cD547542a3A83FE73cB4459135` rendered the dry-run sentence and the API-key suffix. `/twins` showed 7 protected legs. The browser made zero requests to `perpl.xyz`. The human then completed Try Lifeline, Accept ownership, Arm, Withdraw 50 AUSD, and Disarm on that origin. Onchain: guest `0x68927BE500A643BBDc3bAAac1372fDDD2ffa23d4` is `owner()` of `0xC0385344A3641F3ba8fb7c5AdFB47a5bEeb7702A`; accept `0xaa32f3a1` at block 68909759; operator top-up `0xf322eed9` moved distance 31983 → 64999 (target 6.5%, inside the W7 band); withdraw `0xcdb24f69` moved 50 AUSD; `GET /mandate/0xC0385344` is 404. `/health` afterward still had `poolAvailable` 30. The receipt component shows the Contract-exact badge.
 
-#### [ ] D6 Ops runbook
+#### [x] D6 Ops runbook
 - **Type:** AGENT · **Depends on:** D5 · **PRD:** §5.5, §5.9
 - **Do:** In `README.md` under "Operations," document: checking status, refilling the pool, topping up MON and AUSD, the kill switch, reading `/health`, rotating a compromised testnet key, switching to the Node keeper (B1), and recovering from a testnet reset (config-only).
 - **Pass:** Each procedure has copy-pasteable commands, and a dry run of "refill pool" and "toggle kill switch" from the runbook works as written.
-- **Evidence:**
+- **Evidence:** `README.md` Operations has the commands. `pnpm cli pool:refill --target 30 --per-side 12 --in-band 10` exited 0 at `available=34 long=17 short=17 inBand=10`. The next run printed `pool:refill nothing new` and exited 0. `LIFELINE_PAUSED=true` plus `POST /admin/alarm/clear` made `/health` return `paused:true` with `poolAvailable` 34 still present. Setting the secret back to `false` and clearing the alarm returned `paused:false`.
 
 #### [ ] D7 Judge rehearsal on real devices
 - **Type:** **HUMAN** · **Depends on:** D5
@@ -1182,8 +1183,8 @@ These tasks come from a review of the build's progress against the prize targets
 5. **U7**, then A1–A3. Done.
 6. A4–A6 together with **U8, U9, U10, U13, U16**. Done.
 7. A7 with **U6**, then A8–A10. Done.
-8. **U12** (it has a HUMAN step), then D1–D4. U12 and D1–D4 are done. Next is D5.
-9. D5, using U6's criteria.
+8. **U12** (it has a HUMAN step), then D1–D4. U12, D1–D6, and U11 are done. Next is U14.
+9. D5, using U6's criteria. Done. The production wallet path is the human Privy run, verified onchain.
 10. **U11** before R1 and R2. **U14** before D8, so the replay can appear in the video.
 
 **Prize mapping.** Each task's **Why** line names the prize it strengthens: Perpl API $5k, Perpl Analytics/Risk $3k, Envio $1k, Privy $5k, Track 1 $10k, or Grand Champion.
@@ -1398,7 +1399,7 @@ These tasks come from a review of the build's progress against the prize targets
   - Rate limits are still enforced.
 - **Evidence:** Guest `POST /claim` and `POST /sandbox/arm` with no token or with `not-a-token` return 403 `{"error":"turnstile"}` on worker `2696d37c`. An admin call with no token still reaches auth and returns 401, so the CLI path is unchanged. `claimGate` still returns 429 on the fourth IP claim, and `sandboxLimited(3)` is still true; both run only after the token check. Headed Chrome rendered the managed widget at height 0, received a token, and `POST /claim` with that token returned 401 (the check passed, the wallet proof was absent). Playwright's WebKit build was shown the checkbox, so that automated Safari engine did not stay invisible.
 
-#### [ ] U11 Judge guide and bounty evidence pack
+#### [x] U11 Judge guide and bounty evidence pack
 - **Type:** AGENT · **Depends on:** D5 · **Amends:** R1, R2
 - **Why:** Bounty judges skim. Mapping each written requirement to a live, clickable proof raises the odds on every bounty.
 - **Do:** Build a `/judges` page and a README "Bounty map." For each targeted bounty (Perpl API, Perpl Analytics/Risk, Envio, Privy, plus MetaMask, Nansen, and CRE if done), give:
@@ -1409,7 +1410,7 @@ These tasks come from a review of the build's progress against the prize targets
 
   Add a 90-second "judge path" with deep links: a pre-filled lookup of a real at-risk mainnet account, the claim button, and the twins panel.
 - **Pass:** Every claim has a working link (an automated link check), and the human reviews the page in R2.
-- **Evidence:**
+- **Evidence:** `/judges` lists Perpl API, Perpl Analytics, Envio, Privy, and Track 1, each with a code path and a proof. The 90-second path links to the pre-filled mainnet lookup, `/lifeline`, and `/twins`. `pnpm --filter @lifeline/web exec vitest run test/bounties.test.ts` passed: site routes returned under 400, and both explorer transactions exist on the testnet RPC. The README bounty map points at the same proofs. The human still reviews the page at R2.
 
 #### [ ] U14 Replay a recent real mainnet liquidation (replaces X5)
 - **Type:** AGENT · **Depends on:** U1, U2, U10 · **Supersedes:** X5
@@ -1557,6 +1558,7 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - A6 | the dry-run sentence uses the 4%/6% evaluator and names the market side | the card has to read the same payload as `/api/account` | template `152 AUSD` / `2.1% → 6.0%`; live mainnet `0x77A89C51` suffix present, testnet `0xe3929EB4` suffix absent
 - A7 | arm defaults come from `armDefaults` on the live distance, and the test wallet is server-side | a headless Privy guest never finishes, and the owner key must not reach the browser | 3 Playwright runs; AUSD +50; mandate 404 after disarm
 - A7 | claim distance reads use one aggregate3 on the first testnet RPC | the batched public client was one subrequest per pool position and tripped the Worker cap at 30 accounts | worker `4cf9d1af`; claim HTTP 200
+- D5 | the production wallet proof is one human Privy run | the production bundle has no test signer, and a headless guest falls through to sandbox | guest `0x68927BE5` owns `0xC0385344`; top-up `0xf322eed9`; withdraw `0xcdb24f69`; mandate 404
 - D2 | the read client does not enable viem multicall batching | with batching on, an explicit multicall becomes one HTTP call per contract and the keeper alarm dies at about 50 subrequests | worker `9a979d5c`; `/health` `ticksLast10m` 285 and `degraded:false`
 - U6 | `E2E_WALLET=test` aliases in the test wallet, and production resolves the absent module | the pass needs three automated runs and a production bundle without the adapter | production grep clean
 - A8 | twin actions link to `testnet.monadexplorer.com` | the panel has to point at the chain event, not only the database row | `0x96442cfb` amount and account match
