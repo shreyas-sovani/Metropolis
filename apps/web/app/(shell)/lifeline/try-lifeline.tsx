@@ -11,7 +11,7 @@ const offlineClient: TryClient = {
   async prepare() {
     return { ok: false, sandbox: true };
   },
-  async claim() {
+  async claim(_session, _turnstileToken) {
     return { status: 503, body: { sandbox: true, error: "empty" } };
   },
   async send() {
@@ -81,8 +81,10 @@ function PrivyTry() {
         return { ok: false, sandbox: true };
       }
     },
-    async claim(session) {
-      const response = await withProof(session, walletsRef, getAccessToken, signMessage, "/api/lifeline/claim", {});
+    async claim(session, turnstileToken) {
+      const response = await withProof(session, walletsRef, getAccessToken, signMessage, "/api/lifeline/claim", {
+        turnstileToken,
+      });
       return { status: response.status, body: response.body as ClaimBody };
     },
     async send(session, to, data, gas) {

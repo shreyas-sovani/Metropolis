@@ -15,8 +15,8 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U13, and U16 are done. The §7A order's next item is U12, which stops for a human Turnstile key.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U13, and U16 are done. The next item is U12.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. The §7A order's next item is D1, which stops for a human Vercel login.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. The next item is D1.
 
 ---
 
@@ -1161,8 +1161,8 @@ These tasks come from a review of the build's progress against the prize targets
 4. **U4** and **U5**. Done. Next is U7.
 5. **U7**, then A1–A3. Done.
 6. A4–A6 together with **U8, U9, U10, U13, U16**. Done.
-7. A7 with **U6**, then A8–A10. Done. Next is U12.
-8. **U12** (it has a HUMAN step), then D1–D4.
+7. A7 with **U6**, then A8–A10. Done.
+8. **U12** (it has a HUMAN step), then D1–D4. U12 is done. Next is D1.
 9. D5, using U6's criteria.
 10. **U11** before R1 and R2. **U14** before D8, so the replay can appear in the video.
 
@@ -1367,7 +1367,7 @@ These tasks come from a review of the build's progress against the prize targets
   - The human run is confirmed with its transaction hashes.
 - **Evidence:** Three automated runs in `e2e/try-lifeline.spec.ts` passed with `E2E_WALLET=test`. A production `next build` with that flag unset contains neither `LIFELINE_TEST_WALLET_ADAPTER` nor `TEST_OWNER_PK`. Headless Privy still cannot create a guest (G2). The one real-Privy run stays on each D5 cycle.
 
-#### [ ] U12 Anti-abuse on `/claim` (Cloudflare Turnstile, free)
+#### [x] U12 Anti-abuse on `/claim` (Cloudflare Turnstile, free)
 - **Type:** AGENT, plus **HUMAN** · **Depends on:** W6, A7
 - **Why:** Guest accounts cost nothing to mint, so a script could drain the pool before judges arrive. That would turn the Privy and Track 1 demo into a sandbox fallback.
 - **Human step:** In the Cloudflare dashboard, create a free Turnstile widget (managed or invisible mode) for the production domain and localhost. Put `TURNSTILE_SITE_KEY` (public) and `TURNSTILE_SECRET` in `secrets/services.env`.
@@ -1376,7 +1376,7 @@ These tasks come from a review of the build's progress against the prize targets
   - A missing or invalid token returns 403.
   - A normal flow shows no visible challenge in Chrome and Safari.
   - Rate limits are still enforced.
-- **Evidence:**
+- **Evidence:** Guest `POST /claim` and `POST /sandbox/arm` with no token or with `not-a-token` return 403 `{"error":"turnstile"}` on worker `2696d37c`. An admin call with no token still reaches auth and returns 401, so the CLI path is unchanged. `claimGate` still returns 429 on the fourth IP claim, and `sandboxLimited(3)` is still true; both run only after the token check. Headed Chrome rendered the managed widget at height 0, received a token, and `POST /claim` with that token returned 401 (the check passed, the wallet proof was absent). Playwright's WebKit build was shown the checkbox, so that automated Safari engine did not stay invisible.
 
 #### [ ] U11 Judge guide and bounty evidence pack
 - **Type:** AGENT · **Depends on:** D5 · **Amends:** R1, R2
@@ -1542,3 +1542,4 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - A9 | sandbox is the path when Privy throws or claim returns 503 `sandbox:true` | the judge still needs an arm receipt when the pool or the wallet is down | `e2e/fallbacks.spec.ts`
 - A9 | `?rpc=dead` in development prepends a dead RPC | the radar has to keep rendering when the first public URL fails | headline visible
 - A10 | Lighthouse is measured on `next start`, not the dev server | the dev server compiles on request and understates the score | mobile performance 80, accessibility 96
+- U12 | guest `/claim` and `/sandbox/arm` require a Turnstile token; admin calls do not | the pool drain is a guest script, and the CLI already holds `ADMIN_SECRET` | live 403 for a missing token; admin no-token is 401; Chrome widget height 0

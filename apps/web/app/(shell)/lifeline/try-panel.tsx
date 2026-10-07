@@ -1,7 +1,7 @@
 "use client";
 
 import { acceptOwnershipTx, armDefaults, buildMandate, testNowTerms, withdrawCollateralTx } from "@lifeline/core";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getAddress, type Address } from "viem";
 import { PENDING_OWNER, REVOKED_SELECTORS, TRADEOFF, WITHDRAW_AUSD, WITHDRAW_NOTE } from "../../../lib/copy";
 import { formatUsd } from "../../../lib/format";
@@ -21,6 +21,7 @@ import {
 } from "../../../lib/try-flow";
 import { addressUrl, txUrl } from "../../../lib/twins-view";
 import type { TryClient, TrySession } from "./e2e-client";
+import { TurnstileBox } from "./turnstile-box";
 
 const CAP = 150_000_000n;
 
@@ -46,6 +47,7 @@ export function TryPanel({ client }: { client: TryClient }) {
   const [error, setError] = useState("");
   const [sandboxAccount, setSandboxAccount] = useState("");
   const [started, setStarted] = useState(0);
+  const turnstileRef = useRef("");
 
   useEffect(() => setReady(true), []);
 
@@ -113,7 +115,8 @@ export function TryPanel({ client }: { client: TryClient }) {
       return;
     }
     setSession(prepared.session);
-    const claimed = await client.claim(prepared.session);
+    const turnstileToken = await waitForTurnstile(turnstileRef);
+    const claimed = await client.claim(prepared.session, turnstileToken);
     if (useSandbox({ privyFailed: false, status: claimed.status, sandbox: claimed.body.sandbox })) {
       await openSandbox();
       return;
@@ -191,7 +194,12 @@ export function TryPanel({ client }: { client: TryClient }) {
     const response = await fetch("/api/lifeline/sandbox", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ proxy: sandboxAccount, triggerBps: trigger, targetBps: target }),
+      body: JSON.stringify({
+        proxy: sandboxAccount,
+        triggerBps: trigger,
+        targetBps: target,
+        turnstileToken: await waitForTurnstile(turnstileRef),
+      }),
     });
     const body = (await response.json()) as ArmBody;
     if (!response.ok || !body.txHash) {
@@ -231,6 +239,9 @@ export function TryPanel({ client }: { client: TryClient }) {
 
   return (
     <div className="flow">
+      <TurnstileBox onToken={(token) => {
+        turnstileRef.current = token;
+      }} />
       {phase === "idle" || phase === "working" ? (
         <button type="button" data-ready={ready ? "yes" : "no"} onClick={() => void start()} disabled={phase === "working"}>
           {phase === "working" ? "Claiming a testnet position" : "Try Lifeline live"}
@@ -378,6 +389,15 @@ function Marker({ beforeE6, afterE6 }: { beforeE6: string; afterE6: string }) {
       <span className="marker" data-testid="marker" style={{ left }} />
     </div>
   );
+}
+
+async function waitForTurnstile(token: { current: string }): Promise<string> {
+  const started = Date.now();
+  while (Date.now() - started < 8_000) {
+    if (token.current) return token.current;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  return token.current;
 }
 
 function place(distanceE6: string): string {

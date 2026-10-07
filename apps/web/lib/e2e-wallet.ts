@@ -50,6 +50,7 @@ interface ActBody {
   };
   proxy?: string;
   perpId?: string;
+  turnstileToken?: string;
 }
 
 function repoRoot(): string {
@@ -176,7 +177,7 @@ export async function handleE2E(request: Request): Promise<Response> {
     if (body.op === "claim") {
       if (!body.userId || !body.nonce) return Response.json({ error: "claim" }, { status: 400 });
       const headers = await authHeaders(body.userId, body.nonce);
-      return worker("/claim", headers, {});
+      return worker("/claim", headers, { turnstileToken: body.turnstileToken ?? "" });
     }
     if (body.op === "send") {
       if (!body.to || !body.data || !body.gas) return Response.json({ error: "send" }, { status: 400 });

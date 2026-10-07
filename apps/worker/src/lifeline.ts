@@ -13,7 +13,16 @@ import { armBreach, noteGap, resetSoak, runKeeper, soakReport } from "./tick.js"
 import { recycleClaims } from "./recycle.js";
 import { sandboxArm } from "./sandbox.js";
 import { readLegStates } from "./tick.js";
+import { planTurnstile, tokenFrom, turnstileDenied, verifyTurnstile } from "./turnstile.js";
 import { assembleTwinPairs, twinOutcome, type TwinAction, type TwinLegRow } from "./twins.js";
+
+function clientIp(request: Request): string {
+  return (
+    request.headers.get("cf-connecting-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "unknown"
+  );
+}
 
 const ALARM_MS = 2_000;
 const WINDOW_MS = 10 * 60 * 1000;
@@ -27,6 +36,7 @@ export interface LifelineEnv {
   PRIVY_VERIFICATION_KEY: string;
   RPC_URLS_TESTNET: string;
   LIFELINE_PAUSED?: string;
+  TURNSTILE_SECRET?: string;
 }
 
 export class Lifeline extends DurableObject<LifelineEnv> {
@@ -274,11 +284,10 @@ export class Lifeline extends DurableObject<LifelineEnv> {
 
   private async sandbox(request: Request): Promise<Response> {
     try {
-      const body = (await request.json()) as { proxy?: string; triggerBps?: number; targetBps?: number };
-      const ip =
-        request.headers.get("cf-connecting-ip") ||
-        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-        "unknown";
+      const body = (await request.json()) as { proxy?: string; triggerBps?: number; targetBps?: number; turnstileToken?: string };
+      const ip = clientIp(request);
+      const allowed = await this.allowTurnstile(request, body.turnstileToken ?? "", ip);
+      if (allowed) return allowed;
       return await sandboxArm(this.ctx.storage.sql, this.env, { ...body, ip }, Date.now());
     } catch (error) {
       return Response.json({ error: clientError(error) }, { status: 400 });
@@ -297,6 +306,17 @@ export class Lifeline extends DurableObject<LifelineEnv> {
   }
 
   private async claim(request: Request): Promise<Response> {
+    const text = await request.clone().text();
+    let bodyToken = "";
+    if (text) {
+      try {
+        bodyToken = tokenFrom(null, JSON.parse(text) as { turnstileToken?: string });
+      } catch {
+        bodyToken = "";
+      }
+    }
+    const allowed = await this.allowTurnstile(request, bodyToken, clientIp(request));
+    if (allowed) return allowed;
     const claimant = await readClaimant(request, this.env);
     if (claimant instanceof Response) return claimant;
     try {
@@ -304,6 +324,14 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     } catch (error) {
       return Response.json({ error: clientError(error) }, { status: 500 });
     }
+  }
+
+  private async allowTurnstile(request: Request, bodyToken: string, ip: string): Promise<Response | null> {
+    const plan = planTurnstile(this.admin(request), tokenFrom(request.headers.get("x-turnstile-token"), { turnstileToken: bodyToken }));
+    if (plan.action === "skip") return null;
+    if (plan.action === "reject") return turnstileDenied();
+    const ok = await verifyTurnstile(plan.token, this.env.TURNSTILE_SECRET ?? "", ip);
+    return ok ? null : turnstileDenied();
   }
 
   private async breach(request: Request): Promise<Response> {

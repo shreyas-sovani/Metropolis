@@ -12,7 +12,7 @@ export interface SentTx {
 
 export interface TryClient {
   prepare(): Promise<{ ok: true; session: TrySession } | { ok: false; sandbox: true }>;
-  claim(session: TrySession): Promise<{ status: number; body: ClaimBody }>;
+  claim(session: TrySession, turnstileToken: string): Promise<{ status: number; body: ClaimBody }>;
   send(session: TrySession, to: string, data: string, gas: string): Promise<SentTx>;
   arm(session: TrySession, mandate: Record<string, string | number | string[]>): Promise<{ status: number; body: ArmBody }>;
   disarm(session: TrySession, proxy: string, nonce: string): Promise<{ status: number; body: { active?: boolean; error?: string } }>;
@@ -35,8 +35,8 @@ export const e2eClient: TryClient = {
     if (!body.address) return { ok: false, sandbox: true };
     return { ok: true, session: { userId: `did:privy:e2e-${crypto.randomUUID()}`, address: body.address } };
   },
-  async claim(session) {
-    const response = await act({ op: "claim", userId: session.userId, nonce: crypto.randomUUID() });
+  async claim(session, turnstileToken) {
+    const response = await act({ op: "claim", userId: session.userId, nonce: crypto.randomUUID(), turnstileToken });
     return { status: response.status, body: (await response.json()) as ClaimBody };
   },
   async send(_session, to, data, gas) {

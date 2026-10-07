@@ -10,7 +10,7 @@ describe("claim http", () => {
     await worker?.stop();
   });
 
-  it("returns 401 without a proof and 503 sandbox when the pool is empty", async () => {
+  it("returns 403 without a token, and 503 for an admin call when the pool is empty", async () => {
     worker = await unstable_dev("src/index.ts", {
       config: "wrangler.toml",
       local: true,
@@ -20,7 +20,15 @@ describe("claim http", () => {
       persist: false,
     });
     const missing = await worker.fetch("http://127.0.0.1/claim", { method: "POST" });
-    expect(missing.status).toBe(401);
+    expect(missing.status).toBe(403);
+    expect(await missing.json()).toEqual({ error: "turnstile" });
+
+    const invalid = await worker.fetch("http://127.0.0.1/claim", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ turnstileToken: "not-a-token" }),
+    });
+    expect(invalid.status).toBe(403);
 
     const account = privateKeyToAccount(generatePrivateKey());
     const nonce = "claim-1";
