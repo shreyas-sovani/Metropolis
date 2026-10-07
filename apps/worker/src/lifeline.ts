@@ -3,6 +3,7 @@ import { type MandateMessage } from "@lifeline/core";
 import { getAddress, type Address, type Hex } from "viem";
 import { coreEvaluator } from "./adapter.js";
 import { clientError, countBySide, healthReport, needsAlarm, pausedFlag, WORKER_VERSION } from "./health.js";
+import { blankHot, HISTORY_LIMIT, HISTORY_MS, hotDue, hydrateHot } from "./hot.js";
 import { opsDue, readOps, type OpsSnapshot } from "./ops.js";
 import { parseRegistrations, signMandate } from "./house.js";
 import { registerPool } from "./register.js";
@@ -24,6 +25,7 @@ function clientIp(request: Request): string {
   );
 }
 
+/** Stays at 2s. 43,200 alarm requests/day is inside the free Durable Object request cap. */
 const ALARM_MS = 2_000;
 const WINDOW_MS = 10 * 60 * 1000;
 
@@ -45,15 +47,43 @@ export class Lifeline extends DurableObject<LifelineEnv> {
   private gap: { startedAt: number | null; maxGapMs: number } | null = null;
   private ops: OpsSnapshot | null = null;
   private opsFlight: Promise<void> | null = null;
+  private hot = blankHot();
+  private degraded: string | null = null;
 
   constructor(ctx: DurableObjectState, env: LifelineEnv) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
-      migrate(this.ctx.storage.sql);
+      this.tryMigrate();
     });
   }
 
+  private tryMigrate(): boolean {
+    try {
+      migrate(this.ctx.storage.sql);
+      this.degraded = null;
+      return true;
+    } catch (error) {
+      this.degraded = clientError(error);
+      return false;
+    }
+  }
+
+  private ensureHot(now: number): void {
+    if (!hotDue(this.hot.loaded ? this.hot.at : null, now)) return;
+    hydrateHot(this.ctx.storage.sql, this.hot, now);
+    if (!this.gap) this.gap = { startedAt: this.hot.startedAt, maxGapMs: this.hot.maxGapMs };
+    if (this.knownError === undefined) this.knownError = this.hot.lastError;
+  }
+
   override async alarm(): Promise<void> {
+    if (this.degraded && !this.tryMigrate()) {
+      try {
+        await this.ctx.storage.setAlarm(Date.now() + 20_000);
+      } catch {
+        // Storage is still refusing writes. /health rearms the alarm once it recovers.
+      }
+      return;
+    }
     const started = Date.now();
     const prior = this.ticks[this.ticks.length - 1] ?? null;
     this.ticks.push(started);
@@ -62,23 +92,33 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     let error: string | null = null;
     try {
       if (typeof coreEvaluator() !== "function") throw new Error("core missing");
+      this.ensureHot(started);
       this.gap = noteGap(this.ctx.storage.sql, started, prior, this.gap);
-      await runKeeper(this.ctx.storage.sql, this.env, started);
-      await recycleClaims(this.ctx.storage.sql, this.env, started);
+      await runKeeper(this.ctx.storage.sql, this.env, started, this.hot);
+      await recycleClaims(this.ctx.storage.sql, this.env, started, this.hot);
       this.rememberError(null);
     } catch (caught) {
       error = clientError(caught);
       this.rememberError(error);
     } finally {
       const delay = error ? 20_000 : ALARM_MS;
-      await this.ctx.storage.setAlarm(Date.now() + delay);
+      try {
+        await this.ctx.storage.setAlarm(Date.now() + delay);
+      } catch (caught) {
+        this.degraded = this.degraded ?? clientError(caught);
+      }
     }
   }
 
   override async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
+    if (this.degraded) this.tryMigrate();
+    if (url.pathname === "/health" && this.degraded) {
+      return Response.json({ status: "error", degraded: this.degraded }, { status: 503 });
+    }
     if (url.pathname === "/schema/selftest") {
       if (!this.admin(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
+      this.hot.loaded = false;
       try {
         return Response.json(crudRoundTrip(this.ctx.storage.sql));
       } catch (error) {
@@ -102,10 +142,15 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     const mandatePath = /^\/mandate\/(0x[0-9a-fA-F]{40})$/.exec(url.pathname);
     if (mandatePath?.[1] && request.method === "GET") return this.mandate(mandatePath[1]);
     if (url.pathname !== "/health") return new Response("lifeline", { status: 404 });
-    const alarm = await this.ctx.storage.getAlarm();
-    const lastTick = this.ticks[this.ticks.length - 1] ?? null;
-    if (needsAlarm(alarm, lastTick, Date.now())) await this.ctx.storage.setAlarm(Date.now() + 50);
-    return Response.json(await this.report());
+    try {
+      const alarm = await this.ctx.storage.getAlarm();
+      const lastTick = this.ticks[this.ticks.length - 1] ?? null;
+      if (needsAlarm(alarm, lastTick, Date.now())) await this.ctx.storage.setAlarm(Date.now() + 50);
+      return Response.json(await this.report());
+    } catch (error) {
+      this.degraded = clientError(error);
+      return Response.json({ status: "error", degraded: this.degraded }, { status: 503 });
+    }
   }
 
   private actions(url: URL): Response {
@@ -138,7 +183,12 @@ export class Lifeline extends DurableObject<LifelineEnv> {
   private saves(): Response {
     const rows = this.ctx.storage.sql
       .exec(
-        "SELECT tx_hash, block, amount_cns, liq_before, proxy FROM actions WHERE status = 'confirmed' AND liq_before IS NOT NULL AND liq_before != '' ORDER BY id",
+        `SELECT tx_hash, block, amount_cns, liq_before, proxy FROM actions
+         WHERE status = 'confirmed' AND liq_before IS NOT NULL AND liq_before != ''
+           AND (created_at = 0 OR created_at >= ?)
+         ORDER BY id DESC LIMIT ?`,
+        Date.now() - HISTORY_MS,
+        HISTORY_LIMIT,
       )
       .toArray() as { tx_hash?: string | null; block?: number | null; amount_cns?: string; liq_before?: string; proxy?: string }[];
     const saves = rows.flatMap((row) => {
@@ -173,11 +223,13 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       return Response.json({ error: message }, { status: 400 });
     }
     try {
+      this.ensureHot(Date.now());
       const counts = await registerPool(
         this.ctx.storage.sql,
         entries,
         (message) => this.signHouse(message),
         BigInt(Math.floor(Date.now() / 1000)),
+        this.hot,
       );
       return Response.json(counts);
     } catch (error) {
@@ -192,7 +244,9 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     try {
       const body = (await request.json()) as { mandate?: Parameters<typeof mandateFromBody>[0]; signature?: Hex };
       if (!body.mandate || !body.signature) return Response.json({ error: "mandate" }, { status: 400 });
-      return await armPosition(this.ctx.storage.sql, this.env, claimant, { mandate: body.mandate, signature: body.signature }, Date.now());
+      const started = Date.now();
+      this.ensureHot(started);
+      return await armPosition(this.ctx.storage.sql, this.env, claimant, { mandate: body.mandate, signature: body.signature }, started, this.hot);
     } catch (error) {
       return Response.json({ error: clientError(error) }, { status: 400 });
     }
@@ -204,11 +258,12 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     try {
       const body = (await request.json()) as { proxy?: string; nonce?: string; signature?: Hex };
       if (!body.proxy || !body.nonce || !body.signature) return Response.json({ error: "disarm" }, { status: 400 });
+      this.ensureHot(Date.now());
       return await disarmPosition(this.ctx.storage.sql, this.env, claimant, {
         proxy: body.proxy,
         nonce: body.nonce,
         signature: body.signature,
-      });
+      }, this.hot);
     } catch (error) {
       return Response.json({ error: clientError(error) }, { status: 400 });
     }
@@ -219,7 +274,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       .exec(
         `SELECT pool.proxy, pool.account_id, pool.market, pool.side, pool.role, pool.pair_id, pool.perp_id, mandates.kind, mandates.active
          FROM pool LEFT JOIN mandates ON mandates.proxy = pool.proxy
-         WHERE pool.pair_id != ''`,
+         WHERE pool.pair_id != '' LIMIT ${HISTORY_LIMIT}`,
       )
       .toArray() as {
       proxy?: string;
@@ -273,8 +328,13 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     if (!leg) return;
     const actions = this.ctx.storage.sql
       .exec(
-        "SELECT tx_hash, block, amount_cns FROM actions WHERE proxy = ? AND status = 'confirmed' AND tx_hash LIKE '0x%' ORDER BY id",
+        `SELECT tx_hash, block, amount_cns FROM (
+           SELECT id, tx_hash, block, amount_cns FROM actions
+           WHERE proxy = ? AND status = 'confirmed' AND tx_hash LIKE '0x%'
+           ORDER BY id DESC LIMIT ?
+         ) AS recent ORDER BY id`,
         leg.proxy,
+        HISTORY_LIMIT,
       )
       .toArray() as { tx_hash?: string; block?: number | null; amount_cns?: string }[];
     leg.actions = actions
@@ -288,7 +348,9 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       const ip = clientIp(request);
       const allowed = await this.allowTurnstile(request, body.turnstileToken ?? "", ip);
       if (allowed) return allowed;
-      return await sandboxArm(this.ctx.storage.sql, this.env, { ...body, ip }, Date.now());
+      const started = Date.now();
+      this.ensureHot(started);
+      return await sandboxArm(this.ctx.storage.sql, this.env, { ...body, ip }, started, this.hot);
     } catch (error) {
       return Response.json({ error: clientError(error) }, { status: 400 });
     }
@@ -320,7 +382,9 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     const claimant = await readClaimant(request, this.env);
     if (claimant instanceof Response) return claimant;
     try {
-      return await claimPosition(this.ctx.storage.sql, this.env, claimant, Date.now());
+      const started = Date.now();
+      this.ensureHot(started);
+      return await claimPosition(this.ctx.storage.sql, this.env, claimant, started, this.hot);
     } catch (error) {
       return Response.json({ error: clientError(error) }, { status: 500 });
     }
@@ -348,7 +412,9 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       return Response.json({ error: "proxy" }, { status: 400 });
     }
     try {
-      const terms = await armBreach(this.ctx.storage.sql, this.env, proxy, BigInt(Math.floor(Date.now() / 1000)));
+      const nowSec = BigInt(Math.floor(Date.now() / 1000));
+      this.ensureHot(Date.now());
+      const terms = await armBreach(this.ctx.storage.sql, this.env, proxy, nowSec, this.hot);
       return Response.json({ proxy, ...terms });
     } catch (error) {
       const message = error instanceof Error ? error.message : "error";
@@ -363,7 +429,9 @@ export class Lifeline extends DurableObject<LifelineEnv> {
 
   private soakReset(request: Request): Response {
     if (!this.admin(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
-    resetSoak(this.ctx.storage.sql, Date.now());
+    const now = Date.now();
+    resetSoak(this.ctx.storage.sql, now);
+    this.gap = { startedAt: now, maxGapMs: 0 };
     return Response.json(soakReport(this.ctx.storage.sql));
   }
 
@@ -401,15 +469,21 @@ export class Lifeline extends DurableObject<LifelineEnv> {
   }
 
   private rememberError(error: string | null) {
+    this.hot.lastError = error;
     if (this.knownError === error) return;
     this.knownError = error;
-    this.ctx.storage.sql.exec("UPDATE health_state SET last_error = ? WHERE id = 1", error);
+    try {
+      this.ctx.storage.sql.exec("UPDATE health_state SET last_error = ? WHERE id = 1", error);
+    } catch (caught) {
+      this.degraded = clientError(caught);
+    }
   }
 
   private async refreshOps(now: number): Promise<void> {
     if (!opsDue(this.ops?.at ?? null, now)) return;
     if (this.opsFlight) return this.opsFlight;
-    this.opsFlight = readOps(this.ctx.storage.sql, this.env, now)
+    const available = this.hot.loaded ? this.hot.pools.filter((row) => row.status === "available") : undefined;
+    this.opsFlight = readOps(this.ctx.storage.sql, this.env, now, available)
       .then((next) => {
         if (next) this.ops = next;
       })
@@ -424,27 +498,23 @@ export class Lifeline extends DurableObject<LifelineEnv> {
 
   private async report() {
     const now = Date.now();
+    this.ensureHot(now);
     await this.refreshOps(now);
     const cutoff = now - WINDOW_MS;
     const ticks = this.ticks.filter((at) => at >= cutoff);
     const last = ticks[ticks.length - 1] ?? null;
-    const state = this.ctx.storage.sql
-      .exec("SELECT last_error FROM health_state WHERE id = 1")
-      .toArray() as { last_error: string | null }[];
-    const available = this.ctx.storage.sql
-      .exec("SELECT side FROM pool WHERE status = 'available'")
-      .toArray() as { side?: string }[];
+    const available = this.hot.pools.filter((row) => row.status === "available");
     const ops = this.ops;
     return healthReport({
       lastAlarmAt: last,
       ticksLast10m: ticks.length,
-      lastError: state[0]?.last_error ?? null,
+      lastError: this.knownError ?? null,
       paused: pausedFlag(this.env.LIFELINE_PAUSED),
       poolAvailable: available.length,
       sponsorWei: ops?.sponsorWei ?? 0n,
       operatorWei: ops?.operatorWei ?? 0n,
       poolInBand: ops?.poolInBand ?? 0,
-      poolBySide: ops?.poolBySide ?? countBySide(available.map((row) => row.side ?? "")),
+      poolBySide: countBySide(available.map((row) => row.side)),
     });
   }
 }

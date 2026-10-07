@@ -33,6 +33,19 @@ import {
   type TransactionReceipt,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import {
+  cachedBlock,
+  HISTORY_LIMIT,
+  HISTORY_MS,
+  insertAction,
+  noteConfirmed,
+  noteDistance,
+  noteReverted,
+  putMandate,
+  setBudget,
+  type HotState,
+  type HouseRow,
+} from "./hot.js";
 import { breachMayReplace, breachTerms, houseMandate, houseTerms, serializeMandate, signMandate, type PoolRole } from "./house.js";
 import type { Sql } from "./schema.js";
 import type { LifelineEnv } from "./lifeline.js";
@@ -49,6 +62,10 @@ interface ArmedRow {
   typed_data: string;
   budget_used_cns: string;
   active: number;
+}
+
+function asArmed(rows: readonly HouseRow[]): ArmedRow[] {
+  return [...rows];
 }
 
 interface PendingRow {
@@ -108,35 +125,40 @@ function keyAccount(key: string, label: string) {
   return privateKeyToAccount(key as Hex);
 }
 
-export async function runKeeper(sql: Sql, env: LifelineEnv, nowMs: number): Promise<void> {
+export async function runKeeper(sql: Sql, env: LifelineEnv, nowMs: number, hot?: HotState | null): Promise<void> {
   if (!/^0x[0-9a-fA-F]{64}$/.test(env.OPERATOR_PK ?? "") || !/^0x[0-9a-fA-F]{64}$/.test(env.POOL_OWNER_PK ?? "")) return;
   const urls = urlsOf(env);
   const chain = openChain(TESTNET_ID, { urls, timeout: 8_000 });
   const client = chain.client;
-  const confirmed = await confirmPending(sql, client);
-  await restoreHouse(sql, env, confirmed, BigInt(Math.floor(nowMs / 1000)));
+  const confirmed = await confirmPending(sql, client, hot);
+  await restoreHouse(sql, env, confirmed, BigInt(Math.floor(nowMs / 1000)), hot);
   await fundOperator(env, client);
   const paused = env.LIFELINE_PAUSED === "true" || env.LIFELINE_PAUSED === "1";
-  const armed = sql
-    .exec(
-      `SELECT p.proxy, p.account_id, p.perp_id, p.role, m.typed_data, m.budget_used_cns, m.active
-       FROM mandates m JOIN pool p ON p.proxy = m.proxy WHERE m.active = 1`,
-    )
-    .toArray() as unknown as ArmedRow[];
+  const armed = hot?.loaded
+    ? asArmed(hot.armed)
+    : (sql
+        .exec(
+          `SELECT p.proxy, p.account_id, p.perp_id, p.role, m.typed_data, m.budget_used_cns, m.active
+           FROM mandates m JOIN pool p ON p.proxy = m.proxy WHERE m.active = 1`,
+        )
+        .toArray() as unknown as ArmedRow[]);
   if (armed.length === 0) return;
   const exchange = ADDRESSES[TESTNET_ID].exchange;
   const accounts = await chain.readAccounts(armed.map((row) => BigInt(row.account_id)));
   const byAccount = new Map(accounts.map((account) => [account.accountId.toString(), account]));
   const positions = await readPositions(client, exchange, armed);
   const markets = await readMarkets(client, exchange, [...new Set(armed.map((row) => row.perp_id))]);
-  const openDist = sql
-    .exec("SELECT id, proxy, perp_id FROM actions WHERE status = 'confirmed' AND dist_after IS NULL")
-    .toArray() as { id: number; proxy: string; perp_id: string }[];
+  const openDist = hot?.loaded
+    ? [...hot.openDist]
+    : (sql
+        .exec("SELECT id, proxy, perp_id FROM actions WHERE status = 'confirmed' AND dist_after IS NULL")
+        .toArray() as { id: number; proxy: string; perp_id: string }[]);
   for (const row of openDist) {
     const market = markets.get(row.perp_id);
     const position = positions.get(`${row.proxy}:${row.perp_id}`);
     if (!market || !position) continue;
     sql.exec("UPDATE actions SET dist_after = ? WHERE id = ?", distanceOf(toEvalPosition(position, market)).toString(), row.id);
+    noteDistance(hot, row.id);
   }
   const block = await client.getBlockNumber();
   const nowSec = BigInt(Math.floor(nowMs / 1000));
@@ -147,8 +169,10 @@ export async function runKeeper(sql: Sql, env: LifelineEnv, nowMs: number): Prom
     transport: http(urls[0], { timeout: 8_000, retryCount: 1 }),
   });
   const pending = new Set(
-    (sql.exec("SELECT proxy, perp_id FROM actions WHERE status = 'pending'").toArray() as { proxy: string; perp_id: string }[])
-      .map((row) => `${row.proxy}:${row.perp_id}`),
+    (hot?.loaded
+      ? hot.pending
+      : (sql.exec("SELECT proxy, perp_id FROM actions WHERE status = 'pending'").toArray() as { proxy: string; perp_id: string }[])
+    ).map((row) => `${row.proxy}:${row.perp_id}`),
   );
   for (const row of armed) {
     const key = `${row.proxy}:${row.perp_id}`;
@@ -158,7 +182,7 @@ export async function runKeeper(sql: Sql, env: LifelineEnv, nowMs: number): Prom
     const position = positions.get(key);
     const account = byAccount.get(row.account_id);
     const evalPosition = market && position ? toEvalPosition(position, market) : null;
-    const last = lastActionBlock(sql, row.proxy, row.perp_id);
+    const last = lastActionBlock(sql, row.proxy, row.perp_id, hot);
     const decision = evaluate(
       mandate,
       evalPosition,
@@ -186,17 +210,17 @@ export async function runKeeper(sql: Sql, env: LifelineEnv, nowMs: number): Prom
       });
       const quote = evalPosition ? evalQuote(evalPosition) : null;
       const liqBefore = quote ? liquidationPricePNS(quote.position, quote.market).toString() : "";
-      sql.exec(
-        `INSERT INTO actions (proxy, perp_id, amount_cns, tx_hash, block, dist_before, dist_after, status, reason, liq_before)
-         VALUES (?, ?, ?, ?, NULL, ?, NULL, 'pending', ?, ?)`,
-        row.proxy,
-        row.perp_id,
-        decision.amountCNS.toString(),
-        hash,
-        decision.distBefore.toString(),
-        capped ? "capped" : "",
-        liqBefore,
-      );
+      insertAction(sql, hot, {
+        proxy: row.proxy,
+        perp_id: row.perp_id,
+        amount_cns: decision.amountCNS.toString(),
+        tx_hash: hash,
+        dist_before: decision.distBefore.toString(),
+        status: "pending",
+        reason: capped ? "capped" : "",
+        liq_before: liqBefore,
+        created_at: nowMs,
+      });
       pending.add(key);
       console.log(`top-up ${row.proxy} ${row.perp_id} ${decision.amountCNS} ${hash}`);
     } catch (error) {
@@ -208,7 +232,7 @@ export async function runKeeper(sql: Sql, env: LifelineEnv, nowMs: number): Prom
       throw new Error(message.slice(0, 180));
     }
   }
-  await runCanary(sql, env, nowMs);
+  await runCanary(sql, env, nowMs, hot);
 }
 
 const CANARY_MS = 10 * 60 * 1000;
@@ -224,16 +248,24 @@ export function canaryDue(lastAt: number | null, now: number): boolean {
   return lastAt === null || now - lastAt >= CANARY_MS;
 }
 
-async function runCanary(sql: Sql, env: LifelineEnv, nowMs: number): Promise<void> {
-  const row = sql.exec("SELECT canary_at FROM keeper_stats WHERE id = 1").toArray()[0] as
-    | { canary_at?: number | null }
-    | undefined;
-  const last = row?.canary_at === undefined || row.canary_at === null ? null : Number(row.canary_at);
+async function runCanary(sql: Sql, env: LifelineEnv, nowMs: number, hot?: HotState | null): Promise<void> {
+  let last: number | null;
+  if (hot?.loaded) {
+    last = hot.canaryAt;
+  } else {
+    const row = sql.exec("SELECT canary_at FROM keeper_stats WHERE id = 1").toArray()[0] as
+      | { canary_at?: number | null }
+      | undefined;
+    last = row?.canary_at === undefined || row.canary_at === null ? null : Number(row.canary_at);
+  }
   if (!canaryDue(last, nowMs)) return;
   sql.exec("UPDATE keeper_stats SET canary_at = ? WHERE id = 1", nowMs);
-  const pool = sql.exec("SELECT proxy, perp_id FROM pool WHERE role = 'pool' LIMIT 1").toArray()[0] as
-    | { proxy?: string; perp_id?: string }
-    | undefined;
+  if (hot) hot.canaryAt = nowMs;
+  const pool = hot?.loaded
+    ? hot.canaryProxy ?? undefined
+    : (sql.exec("SELECT proxy, perp_id FROM pool WHERE role = 'pool' LIMIT 1").toArray()[0] as
+        | { proxy?: string; perp_id?: string }
+        | undefined);
   if (!pool?.proxy || !pool.perp_id) return;
   const operator = keyAccount(env.OPERATOR_PK, "operator");
   const built = increasePositionCollateralTx(getAddress(pool.proxy), BigInt(pool.perp_id), 1n);
@@ -266,7 +298,8 @@ function isCapped(amount: bigint, position: EvalPosition | null, mandate: Mandat
   return amount < raw;
 }
 
-function lastActionBlock(sql: Sql, proxy: string, perpId: string): bigint | null {
+function lastActionBlock(sql: Sql, proxy: string, perpId: string, hot?: HotState | null): bigint | null {
+  if (hot?.loaded) return cachedBlock(hot, proxy, perpId);
   const row = sql
     .exec(
       "SELECT block FROM actions WHERE proxy = ? AND perp_id = ? AND status = 'confirmed' AND block IS NOT NULL ORDER BY id DESC LIMIT 1",
@@ -277,11 +310,17 @@ function lastActionBlock(sql: Sql, proxy: string, perpId: string): bigint | null
   return row?.block === undefined || row.block === null ? null : BigInt(row.block);
 }
 
-async function confirmPending(sql: Sql, client: PublicClient): Promise<{ proxy: string; perp_id: string }[]> {
+async function confirmPending(
+  sql: Sql,
+  client: PublicClient,
+  hot?: HotState | null,
+): Promise<{ proxy: string; perp_id: string }[]> {
   const confirmed: { proxy: string; perp_id: string }[] = [];
-  const rows = sql
-    .exec("SELECT id, proxy, perp_id, tx_hash, amount_cns, reason FROM actions WHERE status = 'pending'")
-    .toArray() as unknown as PendingRow[];
+  const rows = hot?.loaded
+    ? [...hot.pending]
+    : (sql
+        .exec("SELECT id, proxy, perp_id, tx_hash, amount_cns, reason FROM actions WHERE status = 'pending'")
+        .toArray() as unknown as PendingRow[]);
   for (const row of rows) {
     if (!row.tx_hash || !row.tx_hash.startsWith("0x")) continue;
     try {
@@ -289,19 +328,21 @@ async function confirmPending(sql: Sql, client: PublicClient): Promise<{ proxy: 
       if (receipt.status !== "success") {
         sql.exec("UPDATE actions SET status = 'reverted', block = ? WHERE id = ?", Number(receipt.blockNumber), row.id);
         sql.exec("UPDATE keeper_stats SET nonce_errors = nonce_errors + 1 WHERE id = 1");
+        noteReverted(hot, row.id);
         continue;
       }
-      sql.exec(
-        "UPDATE actions SET status = 'confirmed', block = ? WHERE id = ?",
-        Number(receipt.blockNumber),
-        row.id,
-      );
+      const block = Number(receipt.blockNumber);
+      sql.exec("UPDATE actions SET status = 'confirmed', block = ? WHERE id = ?", block, row.id);
+      noteConfirmed(hot, row.id, block);
       confirmed.push({ proxy: row.proxy, perp_id: row.perp_id });
-      const mandate = sql.exec("SELECT budget_used_cns FROM mandates WHERE proxy = ?", row.proxy).toArray()[0] as
-        | { budget_used_cns?: string }
-        | undefined;
+      const mandate = hot?.loaded
+        ? hot.mandates.find((item) => item.proxy === row.proxy)
+        : (sql.exec("SELECT budget_used_cns FROM mandates WHERE proxy = ?", row.proxy).toArray()[0] as
+            | { budget_used_cns?: string }
+            | undefined);
       const used = BigInt(mandate?.budget_used_cns || "0") + BigInt(row.amount_cns);
       sql.exec("UPDATE mandates SET budget_used_cns = ? WHERE proxy = ?", used.toString(), row.proxy);
+      setBudget(hot, row.proxy, used.toString());
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
       if (/not found|could not be found/i.test(message)) continue;
@@ -647,12 +688,17 @@ export async function armBreach(
   env: LifelineEnv,
   proxy: Address,
   nowSec: bigint,
+  hot?: HotState | null,
 ): Promise<{ triggerBps: number; targetBps: number; armed: boolean }> {
-  const row = sql
-    .exec("SELECT account_id, perp_id, role FROM pool WHERE proxy = ?", proxy)
-    .toArray()[0] as { account_id?: string; perp_id?: string; role?: string } | undefined;
+  const row = hot?.loaded
+    ? hot.pools.find((item) => item.proxy === proxy)
+    : (sql.exec("SELECT account_id, perp_id, role FROM pool WHERE proxy = ?", proxy).toArray()[0] as
+        | { account_id?: string; perp_id?: string; role?: string }
+        | undefined);
   if (!row?.account_id || !row.perp_id || !row.role) throw new Error("proxy not registered");
-  const existing = sql.exec("SELECT active FROM mandates WHERE proxy = ?", proxy).toArray()[0] as { active?: number } | undefined;
+  const existing = hot?.loaded
+    ? hot.mandates.find((item) => item.proxy === proxy)
+    : (sql.exec("SELECT active FROM mandates WHERE proxy = ?", proxy).toArray()[0] as { active?: number } | undefined);
   const active = existing?.active === undefined ? null : Number(existing.active);
   if (!breachMayReplace(active)) return { triggerBps: 0, targetBps: 0, armed: false };
   const chain = openChain(TESTNET_ID, { urls: urlsOf(env), timeout: 8_000 });
@@ -691,6 +737,16 @@ export async function armBreach(
     serializeMandate(message),
     signed.sig,
   );
+  const previous = hot?.mandates.find((item) => item.proxy === proxy);
+  putMandate(hot, {
+    proxy,
+    owner: signed.owner,
+    typed_data: serializeMandate(message),
+    sig: signed.sig,
+    active: 1,
+    budget_used_cns: previous?.budget_used_cns ?? "0",
+    kind: "breach",
+  });
   return { ...terms, armed: true };
 }
 
@@ -699,13 +755,16 @@ export async function restoreHouse(
   env: LifelineEnv,
   confirmed: readonly { proxy: string; perp_id: string }[],
   nowSec: bigint,
+  hot?: HotState | null,
 ) {
-  const rows = sql
-    .exec(
-      `SELECT p.proxy, p.perp_id, p.role, m.kind FROM mandates m
-       JOIN pool p ON p.proxy = m.proxy WHERE m.active = 1 AND m.kind = 'breach'`,
-    )
-    .toArray() as { proxy: string; perp_id: string; role: string; kind: string }[];
+  const rows = hot?.loaded
+    ? hot.armed.filter((row) => row.active === 1 && row.kind === "breach")
+    : (sql
+        .exec(
+          `SELECT p.proxy, p.perp_id, p.role, m.kind FROM mandates m
+           JOIN pool p ON p.proxy = m.proxy WHERE m.active = 1 AND m.kind = 'breach'`,
+        )
+        .toArray() as { proxy: string; perp_id: string; role: string; kind: string }[]);
   for (const row of rows) {
     if (!confirmed.some((item) => item.proxy === row.proxy && item.perp_id === row.perp_id)) continue;
     const role = row.role as PoolRole;
@@ -725,17 +784,39 @@ export async function restoreHouse(
       signed.sig,
       row.proxy,
     );
+    const previous = hot?.mandates.find((item) => item.proxy === row.proxy);
+    if (previous) {
+      putMandate(hot, {
+        ...previous,
+        owner: signed.owner,
+        typed_data: serializeMandate(message),
+        sig: signed.sig,
+        active: 1,
+        kind: "house",
+      });
+    }
   }
 }
 
-export function soakReport(sql: Sql) {
+export function soakReport(sql: Sql, now = Date.now()) {
+  const since = now - HISTORY_MS;
   const stats = sql.exec("SELECT max_gap_ms, nonce_errors, started_at FROM keeper_stats WHERE id = 1").toArray()[0] as
     | { max_gap_ms?: number; nonce_errors?: number; started_at?: number | null }
     | undefined;
   const pending = sql.exec("SELECT COUNT(*) AS n FROM actions WHERE status = 'pending'").toArray()[0] as { n?: number } | undefined;
   const armed = sql.exec("SELECT COUNT(*) AS n FROM mandates WHERE active = 1").toArray()[0] as { n?: number } | undefined;
   const kinds = sql
-    .exec("SELECT status, reason, COUNT(*) AS n FROM actions GROUP BY status, reason")
+    .exec(
+      `SELECT status, reason, COUNT(*) AS n FROM (
+         SELECT status, reason FROM actions
+         WHERE created_at = 0 OR created_at >= ?
+         ORDER BY id DESC
+         LIMIT ?
+       ) AS bounded
+       GROUP BY status, reason`,
+      since,
+      HISTORY_LIMIT,
+    )
     .toArray() as { status: string; reason: string; n: number }[];
   const health = sql.exec("SELECT last_error FROM health_state WHERE id = 1").toArray()[0] as
     | { last_error?: string | null }
@@ -743,7 +824,12 @@ export function soakReport(sql: Sql) {
   const recent = sql
     .exec(
       `SELECT proxy, perp_id, amount_cns, tx_hash, block, dist_before, dist_after, status, reason
-       FROM actions ORDER BY id DESC LIMIT 20`,
+       FROM actions
+       WHERE created_at = 0 OR created_at >= ?
+       ORDER BY id DESC
+       LIMIT ?`,
+      since,
+      HISTORY_LIMIT,
     )
     .toArray();
   return {

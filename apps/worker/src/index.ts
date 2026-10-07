@@ -1,4 +1,5 @@
 import type { ExportedHandler } from "@cloudflare/workers-types";
+import { clientError } from "./health.js";
 import { Lifeline, type LifelineEnv } from "./lifeline.js";
 import { addressFromWalletProof, verifyPrivyAccessToken } from "./privy.js";
 
@@ -11,7 +12,11 @@ const handler: ExportedHandler<Env> = {
     const url = new URL(request.url);
     const stub = env.LIFELINE.get(env.LIFELINE.idFromName("lifeline"));
     if (url.pathname === "/health") {
-      return stub.fetch(new Request(new URL("/health", request.url)));
+      try {
+        return await stub.fetch(new Request(new URL("/health", request.url)));
+      } catch (error) {
+        return Response.json({ status: "error", degraded: clientError(error) }, { status: 503 });
+      }
     }
     if (url.pathname === "/session" && request.method === "GET") {
       return session(request, env);

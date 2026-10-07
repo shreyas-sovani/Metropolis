@@ -8,6 +8,7 @@ import {
 } from "@lifeline/core";
 import { getAddress, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { addOpenClaim, markClaimed, type HotState } from "./hot.js";
 import type { LifelineEnv } from "./lifeline.js";
 import { addressFromWalletProof, verifyPrivyAccessToken } from "./privy.js";
 import type { Sql } from "./schema.js";
@@ -119,14 +120,21 @@ export async function claimPosition(
   env: LifelineEnv,
   claimant: Claimant,
   nowMs: number,
+  hot?: HotState | null,
 ): Promise<Response> {
   const userRow = sql.exec("SELECT proxy FROM claims WHERE privy_user_id = ?", claimant.userId).toArray()[0];
   const ipRow = sql
     .exec("SELECT COUNT(*) AS n FROM claims WHERE ip = ? AND claimed_at >= ?", claimant.ip, nowMs - HOUR_MS)
     .toArray()[0] as { n?: number } | undefined;
-  const available = sql
-    .exec("SELECT proxy, account_id, perp_id, side, leverage, market, status FROM pool WHERE status IN ('available', 'reserve') AND role = 'pool'")
-    .toArray() as unknown as AvailableRow[];
+  const available = (
+    hot?.loaded
+      ? hot.pools.filter((row) => (row.status === "available" || row.status === "reserve") && row.role === "pool")
+      : (sql
+          .exec(
+            "SELECT proxy, account_id, perp_id, side, leverage, market, status FROM pool WHERE status IN ('available', 'reserve') AND role = 'pool'",
+          )
+          .toArray() as unknown as AvailableRow[])
+  ) as AvailableRow[];
   const gate = claimGate({
     existingUser: Boolean(userRow),
     ipCount: Number(ipRow?.n ?? 0),
@@ -176,6 +184,7 @@ export async function claimPosition(
     return Response.json({ error: "reverted", txs: { drip: dripHash, transfer: transferHash } }, { status: 500 });
   }
   sql.exec("UPDATE pool SET status = 'claimed' WHERE proxy = ? AND status = 'available'", picked.proxy);
+  markClaimed(hot, picked.proxy);
   sql.exec(
     `INSERT INTO claims (proxy, privy_user_id, owner, ip, claimed_at, accepted_at) VALUES (?, ?, ?, ?, ?, NULL)`,
     picked.proxy,
@@ -184,6 +193,7 @@ export async function claimPosition(
     claimant.ip,
     nowMs,
   );
+  addOpenClaim(hot, { proxy: picked.proxy, claimed_at: nowMs });
   return Response.json({
     proxy: picked.proxy,
     perpId: picked.perpId,

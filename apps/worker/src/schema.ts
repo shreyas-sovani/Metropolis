@@ -135,6 +135,20 @@ const STEPS: { version: number; apply: (sql: Sql) => void }[] = [
       addColumn(sql, "actions", "liq_before", "liq_before TEXT");
     },
   },
+  {
+    version: 9,
+    apply(sql) {
+      addColumn(sql, "actions", "created_at", "created_at INTEGER NOT NULL DEFAULT 0");
+      sql.exec("CREATE INDEX IF NOT EXISTS idx_actions_status ON actions(status)");
+      sql.exec(
+        "CREATE INDEX IF NOT EXISTS idx_actions_confirmed_open ON actions(id) WHERE status = 'confirmed' AND dist_after IS NULL",
+      );
+      sql.exec("CREATE INDEX IF NOT EXISTS idx_pool_role ON pool(role)");
+      sql.exec("CREATE INDEX IF NOT EXISTS idx_pool_status ON pool(status)");
+      // claims is keyed by proxy, not id. The partial index covers the unaccepted-claim scan.
+      sql.exec("CREATE INDEX IF NOT EXISTS idx_claims_unaccepted ON claims(proxy) WHERE accepted_at IS NULL");
+    },
+  },
 ];
 
 export function migrate(sql: Sql): number[] {

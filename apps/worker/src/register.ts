@@ -1,5 +1,6 @@
 import type { Address, Hex } from "viem";
 import type { MandateMessage } from "@lifeline/core";
+import { dropMandate, putMandate, registrationCounts, upsertPool, type HotState } from "./hot.js";
 import { houseMandate, poolStatus, serializeMandate, type PoolRegistration } from "./house.js";
 import type { Sql } from "./schema.js";
 
@@ -25,6 +26,7 @@ export async function registerPool(
   entries: readonly PoolRegistration[],
   sign: (message: MandateMessage) => Promise<{ owner: Address; sig: Hex }>,
   nowSec: bigint,
+  hot?: HotState | null,
 ): Promise<RegistrationCounts> {
   const seen = new Set<string>();
   for (const entry of entries) {
@@ -54,6 +56,21 @@ export async function registerPool(
       entry.pairId,
       entry.reopen ? 1 : 0,
     );
+    upsertPool(
+      hot,
+      {
+        proxy: entry.proxy,
+        account_id: entry.accountId,
+        perp_id: entry.perpId,
+        side: entry.side,
+        leverage: entry.leverage,
+        status: poolStatus(entry.role),
+        market: entry.market,
+        role: entry.role,
+        pair_id: entry.pairId,
+      },
+      Boolean(entry.reopen),
+    );
     if (entry.reopen) sql.exec("DELETE FROM claims WHERE proxy = ?", entry.proxy);
     const message = houseMandate({
       account: entry.proxy,
@@ -63,10 +80,16 @@ export async function registerPool(
     });
     if (!message) {
       sql.exec("DELETE FROM mandates WHERE proxy = ?", entry.proxy);
+      dropMandate(hot, entry.proxy);
       continue;
     }
-    if (activeMandate(sql, entry.proxy)) continue;
+    const already =
+      hot?.loaded === true
+        ? hot.mandates.some((row) => row.proxy === entry.proxy && row.active === 1)
+        : activeMandate(sql, entry.proxy);
+    if (already) continue;
     const signed = await sign(message);
+    const previous = hot?.mandates.find((row) => row.proxy === entry.proxy);
     sql.exec(
       `INSERT INTO mandates (proxy, owner, typed_data, sig, active, budget_used_cns, kind)
        VALUES (?, ?, ?, ?, 1, '0', 'house')
@@ -81,9 +104,20 @@ export async function registerPool(
       serializeMandate(message),
       signed.sig,
     );
+    putMandate(hot, {
+      proxy: entry.proxy,
+      owner: signed.owner,
+      typed_data: serializeMandate(message),
+      sig: signed.sig,
+      active: 1,
+      budget_used_cns: previous?.budget_used_cns ?? "0",
+      kind: "house",
+    });
   }
-  return {
-    registered: count(sql, "SELECT COUNT(*) AS n FROM pool"),
-    mandates: count(sql, "SELECT COUNT(*) AS n FROM mandates WHERE active = 1 AND kind = 'house'"),
-  };
+  return (
+    registrationCounts(hot) ?? {
+      registered: count(sql, "SELECT COUNT(*) AS n FROM pool"),
+      mandates: count(sql, "SELECT COUNT(*) AS n FROM mandates WHERE active = 1 AND kind = 'house'"),
+    }
+  );
 }

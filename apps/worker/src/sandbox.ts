@@ -2,6 +2,7 @@ import { TESTNET_ID, buildMandate, delegatedAccountAbi, openChain } from "@lifel
 import { getAddress, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { armPosition } from "./arm.js";
+import type { HotState } from "./hot.js";
 import type { LifelineEnv } from "./lifeline.js";
 import { signMandate } from "./house.js";
 import type { Sql } from "./schema.js";
@@ -18,6 +19,7 @@ export async function sandboxArm(
   env: LifelineEnv,
   request: { proxy?: string; triggerBps?: number; targetBps?: number; ip: string },
   nowMs: number,
+  hot?: HotState | null,
 ): Promise<Response> {
   const recent = sql
     .exec("SELECT COUNT(*) AS n FROM sandbox_hits WHERE ip = ? AND at >= ?", request.ip, nowMs - HOUR_MS)
@@ -25,9 +27,11 @@ export async function sandboxArm(
   if (sandboxLimited(Number(recent?.n ?? 0))) return Response.json({ error: "rate" }, { status: 429 });
   if (!request.proxy) return Response.json({ error: "proxy" }, { status: 400 });
   const proxy = getAddress(request.proxy);
-  const pool = sql.exec("SELECT perp_id, role FROM pool WHERE proxy = ?", proxy).toArray()[0] as
-    | { perp_id?: string; role?: string }
-    | undefined;
+  const pool = hot?.loaded
+    ? hot.pools.find((row) => row.proxy === proxy)
+    : (sql.exec("SELECT perp_id, role FROM pool WHERE proxy = ?", proxy).toArray()[0] as
+        | { perp_id?: string; role?: string }
+        | undefined);
   if (!pool?.perp_id || (pool.role !== "pool" && pool.role !== "twin-protected")) {
     return Response.json({ error: "not found" }, { status: 404 });
   }
@@ -70,5 +74,6 @@ export async function sandboxArm(
       signature: signed.sig,
     },
     nowMs,
+    hot,
   );
 }

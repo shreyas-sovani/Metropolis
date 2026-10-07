@@ -27,13 +27,23 @@ function accountOf(key: string | undefined) {
 }
 
 /** Balances and the demo band for available pool rows. Null when the role keys are absent. */
-export async function readOps(sql: Sql, env: LifelineEnv, now: number): Promise<OpsSnapshot | null> {
+export async function readOps(
+  sql: Sql,
+  env: LifelineEnv,
+  now: number,
+  cached?: readonly { proxy?: string; account_id?: string; perp_id?: string; side?: string }[],
+): Promise<OpsSnapshot | null> {
   const sponsor = accountOf(env.SPONSOR_PK);
   const operator = accountOf(env.OPERATOR_PK);
   if (!sponsor || !operator || urlsOf(env).length === 0) return null;
-  const rows = sql
-    .exec("SELECT proxy, account_id, perp_id, side FROM pool WHERE status = 'available'")
-    .toArray() as { proxy?: string; account_id?: string; perp_id?: string; side?: string }[];
+  const rows =
+    cached ??
+    (sql.exec("SELECT proxy, account_id, perp_id, side FROM pool WHERE status = 'available'").toArray() as {
+      proxy?: string;
+      account_id?: string;
+      perp_id?: string;
+      side?: string;
+    }[]);
   const readable = rows.flatMap((row) => {
     if (!row.proxy || !row.account_id || !row.perp_id) return [];
     return [{ proxy: row.proxy, account_id: String(row.account_id), perp_id: String(row.perp_id) }];

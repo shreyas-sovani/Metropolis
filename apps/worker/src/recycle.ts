@@ -1,6 +1,7 @@
 import { TESTNET_ID, delegatedAccountAbi, openChain, transferOwnershipTx } from "@lifeline/core";
 import { getAddress, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { acceptCached, releaseCached, setPoolStatus, type HotState } from "./hot.js";
 import type { LifelineEnv } from "./lifeline.js";
 import type { Sql } from "./schema.js";
 import { broadcastTx, readDistances, urlsOf, waitForReceipt } from "./tick.js";
@@ -48,29 +49,40 @@ export function planRecycle(claims: readonly OpenClaim[], now: number): RecycleS
   return steps;
 }
 
-export function releaseClaim(sql: Sql, proxy: string) {
+export function releaseClaim(sql: Sql, proxy: string, hot?: HotState | null) {
   sql.exec("UPDATE pool SET status = 'available' WHERE proxy = ? AND role = 'pool'", proxy);
   sql.exec("DELETE FROM claims WHERE proxy = ?", proxy);
+  releaseCached(hot, proxy);
 }
 
-export async function recycleClaims(sql: Sql, env: LifelineEnv, nowMs: number): Promise<number> {
-  const stamp = sql.exec("SELECT recycled_at FROM keeper_stats WHERE id = 1").toArray()[0] as
-    | { recycled_at?: number | null }
-    | undefined;
-  const last = stamp?.recycled_at === undefined || stamp.recycled_at === null ? null : Number(stamp.recycled_at);
+export async function recycleClaims(sql: Sql, env: LifelineEnv, nowMs: number, hot?: HotState | null): Promise<number> {
+  let last: number | null;
+  if (hot?.loaded) {
+    last = hot.recycledAt;
+  } else {
+    const stamp = sql.exec("SELECT recycled_at FROM keeper_stats WHERE id = 1").toArray()[0] as
+      | { recycled_at?: number | null }
+      | undefined;
+    last = stamp?.recycled_at === undefined || stamp.recycled_at === null ? null : Number(stamp.recycled_at);
+  }
   if (!recycleDue(last, nowMs)) return 0;
   sql.exec("UPDATE keeper_stats SET recycled_at = ? WHERE id = 1", nowMs);
+  if (hot) hot.recycledAt = nowMs;
   const house = privateKeyToAccount(env.POOL_OWNER_PK as Hex);
   const urls = urlsOf(env);
   const client = openChain(TESTNET_ID, { urls, timeout: 8_000 }).client;
-  const rows = sql
-    .exec(
-      `SELECT claims.proxy, claims.claimed_at FROM claims
-       JOIN pool ON pool.proxy = claims.proxy
-       WHERE claims.accepted_at IS NULL AND pool.role = 'pool' AND claims.claimed_at <= ?`,
-      nowMs - CLAIM_TTL_MS,
-    )
-    .toArray() as { proxy?: string; claimed_at?: number }[];
+  const rows = hot?.loaded
+    ? hot.openClaims
+        .filter((row) => row.claimed_at <= nowMs - CLAIM_TTL_MS)
+        .map((row) => ({ proxy: row.proxy, claimed_at: row.claimed_at }))
+    : (sql
+        .exec(
+          `SELECT claims.proxy, claims.claimed_at FROM claims
+           JOIN pool ON pool.proxy = claims.proxy
+           WHERE claims.accepted_at IS NULL AND pool.role = 'pool' AND claims.claimed_at <= ?`,
+          nowMs - CLAIM_TTL_MS,
+        )
+        .toArray() as { proxy?: string; claimed_at?: number }[]);
   const open: OpenClaim[] = [];
   for (const row of rows.slice(0, 3)) {
     if (!row.proxy || row.claimed_at === undefined) continue;
@@ -91,6 +103,7 @@ export async function recycleClaims(sql: Sql, env: LifelineEnv, nowMs: number): 
   for (const step of planRecycle(open, nowMs)) {
     if (step.action === "keep") {
       sql.exec("UPDATE claims SET accepted_at = ? WHERE proxy = ?", nowMs, step.proxy);
+      acceptCached(hot, step.proxy);
       continue;
     }
     if (step.action === "clear") {
@@ -107,17 +120,19 @@ export async function recycleClaims(sql: Sql, env: LifelineEnv, nowMs: number): 
       );
       if (!pendingCleared(pending)) continue;
     }
-    releaseClaim(sql, step.proxy);
+    releaseClaim(sql, step.proxy, hot);
     released += 1;
   }
-  await flagReserve(sql, env);
+  await flagReserve(sql, env, hot);
   return released;
 }
 
-async function flagReserve(sql: Sql, env: LifelineEnv) {
-  const rows = sql
-    .exec("SELECT proxy, account_id, perp_id, status FROM pool WHERE role = 'pool' AND status IN ('available', 'reserve')")
-    .toArray() as { proxy?: string; account_id?: string; perp_id?: string; status?: string }[];
+async function flagReserve(sql: Sql, env: LifelineEnv, hot?: HotState | null) {
+  const rows = hot?.loaded
+    ? hot.pools.filter((row) => row.role === "pool" && (row.status === "available" || row.status === "reserve"))
+    : (sql
+        .exec("SELECT proxy, account_id, perp_id, status FROM pool WHERE role = 'pool' AND status IN ('available', 'reserve')")
+        .toArray() as { proxy?: string; account_id?: string; perp_id?: string; status?: string }[]);
   const readable = rows.filter((row) => row.proxy && row.account_id && row.perp_id) as {
     proxy: string;
     account_id: string;
@@ -130,6 +145,9 @@ async function flagReserve(sql: Sql, env: LifelineEnv) {
     if (distance === undefined) continue;
     const next = distance > RESERVE_DISTANCE_E6 ? "reserve" : "available";
     const current = rows.find((item) => item.proxy === row.proxy)?.status;
-    if (current !== next) sql.exec("UPDATE pool SET status = ? WHERE proxy = ?", next, row.proxy);
+    if (current !== next) {
+      sql.exec("UPDATE pool SET status = ? WHERE proxy = ?", next, row.proxy);
+      setPoolStatus(hot, row.proxy, next);
+    }
   }
 }

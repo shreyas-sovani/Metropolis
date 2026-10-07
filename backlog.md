@@ -20,6 +20,8 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 
 **Where the build stands (2026-10-07).** Phases 0–5 and every U-task are `[x]`. D1–D6 are `[x]`. The site is `https://lifeline-five-murex.vercel.app` and the Worker is `https://lifeline.lifeline-shreyas.workers.dev`. The next task is the judge rehearsal on a phone and a laptop, D7.
 
+**Durable Object storage (2026-10-07).** The free plan's 5,000,000 `rows_read` per day was used up. Storage calls failed, the Lifeline constructor threw, and `/health` returned 500. Worker `ebeb878d-64f6-40aa-9381-2a520056d346` keeps the 2 second alarm. A tick reads armed mandates, pending actions, and confirmed actions with no `dist_after` from memory, and reads SQLite again at most once a minute. A send still reads and writes `keys` for the nonce. Migration 9 adds indexes for the residual scans and `actions.created_at`. `/saves` and the soak history are the last 7 days and at most 200 rows. `/twins` is at most 200 pairs. While storage is down, `/health` returns 503 `{"status":"error","degraded":"..."}` and the next request retries migration. Production returned that 503 at 2026-10-07 15:17 UTC (`Exceeded allowed rows read in Durable Objects free tier.`). The quota resets at 2026-10-08 00:00 UTC. The next successful `/health` should return 200 and arm the keeper. Local `wrangler dev` returned 200, `degraded:false`, with 43 ticks. `pnpm --filter @lifeline/worker exec vitest run` passed 46 tests. Expected steady state is about 150,000 rows read per day.
+
 **Still required to finish the core, in order:**
 
 | Next | Task | Who | What it takes |
@@ -1567,3 +1569,4 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - A9 | `?rpc=dead` in development prepends a dead RPC | the radar has to keep rendering when the first public URL fails | headline visible
 - A10 | Lighthouse is measured on `next start`, not the dev server | the dev server compiles on request and understates the score | mobile performance 80, accessibility 96
 - U12 | guest `/claim` and `/sandbox/arm` require a Turnstile token; admin calls do not | the pool drain is a guest script, and the CLI already holds `ADMIN_SECRET` | live 403 for a missing token; admin no-token is 401; Chrome widget height 0
+- ops | the 2s keeper reads armed mandates, pending actions, and open distances from Durable Object memory and refreshes SQLite at most once a minute; `/health` returns 503 while storage throws | a full scan of `actions` every tick passed the free 5,000,000 rows_read/day cap on 2026-10-07, and the constructor throw turned `/health` into 500 | worker `ebeb878d`; local 43 ticks, `degraded:false`; production 503 until 2026-10-08 00:00 UTC; worker vitest 46 passed
