@@ -1,11 +1,11 @@
-const EXPLORER = "https://testnet.monadexplorer.com";
+import { TESTNET_ID, addressUrl as chainAddress, txUrl as chainTx } from "./explorer";
 
 export function txUrl(hash: string): string {
-  return `${EXPLORER}/tx/${hash}`;
+  return chainTx(TESTNET_ID, hash);
 }
 
 export function addressUrl(address: string): string {
-  return `${EXPLORER}/address/${address}`;
+  return chainAddress(TESTNET_ID, address);
 }
 
 export function outcomeBadge(role: "protected" | "unprotected", outcome: string): string {

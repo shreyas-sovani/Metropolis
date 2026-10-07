@@ -15,9 +15,9 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 and U11 and U14 are done. V0 is done. The next item is **§7B V2** (then V1). D7 waits for V14.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 and U11 and U14 are done. V0 and V1 are done. **V2 is `[!]`** until the Durable Object rows-read quota resets (2026-10-08 00:00 UTC) and `pool:register` succeeds. D7 waits for V14.
 5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6, U11, and U14 are done.
-6. **Then read §7B (Productization) in full. It comes before D7.** It turns the prototype into the product: two user stories (a trader and a judge), one landing page, a persistent `/app` with onboarding and a dashboard, a judge tour, and an Anthropic-style design system. It also fixes the flow-breakers and wrong numbers found on production on 2026-10-07. V0 is done. The next task is **V2**, then V1, then the rest of the §7B.7 order.
+6. **Then read §7B (Productization) in full. It comes before D7.** It turns the prototype into the product: two user stories (a trader and a judge), one landing page, a persistent `/app` with onboarding and a dashboard, a judge tour, and an Anthropic-style design system. It also fixes the flow-breakers and wrong numbers found on production on 2026-10-07. V0 and V1 are done. V2's code is in, and its live checks are blocked on the Durable Object quota. After that quota resets, finish V2's live checks, then continue at **V3**.
 
 **Where the build stands (2026-10-07).** Phases 0–5 and every U-task are `[x]`. D1–D6 are `[x]`. The site is `https://lifeline-five-murex.vercel.app` and the Worker is `https://lifeline.lifeline-shreyas.workers.dev`. A planner audit found 21 problems on production (§7B.1). Among them:
 
@@ -27,7 +27,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 - twin distances are null;
 - the scheduled ops runner mints accounts it can't register.
 
-V0 is done. The next task is **V2**, then V1, then the §7B tasks through V14, then the judge rehearsal, D7.
+V0 and V1 are done. V2 is blocked on the Durable Object free-tier rows-read quota until 2026-10-08 00:00 UTC. After `pool:register` and `/health` succeed, continue at **V3**, then the §7B tasks through V14, then the judge rehearsal, D7.
 
 **Durable Object storage (2026-10-07).** The free plan's 5,000,000 `rows_read` per day was used up. Storage calls failed, the Lifeline constructor threw, and `/health` returned 500. Worker `ebeb878d-64f6-40aa-9381-2a520056d346` keeps the 2 second alarm. A tick reads armed mandates, pending actions, and confirmed actions with no `dist_after` from memory, and reads SQLite again at most once a minute. A send still reads and writes `keys` for the nonce. Migration 9 adds indexes for the residual scans and `actions.created_at`. `/saves` and the soak history are the last 7 days and at most 200 rows. `/twins` is at most 200 pairs. While storage is down, `/health` returns 503 `{"status":"error","degraded":"..."}` and the next request retries migration. Production returned that 503 at 2026-10-07 15:17 UTC (`Exceeded allowed rows read in Durable Objects free tier.`). The quota resets at 2026-10-08 00:00 UTC. The next successful `/health` should return 200 and arm the keeper. Local `wrangler dev` returned 200, `degraded:false`, with 43 ticks. `pnpm --filter @lifeline/worker exec vitest run` passed 46 tests. Expected steady state is about 150,000 rows read per day.
 
@@ -185,7 +185,7 @@ You may **not**:
 | Crash slider range | ±10% | §F2 |
 | "Saved" rule | free balance covers the deposit needed to stay at least 1% from the shocked price | §F2 |
 | Claim drip | 0.08 testnet MON | §F4 |
-| Rate limits | 1 claim per Privy user; 3 per IP per hour. **Amended by V2:** 10 claims and 10 demo-mode arms per real client IP per hour, where the IP is forwarded by our server with `PROXY_SECRET`. Update this row when V2 lands. | §F4 |
+| Rate limits | 1 claim per Privy user; 10 claims and 10 demo-mode arms per real client IP per hour. The IP is the one our server forwards with `PROXY_SECRET`. | §F4 |
 | Pool account funding | 400 AUSD (about 100 to the position, about 300 free) | §5.9 |
 | Pool size | at least 20 available; alert below 10 | §5.9 |
 | Pool positions | BTC at the highest allowed leverage up to 15×; ETH up to 12× | §5.9 |
@@ -2138,7 +2138,7 @@ See it on the testnet market map →
   - No timeline text was added: `git diff prd.md` contains no dates, durations, or "deadline".
 - **Evidence:** `prd.md` has §1 stories, §4.0, the F1 landing sentence, the F4 resume sentence, F7 withdraw-any and `login()`, F9's 1% rule and block-range window, F10, and the five-beat §9 script with the backup line kept. `git diff prd.md` has no dates and no "deadline". The only duration words added are the verbatim judge story ("three minutes") and the required "30-day window" phrase. The old clock-timed script was removed.
 
-#### [ ] V1 Numbers judges can check
+#### [x] V1 Numbers judges can check
 - **Type:** AGENT · **Depends on:** V0
 - **Why:** The Envio ($1k) and Perpl Analytics ($3k) proofs show impossible dollar figures today (F5–F10). A judge who opens one stops trusting the rest. Track 1 and Grand Champion depend on credibility.
 - **Do:**
@@ -2174,9 +2174,9 @@ See it on the testnet market map →
   - **DOM:** no text matches `/perp \d/`, and the account card shows `$` prices.
   - **Explorer:** the replay link goes to the chosen mainnet explorer host, and that page loads in a browser showing the hash.
   - **Polling:** with a mocked clock, the radar makes at most 1 `/api/liquidations` request per 60 s and at most 1 `/api/markets` request per 5 min.
-- **Evidence:**
+- **Evidence:** `packages/core/test/v1-notional.test.ts` matches five real mainnet rows in `test/fixtures/v1-liquidations.json` (MON perp 10, blocks 110932992–110954073) to `mark × lot × 1e6 / 10^(priceDecimals+lotDecimals)`. `test/live.test.ts` "liquidation" on 2026-10-07: 577 rows from block 102785487 in 2997 ms, latest 50 notionals match that formula, `eligible.count < totals.count`, and the radar forfeit sum has avoidable < paid. Eligibility is idle × 100 ≥ notional. Rows without a scale are `scaleMissing` and stay out of the totals. The 30-day start is `latest − blocksForDays(…, 30)`. History carries `symbol` and `side`. `/api/account` adds `liquidationMicro` and `priceDecimals`; `formatPrice("83702300000", 1)` is `$83,702.3` and `data-liq` stays the raw price. The tape formatter emits `BTC long · $1,501 · block 111,200,117` and does not match `/perp \d/`. Monadscan `GET /tx/0xdaf150e5…` returned 200 with title "Monad Transaction Hash: 0xdaf150e5…"; Monadvision returned 403, so mainnet links use `monadscan.com`. `test/numbers.test.ts` counts 5 liquidation polls and 1 markets poll across a 5-minute clock. The landing strip's 10 s cadence is `LANDING_MS` for V4; `/` is still the radar, which keeps the 2 s snapshot.
 
-#### [ ] V2 Worker: resume, real client IP, honest ops, isolated demo mode
+#### [!] V2 Worker: resume, real client IP, honest ops, isolated demo mode
 - **Type:** AGENT, plus a HUMAN step only if a GitHub secret can't be set from the CLI · **Depends on:** V0
 - **Why:** These are the flow-breakers (F1–F3, F11–F14). Without them, the Privy ($5k) and Track 1 ($10k) demos fail for the fourth judge in an hour, for anyone who reloads, and on the twins proof. The ops runner is also burning MON on every scheduled run.
 - **Do (start with step 9, because it is losing funds now):**
@@ -2254,7 +2254,7 @@ See it on the testnet market map →
     - one green `ops` run with `pool:register` exiting 0;
     - the recovered accounts are registered (`/health` `poolAvailable` rises by their number), and `pnpm cli status` prints `budget ok`.
   - **Pool band:** after the refill, `/health` reports `low:false`. If the in-band target can't be met cheaply, stop and ask, because it changes alerting: report why, and propose a different threshold.
-- **Evidence:**
+- **Evidence:** Unit tests pass (`pnpm --filter @lifeline/worker exec vitest run`, 56 tests). Repeat claims return `{error:"claimed", proxy, …}`. `acceptedStamp` writes once. A browser `x-lifeline-ip` is ignored; `x-lifeline-client-ip` is honored only with `PROXY_SECRET`. The 11th claim from one IP is rejected and another IP is allowed (`IP_LIMIT` 10). `classifyWatched` saves an open cross, and not a closed position or a mark that has not crossed. `sandboxArm` returns 404 for a twin. `/me` returns the claim or an empty claim. Migration 10 adds `claims.transfer_tx`, `drip_tx`, `accept_tx`, and the `saves` table (migration 9 already existed). `liq_before` stays in price-native units, the same unit as `markPNS`, not micro-dollars. `keys:generate` appended `PROXY_SECRET` and kept `ADMIN_SECRET`. GitHub secrets `ADMIN_SECRET` and `PROXY_SECRET` were set on `shreyas-sovani/Metropolis` without printing the values. Worker `secrets:sync-worker` set `PROXY_SECRET`. Deployed Worker version `1f8bfcc5-5728-492c-a419-483f63a2678c`. **Live checks are blocked.** `GET /health` is 503 `Exceeded allowed rows read in Durable Objects free tier.` The quota resets at 2026-10-08 00:00 UTC. `pool:register` then returned `register failed 500` with that same error, so the recovered accounts are not registered and `/health` cannot show `low:false`, `armed`, `lastBlock`, or `claimsToday`. Twenty of the 24 orphaned proxies from ops runs 37543613519, 37560690810, and 37598188847 verified on chain (pool owner, no pending owner, six selectors revoked, one open BTC position) and were appended to local `cli-state/pool.json` (now 85 accounts). The first four (`0x240dBDd7`, `0x8d33670A`, `0xB2337bbE`, `0x1DF440A0`) had no open position and were left out. Two verified accounts, `0x9d5c146f` (short) and `0x0d603487` (long), are `role: "sandbox"` so demo mode does not take a twin. `CLI_STATE_POOL` was updated. **Do not run `pool:refill` until `/health` is 200.** The workflow change that passes `ADMIN_SECRET` is local until this branch is pushed; the scheduled workflow on GitHub still has the old file. After the quota reset: `pnpm cli pool:register`, then `pnpm cli pool:register --restore-twins`, confirm `/health` is `degraded:false` with `low:false`, and dispatch `ops`.
 
 #### [ ] V3 Design system and app shell
 - **Type:** AGENT · **Depends on:** V0
@@ -2722,3 +2722,12 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - V0 | F9 eligibility is idle at least 1% of notional, and the window is a block range | `posDepositCNS` is the deposit after liquidation, so the old rule marked almost every close eligible | `prd.md` F9
 - V0 | new F10 is the dashboard a trader returns to | there was nothing after the receipt | `prd.md` F10
 - V0 | §9 is the five-beat judge tour, and the backup line stays | the video and the rehearsal follow that tour | `prd.md` §9
+- V1 | eligibility is `idleAtLiq * 100 >= notionalMicro`, and missing scales are excluded from totals | `posDepositCNS` is 0 on a full close, so the old rule marked nearly every liquidation eligible | `summarizeLiquidations`; live history 577 rows, eligible under the total
+- V1 | mainnet explorer links use `https://monadscan.com` | a fetch of the replay transaction returned 200 and the page title contained the hash; `monadvision.com` returned 403 | `apps/web/lib/explorer.ts`
+- V1 | `liq` history starts at `latest − blocksForDays(30)` and drops older rows on each read | the previous cursor started at 0, so the "30 days" label covered every liquidation since genesis | `apps/web/lib/history-store.ts`
+- V2 | claim and demo-mode limits are 10 per real client IP per hour | venue Wi-Fi puts many judges on one address, and Turnstile is the main anti-abuse control | `IP_LIMIT` and sandbox `LIMIT`; §2.2
+- V2 | migration 10 stores claim txs and the saves table | migration 9 already added the hot-path indexes | `apps/worker/src/schema.ts`; schema selftest versions `[1…10]`
+- V2 | a save compares `markPNS` with `liq_before` stored as `liquidationPricePNS` | `liquidationMicroFromContract` is micro-dollars and is a different unit | `apps/worker/src/saves.ts`
+- V2 | watched actions are loaded at most once a minute; the mark comparison still runs every keeper tick | a full actions scan every 2 s already exhausted the free rows-read quota | `noteSaves`; unarmed positions are read in one multicall at most once a minute
+- V2 | two recovered BTC accounts are `role: "sandbox"` instead of minting two more | the pool was already minting accounts it could not register | `0x9d5c146f` short and `0x0d603487` long in `cli-state/pool.json`
+- V2 | live register and `/health` stay blocked until the Durable Object quota resets | production `/health` is 503 `Exceeded allowed rows read in Durable Objects free tier` and `pool:register` returned 500 with the same text | worker `1f8bfcc5`; reset 2026-10-08 00:00 UTC

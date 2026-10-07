@@ -3,6 +3,7 @@ import {
   exchangeAbi,
   forfeitCNS,
   openChain,
+  priceToMicro,
   readAccountByAddr,
   readPositionsForAccount,
   rpcUrls,
@@ -48,7 +49,7 @@ export async function handleAccount(chain: ChainId, address: string): Promise<Re
     const markets = new Map<number, { priceDecimals: number; lotDecimals: number; maintHdths: bigint; symbol: string }>();
     perpIds.forEach((perpId, index) => {
       const infoRow = packed[index * 2] as { priceDecimals: bigint; lotDecimals: bigint; symbol?: string };
-      const symbol = typeof infoRow.symbol === "string" && infoRow.symbol.length > 0 ? infoRow.symbol : `perp ${perpId}`;
+      const symbol = typeof infoRow.symbol === "string" && infoRow.symbol.length > 0 ? infoRow.symbol : "Market";
       markets.set(perpId, {
         priceDecimals: Number(infoRow.priceDecimals),
         lotDecimals: Number(infoRow.lotDecimals),
@@ -89,6 +90,8 @@ export async function handleAccount(chain: ChainId, address: string): Promise<Re
           markMicro: position.markMicro.toString(),
           depositMicro: position.depositMicro.toString(),
           ...risk,
+          liquidationMicro: priceToMicro(BigInt(risk.liquidationPricePNS), market.priceDecimals).toString(),
+          priceDecimals: market.priceDecimals,
           freeCNS: info.freeCNS.toString(),
           forfeitCNS: forfeitCNS(position.depositMicro, SPLIT).toString(),
           dryRun:

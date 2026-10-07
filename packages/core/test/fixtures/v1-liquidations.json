@@ -1,0 +1,72 @@
+[
+  {
+    "blockNumber": 110932992,
+    "perpId": "10",
+    "positionType": 0,
+    "markPricePNS": "29209",
+    "liqLotLNS": "8286",
+    "posDepositCNS": "0",
+    "accAmountCNS": "9635623",
+    "accBalanceCNS": "9972067",
+    "priceDecimals": 6,
+    "lotDecimals": 0,
+    "symbol": "MON",
+    "side": "long"
+  },
+  {
+    "blockNumber": 110947207,
+    "perpId": "10",
+    "positionType": 0,
+    "markPricePNS": "28967",
+    "liqLotLNS": "4917",
+    "posDepositCNS": "0",
+    "accAmountCNS": "4484067",
+    "accBalanceCNS": "222310044",
+    "priceDecimals": 6,
+    "lotDecimals": 0,
+    "symbol": "MON",
+    "side": "long"
+  },
+  {
+    "blockNumber": 110947217,
+    "perpId": "10",
+    "positionType": 0,
+    "markPricePNS": "28917",
+    "liqLotLNS": "55000",
+    "posDepositCNS": "0",
+    "accAmountCNS": "68729360",
+    "accBalanceCNS": "2763222379",
+    "priceDecimals": 6,
+    "lotDecimals": 0,
+    "symbol": "MON",
+    "side": "long"
+  },
+  {
+    "blockNumber": 110954073,
+    "perpId": "10",
+    "positionType": 0,
+    "markPricePNS": "28645",
+    "liqLotLNS": "17",
+    "posDepositCNS": "0",
+    "accAmountCNS": "18041",
+    "accBalanceCNS": "17910175",
+    "priceDecimals": 6,
+    "lotDecimals": 0,
+    "symbol": "MON",
+    "side": "long"
+  },
+  {
+    "blockNumber": 110954073,
+    "perpId": "10",
+    "positionType": 0,
+    "markPricePNS": "28645",
+    "liqLotLNS": "1835",
+    "posDepositCNS": "0",
+    "accAmountCNS": "1780712",
+    "accBalanceCNS": "61043003",
+    "priceDecimals": 6,
+    "lotDecimals": 0,
+    "symbol": "MON",
+    "side": "long"
+  }
+]

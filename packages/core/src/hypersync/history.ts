@@ -11,6 +11,7 @@ export interface CachedHistory extends LiquidationHistory {
 export interface HistoryPage {
   rows: LiquidationRow[];
   cursor: number;
+  minBlock?: number;
 }
 
 export function historyDue(fetchedAt: number | null, now: number, ttl = HISTORY_TTL_MS): boolean {
@@ -23,11 +24,12 @@ function rowKey(row: LiquidationRow): string {
 
 export function recomputeHistory(rows: readonly LiquidationRow[]): LiquidationHistory {
   const ordered = [...rows].sort((left, right) => left.blockNumber - right.blockNumber);
+  const counted = ordered.filter((row) => !row.scaleMissing);
   let notional = 0n;
   let idle = 0n;
   let eligibleCount = 0;
   let eligibleNotional = 0n;
-  for (const row of ordered) {
+  for (const row of counted) {
     notional += BigInt(row.notionalMicro);
     idle += BigInt(row.idleAtLiq);
     if (row.eligible) {
@@ -37,8 +39,8 @@ export function recomputeHistory(rows: readonly LiquidationRow[]): LiquidationHi
   }
   return {
     rows: ordered,
-    latest: ordered.slice(-50),
-    totals: { count: ordered.length, notionalMicro: notional.toString(), idleAtLiq: idle.toString() },
+    latest: counted.slice(-50),
+    totals: { count: counted.length, notionalMicro: notional.toString(), idleAtLiq: idle.toString() },
     eligible: { count: eligibleCount, notionalMicro: eligibleNotional.toString() },
   };
 }
@@ -97,7 +99,10 @@ export class HistoryStore {
     this.hypersyncRequests += 1;
     try {
       const page = await this.load(cursor);
-      const history = recomputeHistory(appendRows(this.current?.rows ?? [], page.rows));
+      const minBlock = page.minBlock ?? 0;
+      const history = recomputeHistory(
+        appendRows(this.current?.rows ?? [], page.rows).filter((row) => row.blockNumber >= minBlock),
+      );
       this.current = { ...history, cursor: page.cursor, fetchedAt: now, stale: false };
       return this.current;
     } catch {

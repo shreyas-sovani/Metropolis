@@ -21,6 +21,9 @@ function row(block: number): LiquidationRow {
     markPricePNS: "10",
     liqLotLNS: "2",
     accAmountCNS: "0",
+    symbol: "BTC",
+    side: "long",
+    scaleMissing: false,
   };
 }
 

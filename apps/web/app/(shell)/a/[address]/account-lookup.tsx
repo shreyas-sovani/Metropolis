@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { MAINNET_PROTECTION, dryRunSentence } from "../../../../lib/account";
-import { formatPct, formatUsd } from "../../../../lib/format";
+import { formatPct, formatPrice, formatUsd } from "../../../../lib/format";
 
 interface Position {
   perpId: number;
@@ -12,6 +12,8 @@ interface Position {
   entryMicro: string;
   markMicro: string;
   liquidationPricePNS: string;
+  liquidationMicro?: string;
+  priceDecimals?: number;
   distanceE6: string;
   depositMicro: string;
   freeCNS: string;
@@ -68,7 +70,8 @@ export function AccountLookup({ params }: { params: Promise<{ address: string }>
             {position.symbol} {position.side}
           </h2>
           <p>
-            Entry {formatUsd(position.entryMicro)} · mark {formatUsd(position.markMicro)} · liquidation {position.liquidationPricePNS}
+            Entry {formatPrice(position.entryMicro, position.priceDecimals ?? 2)} · mark {formatPrice(position.markMicro, position.priceDecimals ?? 2)} · liquidation{" "}
+            {position.liquidationMicro ? formatPrice(position.liquidationMicro, position.priceDecimals ?? 2) : "—"}
           </p>
           <p>
             Distance {formatPct(position.distanceE6)} · deposit {formatUsd(position.depositMicro)} · free {formatUsd(position.freeCNS)}

@@ -1,6 +1,6 @@
 import replay from "../../../data/mainnet-replay.json";
 import { formatPct, formatUsd } from "../../../lib/format";
-import { txUrl } from "../../../lib/twins-view";
+import { MAINNET_ID, txUrl } from "../../../lib/explorer";
 
 function price(pns: string): string {
   const whole = BigInt(pns) / 10n;
@@ -25,7 +25,7 @@ export default function ReplayPage() {
           Mark at liquidation {price(replay.markAtLiquidationPNS)}. Deposit {formatUsd(replay.depositCNS)}. Idle AUSD beside it {formatUsd(replay.idleCNS)}.
         </p>
         <p>
-          <a href={txUrl(replay.tx)}>Liquidation transaction</a>
+          <a href={txUrl(MAINNET_ID, replay.tx)}>Liquidation transaction</a>
         </p>
       </section>
       <section className="panel">

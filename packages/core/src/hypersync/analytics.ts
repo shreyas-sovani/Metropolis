@@ -13,6 +13,7 @@ import {
 export interface MarketScale {
   priceDecimals: number;
   lotDecimals: number;
+  symbol?: string;
 }
 
 export interface LiquidationRow {
@@ -26,6 +27,10 @@ export interface LiquidationRow {
   markPricePNS: string;
   liqLotLNS: string;
   accAmountCNS: string;
+  symbol: string;
+  side: "long" | "short";
+  scaleMissing: boolean;
+  txHash?: string;
 }
 
 export interface LiquidationHistory {
@@ -50,6 +55,10 @@ export function idleAtLiquidation(event: PositionLiquidatedEvent): bigint {
   return event.accBalanceCNS - credited;
 }
 
+function sideOf(positionType: number): "long" | "short" {
+  return positionType === 0 ? "long" : "short";
+}
+
 export function summarizeLiquidations(
   events: readonly PositionLiquidatedEvent[],
   scales: ReadonlyMap<string, MarketScale>,
@@ -57,32 +66,46 @@ export function summarizeLiquidations(
   const rows = [...events]
     .sort((a, b) => a.blockNumber - b.blockNumber)
     .map((event) => {
+      const side = sideOf(event.positionType);
       const scale = scales.get(event.perpId.toString());
-      const priceDecimals = scale?.priceDecimals ?? 0;
-      const lotDecimals = scale?.lotDecimals ?? 0;
-      const notional = notionalMicro(
-        priceToMicro(event.markPricePNS, priceDecimals),
-        lotToScaled(event.liqLotLNS, lotDecimals),
-      );
-      const idle = idleAtLiquidation(event);
-      return {
+      const base = {
         blockNumber: event.blockNumber,
         perpId: event.perpId.toString(),
         positionType: event.positionType,
-        idleAtLiq: idle.toString(),
-        eligible: idle >= event.posDepositCNS,
-        notionalMicro: notional.toString(),
+        idleAtLiq: idleAtLiquidation(event).toString(),
         posDepositCNS: event.posDepositCNS.toString(),
         markPricePNS: event.markPricePNS.toString(),
         liqLotLNS: event.liqLotLNS.toString(),
         accAmountCNS: event.accAmountCNS.toString(),
+        side,
+        txHash: event.txHash,
+      };
+      if (!scale) {
+        return { ...base, eligible: false, notionalMicro: "0", symbol: "", scaleMissing: true };
+      }
+      const notional = notionalMicro(
+        priceToMicro(event.markPricePNS, scale.priceDecimals),
+        lotToScaled(event.liqLotLNS, scale.lotDecimals),
+      );
+      const idle = idleAtLiquidation(event);
+      return {
+        ...base,
+        eligible: idle * 100n >= notional,
+        notionalMicro: notional.toString(),
+        symbol: scale.symbol ?? "",
+        scaleMissing: false,
       };
     });
+  return totalsFrom(rows);
+}
+
+function totalsFrom(rows: LiquidationRow[]): LiquidationHistory {
   let notional = 0n;
   let idle = 0n;
   let eligibleCount = 0;
   let eligibleNotional = 0n;
-  for (const row of rows) {
+  const counted = rows.filter((row) => !row.scaleMissing);
+  for (const row of counted) {
     notional += BigInt(row.notionalMicro);
     idle += BigInt(row.idleAtLiq);
     if (row.eligible) {
@@ -92,8 +115,8 @@ export function summarizeLiquidations(
   }
   return {
     rows,
-    latest: rows.slice(-50),
-    totals: { count: rows.length, notionalMicro: notional.toString(), idleAtLiq: idle.toString() },
+    latest: counted.slice(-50),
+    totals: { count: counted.length, notionalMicro: notional.toString(), idleAtLiq: idle.toString() },
     eligible: { count: eligibleCount, notionalMicro: eligibleNotional.toString() },
   };
 }
@@ -139,6 +162,7 @@ export async function liquidationHistory(input: {
   scales: ReadonlyMap<string, MarketScale>;
   fetchImpl?: HyperSyncFetch;
   retryOnRateLimit?: boolean;
+  resolveScale?: (perpId: string) => Promise<MarketScale | null>;
 }): Promise<LiquidationHistory> {
   const scanned = await paginateLogs({
     endpoint: HYPERSYNC_ENDPOINTS[input.chainId],
@@ -150,7 +174,19 @@ export async function liquidationHistory(input: {
     retryOnRateLimit: input.retryOnRateLimit,
   });
   const events = scanned.logs.map((log) => decodePositionLiquidated(log));
-  return summarizeLiquidations(events, input.scales);
+  const scales = new Map(input.scales);
+  let summary = summarizeLiquidations(events, scales);
+  if (!input.resolveScale) return summary;
+  const missing = [...new Set(summary.rows.filter((row) => row.scaleMissing).map((row) => row.perpId))];
+  let filled = false;
+  for (const perpId of missing) {
+    const scale = await input.resolveScale(perpId);
+    if (!scale) continue;
+    scales.set(perpId, scale);
+    filled = true;
+  }
+  if (filled) summary = summarizeLiquidations(events, scales);
+  return summary;
 }
 
 export async function lifelineActions(input: {

@@ -15,6 +15,9 @@ function row(block: number, notional = "1000", idle = "50"): LiquidationRow {
     markPricePNS: String(block),
     liqLotLNS: "1",
     accAmountCNS: "0",
+    symbol: "BTC",
+    side: "long",
+    scaleMissing: false,
   };
 }
 

@@ -72,8 +72,9 @@ describe("hypersync analytics", () => {
       history.rows.reduce((sum, row) => sum + BigInt(row.notionalMicro), 0n),
     );
     expect(history.rows[0]?.eligible).toBe(false);
-    expect(history.rows[1]?.eligible).toBe(true);
-    expect(history.eligible.count).toBe(1);
+    expect(history.rows[1]?.eligible).toBe(false);
+    expect(history.eligible.count).toBe(0);
+    expect(history.rows[0]?.side).toBe("long");
     expect(history.latest).toHaveLength(2);
 
     const extra = Array.from({ length: 60 }, (_, index) =>
@@ -89,7 +90,29 @@ describe("hypersync analytics", () => {
         }),
       ),
     );
-    expect(summarizeLiquidations(extra, new Map()).latest).toHaveLength(50);
+    const missing = summarizeLiquidations(extra, new Map());
+    expect(missing.rows.every((row) => row.scaleMissing)).toBe(true);
+    expect(missing.totals.count).toBe(0);
+    expect(missing.latest).toHaveLength(0);
+  });
+
+  it("treats idle of at least 1% of notional as eligible", () => {
+    const event = (idle: bigint) =>
+      decodePositionLiquidated(
+        liquidatedLog({
+          block: 1,
+          perpId: 1n,
+          accAmountCNS: 0n,
+          accBalanceCNS: idle,
+          posDepositCNS: 0n,
+          markPricePNS: 100n,
+          liqLotLNS: 1n,
+        }),
+      );
+    const scales = new Map([["1", { priceDecimals: 0, lotDecimals: 0, symbol: "BTC" }]]);
+    expect(summarizeLiquidations([event(0n)], scales).rows[0]?.eligible).toBe(false);
+    expect(summarizeLiquidations([event(1_000_000n)], scales).rows[0]?.eligible).toBe(true);
+    expect(summarizeLiquidations([event(990_000n)], scales).rows[0]?.eligible).toBe(false);
   });
 
   it("filters collateral increases to the requested accounts", () => {

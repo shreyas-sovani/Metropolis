@@ -6,6 +6,7 @@ export interface HyperSyncLog {
   data: Hex;
   topic0: Hex;
   log_index?: number;
+  transaction_hash?: Hex;
 }
 
 export interface PositionLiquidatedEvent {
@@ -24,6 +25,7 @@ export interface PositionLiquidatedEvent {
   accAmountCNS: bigint;
   accBalanceCNS: bigint;
   onOrderBook: boolean;
+  txHash?: string;
 }
 
 export interface IncreasePositionCollateralEvent {
@@ -54,6 +56,11 @@ function asBigint(value: unknown, field: string): bigint {
   return value;
 }
 
+function txHashOf(log: HyperSyncLog): string | undefined {
+  const hash = log.transaction_hash;
+  return typeof hash === "string" && hash.startsWith("0x") ? hash : undefined;
+}
+
 function asNumber(value: unknown, field: string): number {
   if (typeof value === "number") return value;
   if (typeof value === "bigint") return Number(value);
@@ -78,6 +85,7 @@ export function decodePositionLiquidated(log: HyperSyncLog): PositionLiquidatedE
     accAmountCNS: asBigint(args.accAmountCNS, "accAmountCNS"),
     accBalanceCNS: asBigint(args.accBalanceCNS, "accBalanceCNS"),
     onOrderBook: args.onOrderBook === true,
+    txHash: txHashOf(log),
   };
 }
 

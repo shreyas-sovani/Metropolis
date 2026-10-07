@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -9,6 +9,7 @@ import { openChain } from "../src/chain/api.js";
 import { PUBLIC_RPC_URLS } from "../src/config/chains.js";
 import { ADDRESSES } from "../src/config/addresses.js";
 import { blocksForDays, liquidationHistory } from "../src/hypersync/analytics.js";
+import { forfeitCNS } from "../src/radar/penalty.js";
 import { radarSalt } from "../src/radar/anonymize.js";
 import { buildSnapshot } from "../src/radar/snapshot.js";
 import { radarSnapshotSchema } from "../src/radar/schema.js";
@@ -179,7 +180,12 @@ describe("live hypersync analytics", () => {
     const span = blocksForDays(latest.number, latest.timestamp, earlier.number, earlier.timestamp, 30);
     const fromBlock = Number(latest.number > span ? latest.number - span : 0n);
     const perps = await chain.listPerps();
-    const scales = new Map(perps.map((perp) => [String(perp.perpId), { priceDecimals: perp.priceDecimals, lotDecimals: perp.lotDecimals }]));
+    const scales = new Map(
+      perps.map((perp) => [
+        String(perp.perpId),
+        { priceDecimals: perp.priceDecimals, lotDecimals: perp.lotDecimals, symbol: perp.symbol || perp.name },
+      ]),
+    );
     const started = Date.now();
     const history = await liquidationHistory({
       chainId: 143,
@@ -197,5 +203,46 @@ describe("live hypersync analytics", () => {
       history.rows.reduce((sum, row) => sum + BigInt(row.notionalMicro), 0n),
     );
     expect(history.latest.length).toBeLessThanOrEqual(50);
+    expect(history.eligible.count).toBeLessThan(history.totals.count);
+    const byPerp = new Map(perps.map((perp) => [String(perp.perpId), perp]));
+    for (const row of history.latest) {
+      const perp = byPerp.get(row.perpId);
+      expect(perp, row.perpId).toBeTruthy();
+      const expected = (BigInt(row.markPricePNS) * BigInt(row.liqLotLNS) * 1_000_000n) / 10n ** BigInt((perp?.priceDecimals ?? 0) + (perp?.lotDecimals ?? 0));
+      expect(BigInt(row.notionalMicro)).toBe(expected);
+      expect(row.symbol.length).toBeGreaterThan(0);
+      expect(row.side === "long" || row.side === "short").toBe(true);
+    }
+    const split = { userPer100K: 80_000n, insPer100K: 10_000n, protocolPer100K: 10_000n };
+    let paid = 0n;
+    let avoidable = 0n;
+    for (const row of history.rows) {
+      if (row.scaleMissing) continue;
+      const credit = BigInt(row.accAmountCNS || "0");
+      const forfeited = forfeitCNS((credit * 100_000n) / split.userPer100K, split);
+      paid += forfeited;
+      if (row.eligible) avoidable += forfeited;
+    }
+    expect(avoidable).toBeLessThan(paid);
+    if (process.env.WRITE_FIXTURE === "1") {
+      const sample = history.latest.slice(0, 5).map((row) => {
+        const perp = byPerp.get(row.perpId);
+        return {
+          blockNumber: row.blockNumber,
+          perpId: row.perpId,
+          positionType: row.positionType,
+          markPricePNS: row.markPricePNS,
+          liqLotLNS: row.liqLotLNS,
+          posDepositCNS: row.posDepositCNS,
+          accAmountCNS: row.accAmountCNS,
+          accBalanceCNS: String(BigInt(row.idleAtLiq) + (BigInt(row.accAmountCNS) > 0n ? BigInt(row.accAmountCNS) : 0n)),
+          priceDecimals: perp?.priceDecimals ?? 0,
+          lotDecimals: perp?.lotDecimals ?? 0,
+          symbol: row.symbol,
+          side: row.side,
+        };
+      });
+      writeFileSync(new URL("./fixtures/v1-liquidations.json", import.meta.url), `${JSON.stringify(sample, null, 2)}\n`);
+    }
   }, 30_000);
 });

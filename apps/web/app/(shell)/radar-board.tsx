@@ -4,7 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { ExactBadge } from "../exact-badge";
 import { ONE_LINER } from "../../lib/copy";
 import { bucketHit, crashLine } from "../../lib/crash-line";
+import { MAINNET_ID, blockUrl, txUrl } from "../../lib/explorer";
 import { formatPct, formatUsd } from "../../lib/format";
+import { LIQUIDATIONS_MS, MARKETS_MS, RADAR_MS, SAVES_MS, pollDue } from "../../lib/poll";
+import { liquidationTape } from "../../lib/tape";
 import type { CompactPosition } from "../../../../packages/core/src/radar/schema";
 
 interface Bucket {
@@ -52,6 +55,9 @@ interface TapeRow {
   blockNumber: number;
   perpId: string;
   notionalMicro: string;
+  symbol?: string;
+  side?: string;
+  txHash?: string;
 }
 
 const MARK_INDEX = 60;
@@ -71,9 +77,12 @@ export function RadarBoard() {
   const [shocks, setShocks] = useState<Record<number, number>>({});
   const urlApplied = useRef(false);
 
+  const polled = useRef({ liquidations: null as number | null, markets: null as number | null, saves: null as number | null });
+
   useEffect(() => {
     let gone = false;
     async function load() {
+      if (document.visibilityState !== "visible") return;
       try {
         const params = new URLSearchParams(window.location.search);
         if (!urlApplied.current) {
@@ -83,28 +92,41 @@ export function RadarBoard() {
             return;
           }
         }
+        const now = Date.now();
         const fault = process.env.NODE_ENV !== "production" && params.get("rpc") === "dead";
         const radar = await fetch(`/api/radar?chain=${chain}${fault ? "&rpc=dead" : ""}`);
         if (!radar.ok) throw new Error("radar");
         const snapshot = (await radar.json()) as RadarPayload;
-        if (!gone) setData((current) => ({ ...snapshot, saves: current?.saves, names: current?.names, sparks: current?.sparks }));
+        const wantHistory = pollDue(polled.current.liquidations, now, LIQUIDATIONS_MS);
+        const wantMarkets = pollDue(polled.current.markets, now, MARKETS_MS);
+        const wantSaves = pollDue(polled.current.saves, now, SAVES_MS);
+        if (wantHistory) polled.current.liquidations = now;
+        if (wantMarkets) polled.current.markets = now;
+        if (wantSaves) polled.current.saves = now;
         const [liquidations, markets, saves] = await Promise.all([
-          fetch("/api/liquidations"),
-          fetch("/api/markets"),
-          fetch("/api/saves"),
+          wantHistory ? fetch("/api/liquidations") : Promise.resolve(null),
+          wantMarkets ? fetch("/api/markets") : Promise.resolve(null),
+          wantSaves ? fetch("/api/saves") : Promise.resolve(null),
         ]);
-        const history = liquidations.ok ? ((await liquidations.json()) as { latest?: TapeRow[] }) : {};
-        const meta = markets.ok ? ((await markets.json()) as { markets?: { perpId: number; name: string; spark: number[] }[] }) : {};
-        const saveBody = saves.ok ? ((await saves.json()) as { count?: number }) : { count: 0 };
-        const names: Record<string, string> = {};
-        const sparks: Record<string, number[]> = {};
-        for (const market of meta.markets ?? []) {
-          names[String(market.perpId)] = market.name;
-          sparks[String(market.perpId)] = market.spark;
-        }
+        const history = liquidations?.ok ? ((await liquidations.json()) as { latest?: TapeRow[] }) : null;
+        const meta = markets?.ok ? ((await markets.json()) as { markets?: { perpId: number; name: string; spark: number[] }[] }) : null;
+        const saveBody = saves?.ok ? ((await saves.json()) as { count?: number }) : null;
         if (!gone) {
-          setData({ ...snapshot, saves: { count: saveBody.count ?? 0 }, names, sparks });
-          setTape(history.latest ?? []);
+          setData((current) => {
+            const names = { ...(current?.names ?? {}) };
+            const sparks = { ...(current?.sparks ?? {}) };
+            for (const market of meta?.markets ?? []) {
+              names[String(market.perpId)] = market.name;
+              sparks[String(market.perpId)] = market.spark;
+            }
+            return {
+              ...snapshot,
+              saves: saveBody ? { count: saveBody.count ?? 0 } : current?.saves,
+              names,
+              sparks,
+            };
+          });
+          if (history) setTape(history.latest ?? []);
           setError("");
         }
       } catch {
@@ -112,7 +134,7 @@ export function RadarBoard() {
       }
     }
     void load();
-    const timer = setInterval(() => void load(), 2_000);
+    const timer = setInterval(() => void load(), RADAR_MS);
     return () => {
       gone = true;
       clearInterval(timer);
@@ -244,8 +266,15 @@ export function RadarBoard() {
               <h2>Recent liquidations</h2>
               <ul className="tape">
                 {tape.slice(-8).map((row) => (
-                  <li key={`${row.blockNumber}-${row.perpId}`}>
-                    Block {row.blockNumber} · perp {row.perpId} · {formatUsd(row.notionalMicro)}
+                  <li key={`${row.blockNumber}-${row.perpId}-${row.txHash ?? ""}`}>
+                    <a href={row.txHash ? txUrl(MAINNET_ID, row.txHash) : blockUrl(MAINNET_ID, row.blockNumber)}>
+                      {liquidationTape({
+                        symbol: row.symbol ?? "",
+                        side: row.side ?? "",
+                        notionalMicro: row.notionalMicro,
+                        blockNumber: row.blockNumber,
+                      })}
+                    </a>
                   </li>
                 ))}
               </ul>

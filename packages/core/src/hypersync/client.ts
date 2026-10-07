@@ -112,7 +112,7 @@ export async function paginateLogs(input: {
               : {}),
         },
       ],
-      field_selection: { log: ["block_number", "log_index", "data", "topic0"] },
+      field_selection: { log: ["block_number", "log_index", "data", "topic0", "transaction_hash"] },
     };
     const page = await queryHyperSync({
       endpoint: input.endpoint,
