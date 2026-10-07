@@ -15,19 +15,19 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D2 and D3 are done. D1 is deployed; its pass still needs the production origin on the Privy and Turnstile allowlists.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D2 and D3 are done. Next is the D1 origin allowlist, then D4.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D4 are done. The §7A order's next item is D5.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D4 are done. The next item is D5.
 
-**Where the build stands (2026-10-07).** Phases 0–5 and every U-task except U11 and U14 are `[x]`. The Worker is at `https://lifeline.lifeline-shreyas.workers.dev` and the site is at `https://lifeline-five-murex.vercel.app`. D2 and D3 pass. D1's deploy is up; Privy still frames only `http://localhost:3000`, so the guest console is not clean until that origin is allowed.
+**Where the build stands (2026-10-07).** Phases 0–5 and every U-task except U11 and U14 are `[x]`. D1–D4 are `[x]`. The site is `https://lifeline-five-murex.vercel.app` and the Worker is `https://lifeline.lifeline-shreyas.workers.dev`. The next task is the production demo check, D5.
 
 **Still required to finish the core, in order:**
 
 | Next | Task | Who | What it takes |
 |---|---|---|---|
-| 1 | D1 | Human | Add `https://lifeline-five-murex.vercel.app` to the Privy allowed origins and to the Turnstile widget hostnames. The Vercel project is already live. |
+| 1 | D1 | Done | Production `https://lifeline-five-murex.vercel.app`. Privy and Turnstile allow that origin. |
 | 2 | D2 | Done | `/health` is `degraded:false` with `ticksLast10m` 285. |
 | 3 | D3 | Done | `budget ok`, pool 31 available (27 BTC, 4 ETH), twins 7, every free position above the house trigger. |
-| 4 | D4 | Human | Free UptimeRobot monitors on Worker `/health` and the Vercel site, plus one test alert. |
+| 4 | D4 | Done | Uptime monitors are up. The human received the test email. |
 | 5 | D5 | Agent, plus one human Privy run | Three production demo runs, then you claim once in a real browser. |
 | 6 | D6, U11 | Agent | Ops runbook, and the `/judges` bounty map. |
 | 7 | U14 | Agent | Replay one recent mainnet liquidation into static JSON. Do this before the video. |
@@ -935,7 +935,7 @@ The human can prepare these in advance.
 
 ### Phase 6: Deploy and operations
 
-#### [ ] D1 Vercel project
+#### [x] D1 Vercel project
 - **Type:** **HUMAN**, then AGENT · **Depends on:** A1 · **PRD:** §5.1
 - **Prompt the human:**
   - Create or sign in to a free Vercel account and approve `vercel login` when the agent runs it.
@@ -948,7 +948,7 @@ The human can prepare these in advance.
 - **Pass:**
   - The production URL serves `/` with live radar data.
   - The Privy guest flow initializes on the production origin, with no origin error in the console.
-- **Evidence:** Project `lifeline` on team `shreyas-sovanis-projects`, root `apps/web`, Node 22. Production `https://lifeline-five-murex.vercel.app` returns `/` with the opening line and live dollar figures. `/api/radar` returned block data, headline `positionCount` 608, and BTC among 17 markets. The production bundle contains Privy and the app id. A headless load of `/` still logs `Framing 'https://auth.privy.io/' violates ... frame-ancestors 'self' http://localhost:3000 https://auth.privy.io`. That allowlist, and the Turnstile hostname, are the remaining human step. Not checked off until the console is clean.
+- **Evidence:** Project `lifeline` on team `shreyas-sovanis-projects`, root `apps/web`, Node 22. Production `https://lifeline-five-murex.vercel.app` returns `/` with the opening line and live dollar figures. `/api/radar` returned block data, headline `positionCount` 608, and BTC among 17 markets. After the origin was added, a headless load logged zero `frame-ancestors` errors. `GET https://auth.privy.io/api/v1/apps/...` returned 200, and the embedded-wallet iframe loaded. The Try Lifeline button reached `data-ready=yes`.
 
 #### [x] D2 Production Worker
 - **Type:** AGENT · **Depends on:** W1–W9 · **PRD:** §5.5
@@ -969,13 +969,13 @@ The human can prepare these in advance.
   - Every pool position's distance is above its house trigger.
 - **Evidence:** `pnpm cli status` exited 0 with `budget ok need=31.1400 sponsor=33.6809` and no `LOW:` or `SHORT:` lines. `pool:create --count 4 --market ETH` exited 0 (`done 4/4`); the four proxies sit at distance 33147–33526, inside the demo band, two long and two short. `pool:register` exited 0 (`registered 75 mandates 41`). `/health` then showed `poolAvailable` 31, `poolInBand` 16, `poolBySide` `{"long":14,"short":17}`, `low` false. An independent read of every free pool account found 31 above the 1.5% house trigger and 0 below (27 BTC, 4 ETH). `GET /twins` returned `count` 7.
 
-#### [ ] D4 Uptime monitoring
+#### [x] D4 Uptime monitoring
 - **Type:** **HUMAN** · **Depends on:** D2 · **PRD:** §5.5
 - **Prompt the human:** Create a free UptimeRobot account and add:
   - a keyword monitor on `<worker>/health` that alerts when the body contains `"degraded":true` or `"low":true` (U5), or when the check fails, every 5 minutes, alerting your email;
   - an HTTP monitor on the Vercel `/`.
 - **Pass:** Both monitors show "up," and a test alert (pause the Worker briefly with `LIFELINE_PAUSED` or make `/health` fail) reaches the human. The human confirms.
-- **Evidence:**
+- **Evidence:** The human set up the UptimeRobot monitors on Worker `/health` and the Vercel site, sent a test notification, and confirmed the email arrived on 2026-10-07. No pause of the Worker was required.
 
 #### [ ] D5 Production end-to-end demo check
 - **Type:** AGENT · **Depends on:** D1–D4, A1–A10 · **PRD:** §9
@@ -1182,7 +1182,7 @@ These tasks come from a review of the build's progress against the prize targets
 5. **U7**, then A1–A3. Done.
 6. A4–A6 together with **U8, U9, U10, U13, U16**. Done.
 7. A7 with **U6**, then A8–A10. Done.
-8. **U12** (it has a HUMAN step), then D1–D4. U12, D2, and D3 are done. D1 is deployed and waiting on the Privy and Turnstile origins. Next is that allowlist, then D4.
+8. **U12** (it has a HUMAN step), then D1–D4. U12 and D1–D4 are done. Next is D5.
 9. D5, using U6's criteria.
 10. **U11** before R1 and R2. **U14** before D8, so the replay can appear in the video.
 
