@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BOUNTIES, JUDGE_PATH, proofUrl } from "../lib/bounties";
+import { BOUNTIES, JUDGE_PATH, PRACTICE_ACCOUNT, PRACTICE_LOOKUP, proofUrl } from "../lib/bounties";
 
 async function txExists(url: string): Promise<boolean> {
   const hash = url.split("/tx/")[1] ?? "";
@@ -14,7 +14,9 @@ async function txExists(url: string): Promise<boolean> {
 
 describe("judge proofs", () => {
   it("every bounty and judge-path link answers", async () => {
-    const urls = [...BOUNTIES.map((bounty) => proofUrl(bounty.proof)), ...JUDGE_PATH.map((step) => proofUrl(step.href))];
+    const practice = proofUrl(PRACTICE_LOOKUP);
+    expect(practice).toContain(PRACTICE_ACCOUNT);
+    const urls = [...BOUNTIES.map((bounty) => proofUrl(bounty.proof)), ...JUDGE_PATH.map((step) => proofUrl(step.href)), practice];
     expect(new Set(urls).size).toBe(urls.length);
     for (const url of urls) {
       if (url.includes("/tx/0x")) {

@@ -1,0 +1,31 @@
+.check-page {
+  padding-block: 48px 96px;
+  display: grid;
+  gap: 24px;
+}
+
+.check-page form { display: grid; gap: 8px; }
+
+.check-head { display: grid; gap: 8px; }
+.check-page h1 { margin: 0; }
+.check-sub { margin: 0; max-width: 66ch; color: var(--ink-2); }
+
+.check-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.check-form .ui-input,
+.check-form .ui-select,
+.check-form > .ui-button {
+  height: 44px;
+  box-sizing: border-box;
+}
+
+.check-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+@media (max-width: 800px) {
+  .check-form { grid-template-columns: 1fr; }
+}

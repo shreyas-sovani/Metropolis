@@ -1,7 +1,15 @@
 export const SITE = "https://lifeline-five-murex.vercel.app";
 
-const RISK = "/api/v1/risk/0x77A89C51f106D6cD547542a3A83FE73cB4459135?chain=143";
-const LOOKUP = "/a/0x77A89C51f106D6cD547542a3A83FE73cB4459135?chain=143";
+/** A mainnet account the check page offers as a live example. */
+export const MAINNET_EXAMPLE = "0x77A89C51f106D6cD547542a3A83FE73cB4459135";
+
+/** A pool account from `cli-state/pool.json` (BTC long, perp 16). */
+export const PRACTICE_ACCOUNT = "0xe3929EB4561f70A2Eb1Bc78957CCd0A87dABB362";
+
+export const PRACTICE_LOOKUP = `/a/${PRACTICE_ACCOUNT}?chain=10143`;
+
+const RISK = `/api/v1/risk/${MAINNET_EXAMPLE}?chain=143`;
+const LOOKUP = `/a/${MAINNET_EXAMPLE}?chain=143`;
 const TOPUP = "https://testnet.monadexplorer.com/tx/0xf322eed96f2f1460cc6477b3037ce2a7cfd56d3a31198242712d236644099d85";
 const ACCEPT = "https://testnet.monadexplorer.com/tx/0xaa32f3a1aeace9c5582de8f31ec49499af4673fd6d89762de88cc50b10f73dac";
 

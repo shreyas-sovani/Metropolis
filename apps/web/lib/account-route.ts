@@ -31,6 +31,16 @@ export async function handleAccount(chain: ChainId, address: string): Promise<Re
     const chainApi = openChain(chain, { urls: rpcUrls(chain), timeout: 8_000 });
     const exchange = ADDRESSES[chain].exchange;
     const info = await readAccountByAddr(chainApi.client, exchange, account);
+    if (info.accountId === 0n) {
+      return Response.json({
+        chainId: chain,
+        address: account,
+        accountId: "0",
+        found: false,
+        idleMicro: "0",
+        positions: [],
+      });
+    }
     const [positions, block, timestamp] = await Promise.all([
       readPositionsForAccount(chainApi.client, exchange, info.accountId),
       chainApi.client.getBlockNumber(),
@@ -101,7 +111,14 @@ export async function handleAccount(chain: ChainId, address: string): Promise<Re
         },
       ];
     });
-    return Response.json({ chainId: chain, address: account, accountId: info.accountId.toString(), positions: rows });
+    return Response.json({
+      chainId: chain,
+      address: account,
+      accountId: info.accountId.toString(),
+      found: true,
+      idleMicro: info.freeCNS.toString(),
+      positions: rows,
+    });
   } catch {
     return jsonError("rpc", 502);
   }

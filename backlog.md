@@ -15,11 +15,11 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 and U11 and U14 are done. V0, V1, V3, V4, and V5 are done. **V2 is `[!]`** until the Durable Object rows-read quota resets (2026-10-08 00:00 UTC) and `pool:register` succeeds. D7 waits for V14.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 and U11 and U14 are done. V0, V1, V3, V4, V5, and V6 are done. **V2 is `[!]`** until the Durable Object rows-read quota resets (2026-10-08 00:00 UTC) and `pool:register` succeeds. D7 waits for V14.
 5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6, U11, and U14 are done.
-6. **Then read §7B (Productization) in full. It comes before D7.** It turns the prototype into the product: two user stories (a trader and a judge), one landing page, a persistent `/app` with onboarding and a dashboard, a judge tour, and an Anthropic-style design system. It also fixes the flow-breakers and wrong numbers found on production on 2026-10-07. V0, V1, V3, V4, and V5 are done. V2's code is in, and its live checks are blocked on the Durable Object quota. V3, V4, and V5 are local only and are not deployed, so production still serves the previous shell. After that quota resets, finish V2's live checks. The next product task is **V6**.
+6. **Then read §7B (Productization) in full. It comes before D7.** It turns the prototype into the product: two user stories (a trader and a judge), one landing page, a persistent `/app` with onboarding and a dashboard, a judge tour, and an Anthropic-style design system. It also fixes the flow-breakers and wrong numbers found on production on 2026-10-07. V0, V1, V3, V4, V5, and V6 are done. V2's code is in, and its live checks are blocked on the Durable Object quota. V3, V4, V5, and V6 are local only and are not deployed, so production still serves the previous shell. After that quota resets, finish V2's live checks. The next product task is **V7**, which waits on those checks.
 
-**Where the build stands (2026-10-08).** Phases 0–5, every U-task, and D1–D6 are `[x]`. The site is `https://lifeline-five-murex.vercel.app`. The Worker is `https://lifeline.lifeline-shreyas.workers.dev`, version `1f8bfcc5-5728-492c-a419-483f63a2678c`. V0, V1, V3, V4, and V5 are done locally. V2's live checks are still blocked. V3, V4, and V5 are not deployed, so production still shows the previous shell. V6–V14, D7, D8, R1, and R2 are not started.
+**Where the build stands (2026-10-08).** Phases 0–5, every U-task, and D1–D6 are `[x]`. The site is `https://lifeline-five-murex.vercel.app`. The Worker is `https://lifeline.lifeline-shreyas.workers.dev`, version `1f8bfcc5-5728-492c-a419-483f63a2678c`. V0, V1, V3, V4, V5, and V6 are done locally. V2's live checks are still blocked. V3, V4, V5, and V6 are not deployed, so production still shows the previous shell. V7–V14, D7, D8, R1, and R2 are not started.
 
 **Done**
 
@@ -31,6 +31,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 | V3 | `[x]` | Anthropic tokens, Poppins / Lora / JetBrains Mono, the component set, the ivory shell, `/dev/ui` (404 in production), and `/api/ops-health`. Lighthouse mobile accessibility on `next start` `/` is 100. Not deployed. |
 | V4 | `[x]` | `/` is the landing page. Live strip uses `/api/radar?chain=143` every 10 s. Lighthouse mobile on `next start` `/`: performance 95, accessibility 100, best practices 100. Not deployed. |
 | V5 | `[x]` | `/radar` is the market-risk page: chain control, stats, one chart per market with buckets, empty markets collapsed, crash slider, at-risk table, and the testnet "Your position" highlight. Not deployed. |
+| V6 | `[x]` | `/check` and `/a/[address]` are the risk report. Liquidation prices are dollars. The testnet example is pool account `0xe3929EB4`. Not deployed. |
 
 **Blocking V2 (live checks only).** V3 is done locally and is not on production. Do not deploy the new shell, and do not run `pool:refill`, until the checks below pass.
 
@@ -52,7 +53,7 @@ The Durable Object free plan used up its 5,000,000 `rows_read` for the day. At 2
 3. `pnpm cli pool:register`, then `pnpm cli pool:register --restore-twins`.
 4. `curl` `/health` until it is `degraded:false`. Confirm `armed`, `lastBlock`, `claimsToday`, and whether `low` is false. If the in-band target cannot be met without a large refill, stop and ask.
 5. `gh workflow run ops.yml` and wait for one green run with `pool:register` exiting 0.
-6. Mark V2 `[x]` only when the live checks in its Pass section hold. V3, V4, and V5 are already `[x]` locally. Continue at **V6**.
+6. Mark V2 `[x]` only when the live checks in its Pass section hold. V3, V4, V5, and V6 are already `[x]` locally. Continue at **V7** after V2.
 
 **Recovered accounts (already verified, waiting on register).** Twenty proxies from those three failed runs: pool owner, pending owner zero, six operator selectors revoked, one open BTC position (perp 16). Appended to local `cli-state/pool.json` (85 accounts). Left out, no open position: `0x240dBDd7`, `0x8d33670A`, `0xB2337bbE`, `0x1DF440A0`. Marked `role: "sandbox"` instead of minting new ones: `0x9d5c146f` (short) and `0x0d603487` (long).
 
@@ -74,7 +75,7 @@ The Durable Object free plan used up its 5,000,000 `rows_read` for the day. At 2
 | 8b | V1 | Done | Liquidation numbers, 30-day window, dollar prices, Monadscan. Commit `edd5cd7`. |
 | 8c | V2 | Blocked | Code is deployed (`1f8bfcc5`, commit `61b4f15`). Live checks wait on the Durable Object quota reset at 2026-10-08 00:00 UTC, then `pool:register` and a green ops run. See "Where the build stands" above. |
 | 8d | V3 | Done | Design system and ivory shell. Local only; production is unchanged. Lighthouse accessibility 100. |
-| 8e | V6–V14 | Not started | Risk report, `/app`, proof, developers, judge tour, and journeys. V4 and V5 are `[x]` locally. |
+| 8e | V7–V14 | Not started | `/app`, proof, developers, judge tour, and journeys. V4, V5, and V6 are `[x]` locally. V7 waits on V2. |
 | 9 | D7 | Human | Run both §7B.2 stories on a phone and a laptop. |
 | 10 | D8 | Human | Record the ≤ 3 minute judge tour and send the link. |
 | 11 | R1 | Agent | README, MIT license, clean `secrets:check`. |
@@ -2360,7 +2361,7 @@ See it on the testnet market map →
   - **Screenshots:** `v5-radar-390.png`, `v5-radar-1440.png`, and `v5-radar-crash-1440.png` (BTC at −3%).
 - **Evidence:** `pnpm --filter @lifeline/web exec vitest run test/v5.test.ts test/crash-ui.test.ts` passed 11 tests. Empty markets stay on one line (`No positions near liquidation in SOL, TAO.`) and BTC stays the default chart. A bucket sentence is `2 longs · $200 · liquidate between $95,000 and $95,250 · 1 has idle AUSD.` Bar height follows the square root of notional. `crashLine` on 650 positions still finishes a step within 100 ms. `resolveHighlightId` matches `radarId` for the practice account and returns null for a bad address or a failed lookup. `pnpm --filter @lifeline/core exec vitest run test/snapshot.test.ts` passed. Buckets now carry `idleCount`, and at-risk rows carry `bucketIndex`. Playwright `e2e/radar.spec.ts` passed 3 tests and `e2e/fallbacks.spec.ts` passed 5, including `/radar?rpc=dead`. The headline matches the mocked payload (`$1,500`, `2 · $400`, `$25`, block `110`). Bitcoin is the open chart, ETH opens from its chip, and SOL appears only in the collapsed line. The map text matches no `0x` address and makes no request to `perpl.xyz`. A signed-in testnet session (`/api/lifeline/me` plus `highlight`) shows "Your position" and outlines that bucket. `GET /api/radar?highlight=` reads `getAccountByAddr` and returns `highlightId`, cached for 30 s. Screenshots: `apps/web/e2e/artifacts/v5-radar-1440.png`, `v5-radar-390.png`, and `v5-radar-crash-1440.png` (BTC slider at −3%). Not deployed.
 
-#### [ ] V6 Check an address and the risk report
+#### [x] V6 Check an address and the risk report
 - **Type:** AGENT · **Depends on:** V1, V3
 - **Why:** Story C starts here, and the dry run is the human-facing proof for the Perpl API bounty.
 - **Do:**
@@ -2375,7 +2376,7 @@ See it on the testnet market map →
   - **Bad input:** an invalid address shows the inline error without navigating; an address with no account shows the empty state with both examples.
   - **Routing:** the action button opens `/app`.
   - **Screenshots:** `v6-check-1440.png`, `v6-report-mainnet-390.png`, `v6-report-mainnet-1440.png`.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/web exec vitest run test/lookup.test.ts` passed 7 tests. `pnpm --filter @lifeline/web exec vitest run test/bounties.test.ts` passed. Live `handleAccount` for mainnet `0x77A89C51` is a BTC short whose card liquidation price is `$88,947.8`, and the dry-run element includes `Protection on mainnet: coming via API-key mode.` Testnet pool account `0xe3929EB4561f70A2Eb1Bc78957CCd0A87dABB362` is a BTC long at `$80,335.5` and its sentence does not include that suffix. Card entry, mark, margin, idle AUSD, and forfeit equal `formatPrice` / `formatUsd` / `formatAusd` of the `/api/account` fields. `data-liq` stays the raw `liquidationPricePNS`. A fixture with price decimals 1 renders `$83,702.3` and `BTC long · 15×`. An invalid address returns the inline error and no href. A missing account (`found: false` or account id `0`) is distinct from an account with no positions. The three actions (`Try it on a testnet practice account`, `Open your dashboard`, `Open a practice account`) all open `/app`. `PRACTICE_ACCOUNT` lives in `lib/bounties.ts`, and the bounty link test fetched `https://lifeline-five-murex.vercel.app/a/0xe3929EB4561f70A2Eb1Bc78957CCd0A87dABB362?chain=10143` with a status under 400. Playwright `e2e/check.spec.ts` passed 4 tests. A bad address stays on `/check` with `That isn't a valid address.` Submitting the mainnet example on Testnet opens `/a/0x77A89C51…?chain=10143`. The mocked mainnet report shows `$83,702.3`, `300 AUSD`, `$160`, the mainnet sentence, and `data-liq="837023"`, and the action opens `/app`. An address with no account shows `This address has no Perpl account on mainnet.` plus both example links. `e2e/shell.spec.ts` for `/a/0x000…0001` passed at 390 and 1440 with no console errors. Screenshots: `apps/web/e2e/artifacts/v6-check-1440.png`, `v6-report-mainnet-1440.png`, and `v6-report-mainnet-390.png`. Not deployed.
 
 #### [ ] V7 `/app` onboarding
 - **Type:** AGENT, plus **HUMAN** (one real Privy run, batched with V8's human step) · **Depends on:** V2, V3
@@ -2585,7 +2586,7 @@ See it on the testnet market map →
 1. **V0.** Done (`9705f73`).
 2. **V2, then V1.** V1 is done (`edd5cd7`). V2's code is committed (`61b4f15`) and deployed (`1f8bfcc5`). V2 stays `[!]` until the Durable Object quota resets at 2026-10-08 00:00 UTC and the live checks in its Evidence pass. Do not refill the pool before `/health` is 200. Push before the next scheduled ops run, or GitHub keeps the workflow that mints accounts and then fails `pool:register`.
 3. **V3.** Done locally. Depends on V0 only. The human asked to continue work that does not depend on the Durable Object quota, so V3 landed while V2 is still `[!]`. It is not deployed. Production keeps the previous shell until V2's live checks pass and a later deploy.
-4. **V4** is done locally. The previous radar board already serves `/radar`. **V5** rebuilds that page. Then **V6**.
+4. **V4, V5, and V6** are done locally. `/` is the landing page, `/radar` is market risk, and `/check` opens the risk report. **V7** waits on V2.
 5. **V7, then V8.** Batch their human steps (the real Privy run and the Privy email setting) into one prompt.
 6. **V9 and V10.**
 7. **V11.**
