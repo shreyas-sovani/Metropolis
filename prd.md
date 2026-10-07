@@ -19,6 +19,27 @@ Four principles govern it:
 
 **Secondary users.** Any Monad participant watching market risk: the map is public and needs no wallet.
 
+**Primary user story.** "As a Perpl trader, I want my own idle AUSD to move into my position's margin when it gets close to liquidation, so I stop paying liquidation penalties while my money sits idle, and nobody, including Lifeline, can trade or withdraw my funds."
+
+1. She lands on `/` and sees the problem, the live mainnet numbers, and both primary actions.
+2. She checks an address and gets a risk report with liquidation price, distance, idle AUSD, the penalty at stake, and what Lifeline would do now.
+3. Mainnet is read-only, so the report points her at a testnet practice account.
+4. At `/app` she opens a practice account: a wallet in the browser and a reserved testnet account with a live BTC position and idle AUSD.
+5. She takes ownership in one transaction.
+6. She sets a safety line and signs. Signing costs no gas.
+7. If the position is inside her line, she gets a receipt. If it is outside, Lifeline watches.
+8. The dashboard shows live position health, Lifeline's heartbeat, activity, and budget used.
+9. She leaves and comes back on the same device. `/app` opens on that dashboard, including top-ups made while she was away.
+10. She can withdraw idle AUSD, pause or adjust protection, and keep the account by adding an email.
+
+**Judge story.** "As a judge, I want to verify in three minutes that Lifeline is real: real mainnet risk data, a protection I trigger myself on chain, and proof that Lifeline's key cannot take funds. Then I want to find the evidence for each bounty without hunting."
+
+1. Live market risk on `/radar`: drag BTC to −3%.
+2. A real mainnet liquidation Lifeline would have stopped, on `/replay`.
+3. Protect a live testnet position on `/app`, the same onboarding as the trader story.
+4. Try to break it: withdraw, read what Lifeline's key can and can't do, and compare the twins.
+5. Evidence: the bounty map, the methodology, and the risk API.
+
 ## 2. Product in one paragraph
 
 Lifeline is a web app with two halves. **The Radar** reads every open Perpl position straight from the mainnet contract and computes each one's exact liquidation price. It renders a live liquidation map per market: long liquidations below the mark, short liquidations above, and the at-risk band highlighted. It also shows how much idle AUSD sits beside the at-risk positions, and has a crash slider that shows which positions would die and how many Lifeline would save. Anyone can paste an address for a risk card and a dry run of what Lifeline would do now. **Lifeline** is the defender. A protected Perpl account appoints Lifeline's operator key, which can do exactly one thing: move the account's own idle balance into a position's margin. When a position's distance to liquidation drops below the owner's trigger, Lifeline tops it up to the owner's target in the next block, within a signed budget. On testnet, a judge gets a guest wallet instantly and claims a live 15× BTC position into it. They arm Lifeline with a signature, watch the position's liquidation price jump one block later, and withdraw funds to prove Lifeline can't.
@@ -46,9 +67,35 @@ The core writes **no new smart contracts.**
 
 ## 4. End-to-end flows
 
+### 4.0 Information architecture
+
+| Route | Job | Primary action |
+|---|---|---|
+| `/` | Explain Lifeline, show it's live, and route people | Protect a position, check an address, or take the tour |
+| `/app` | Onboarding, then the dashboard | Open a practice account, then the dashboard controls |
+| `/radar` | Live liquidation map, crash simulator, at-risk table, liquidations tape | Drag a crash slider, or open a lookup |
+| `/check` | Address entry with examples | Check |
+| `/a/[address]` | Risk report for one address | Protect this account, or try a practice account |
+| `/proof` | Hub for twins, replay, methodology, saves, and permissions | Open a proof |
+| `/twins` | Protected and unprotected pairs | Explorer links |
+| `/replay` | One real mainnet liquidation, replayed | Explorer link |
+| `/methodology` | The liquidation rule and the fork check | Reproduce |
+| `/developers` | Risk API docs with a live example | Run the example |
+| `/tour` | Guided path for a judge | Start the tour |
+| `/tour/evidence` | Bounty evidence map | Proof links |
+
+Permanent redirects:
+
+- `/lifeline` → `/app`
+- `/judges` → `/tour`
+- `/?chain=10143` → `/radar?chain=10143`
+- `/a/[address]` stays as it is
+
+`/dev/*` is not routable in production. `/api/e2e/*` stays 404 in production.
+
 ### F1: Open the Radar (no wallet)
 
-1. The landing page loads `GET /api/radar?chain=143`, a server snapshot cached for 2 seconds.
+1. The radar lives at `/radar`. The landing page `/` shows the same live headline numbers from `GET /api/radar?chain=143` and routes users to the product, the radar, the lookup, and the judge tour.
 2. The headline strip shows: "Tracking $X open interest across N Perpl positions · $Y within 5% of liquidation (M positions) · $Z idle AUSD beside them."
 3. Each market (BTC, ETH, SOL, MON, HYPE, ZEC, discovered onchain) shows a horizontal price axis:
    - long-liquidation notional in 0.25% buckets below the mark, in red;
@@ -78,11 +125,12 @@ The core writes **no new smart contracts.**
 1. The user clicks "Try Lifeline live." Privy `createGuestAccount()` creates an embedded wallet instantly, with no login prompt.
 2. The app calls Worker `POST /claim` with the Privy access token. The Durable Object then:
    - verifies the token;
-   - checks rate limits: one claim per user, three per IP per hour;
+   - checks rate limits: one claim per user, and a per-IP cap on the real client IP as forwarded by our server;
    - picks a pool position, preferring BTC at 15×, about 2.7% from liquidation;
    - sends 0.08 testnet MON to the wallet;
    - calls `proxy.transferOwnership(wallet)` from the pool owner key;
    - returns `{proxy, perpId, txs}`.
+   - A user who already claimed gets their existing account back.
 3. The app shows the position card ("Your 15× BTC long · 2.7% from liquidation · 300 AUSD idle") and a single "Accept ownership" button. That sends `proxy.acceptOwnership()` from the Privy wallet, with UI suppressed and explicit gas and nonce.
 4. The position appears on the testnet Radar, highlighted. Until the judge arms their own mandate, the house mandate keeps protecting it (trigger 1.5%, target 2.5%).
 5. **Fallbacks:**
@@ -130,9 +178,9 @@ The core writes **no new smart contracts.**
 
 ### F7: Own it, withdraw, disarm
 
-1. "Withdraw 50 AUSD" calls `proxy.withdrawCollateral(50e6)` as owner, and the AUSD lands in the Privy wallet. The UI points out that the operator can't call this: it's owner-only in Perpl's contract, and the allowlist revocations are visible onchain.
+1. "Withdraw" calls `proxy.withdrawCollateral` as owner for any amount up to the idle balance, and the AUSD lands in the Privy wallet. The UI points out that Lifeline's key can't do this: it's owner-only in Perpl's contract, and the allowlist revocations are visible onchain.
 2. "Disarm" sends a signed disarm request, and the Durable Object deactivates the mandate.
-3. "Keep this account" upgrades the guest to email login with Privy `login()`.
+3. "Keep this account" upgrades the guest with Privy `login()`.
 
 ### F8: Twins
 
@@ -147,11 +195,23 @@ Fixed pairs are opened at the same time, price, and leverage: BTC 15× long and 
 
    ```
    idleAtLiq   = accBalanceCNS − max(accAmountCNS, 0)
-   eligible    = idleAtLiq ≥ posDepositCNS
+   eligible    = idleAtLiq ≥ 1% of notional at the liquidation mark
    ```
 
-   The response includes totals, eligible counts and notional, and the latest 50.
+   `posDepositCNS` is the deposit after liquidation, so comparing idle with it counted almost every full close as eligible. The 1% rule matches F2's "saved" rule. The 30-day window is enforced by block range. The response includes totals, eligible counts and notional, and the latest 50.
 2. `GET /api/actions?account=` uses HyperSync to pull testnet `IncreasePositionCollateral` events for protected accounts. Lifeline's action log is therefore read from the chain, not from our database.
+
+### F10: Dashboard
+
+After a claim is accepted, `/app` is the place to come back to. It shows:
+
+- live position health;
+- Lifeline's status and heartbeat;
+- the activity list, including top-ups made while the trader was away;
+- adjust, pause, and resume;
+- withdraw of idle AUSD;
+- keep the account;
+- resume on return to the same browser.
 
 ## 5. System
 
@@ -446,13 +506,13 @@ Effort tags: **S** small, **M** medium, **L** large. Each item is separable.
 
 ## 9. Demo script (3 minutes, any browser, no install)
 
-- **0:00–0:30 · Radar (mainnet, real money).** The headline reads "~$3.1M of position notional tracked across ~600 positions · ~$190k within 5% of liquidation · ~$29k idle AUSD beside them" (live values; these are today's). The BTC map pulses with the mark, and the recent-liquidations tape shows "N of M liquidations in 30 days had idle balance ≥ their deposit."
-- **0:30–1:00 · Crash.** Drag BTC to −3%. The red buckets flash: "41 positions / $88k liquidated · Lifeline could save 29 / $61k with their own idle AUSD." These figures are illustrative; the panel computes them live.
-- **1:00–1:15 · Lookup.** Click an at-risk row to see its risk card and dry run: "would add 152 AUSD → 6.0%."
-- **1:15–1:45 · Claim.** Click "Try Lifeline live." A wallet appears instantly. Claim → "Your 15× BTC long · 2.7% from liquidation · 300 AUSD idle" → "Accept ownership," one transaction, done.
-- **1:45–2:15 · Arm.** Set trigger 4% and target 6%, then sign (no gas). About one block later: "Added 50 AUSD · liquidation $82,990 → $80,140 · block #… · 0.6 s." Those numbers are for a $1,500 notional 15× BTC long at a mark of $85,260 (deposit 100, maintenance requirement 60), moved from 2.7% to 6.0% distance. The marker jumps on the testnet map.
-- **2:15–2:40 · Twins.** The protected and unprotected pairs, the actions read from chain events, and any liquidation of an unprotected twin.
-- **2:40–3:00 · Proof.** Withdraw 50 AUSD to your wallet. "Lifeline's key can't do this; it can only add margin. Here are the revoked permissions onchain."
+Five beats, in this order. Together they are the judge tour.
+
+1. **Live market risk.** Open `/radar` on mainnet. The headline numbers are live. Drag BTC to −3% and the crash line updates.
+2. **A real liquidation.** Open `/replay`. One Bitcoin long was liquidated on mainnet with idle AUSD beside it. Lifeline would have added that idle AUSD. The proof link is the mainnet transaction.
+3. **Protect a live position.** Open `/app` on testnet. Open a practice account, take ownership, and sign a safety line. The receipt is a real top-up, and there is at most one wallet transaction before it.
+4. **Try to break it.** Withdraw idle AUSD from the account just taken. Only the owner can. Then show what Lifeline's key can and can't do, and open `/twins`.
+5. **Evidence.** Open `/tour/evidence`. Each bounty has the requirement, how Lifeline meets it, the code path, and one proof link.
 
 **Backup:** a recorded run of the same script, and a sandbox mode that needs no wallet.
 

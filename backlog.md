@@ -15,10 +15,19 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 and U11 and U14 are done. The §7A order's next item is D7.
-5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6, U11, and U14 are done. The next item is D7.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 and U11 and U14 are done. V0 is done. The next item is **§7B V2** (then V1). D7 waits for V14.
+5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6, U11, and U14 are done.
+6. **Then read §7B (Productization) in full. It comes before D7.** It turns the prototype into the product: two user stories (a trader and a judge), one landing page, a persistent `/app` with onboarding and a dashboard, a judge tour, and an Anthropic-style design system. It also fixes the flow-breakers and wrong numbers found on production on 2026-10-07. V0 is done. The next task is **V2**, then V1, then the rest of the §7B.7 order.
 
-**Where the build stands (2026-10-07).** Phases 0–5 and every U-task are `[x]`. D1–D6 are `[x]`. The site is `https://lifeline-five-murex.vercel.app` and the Worker is `https://lifeline.lifeline-shreyas.workers.dev`. The next task is the judge rehearsal on a phone and a laptop, D7.
+**Where the build stands (2026-10-07).** Phases 0–5 and every U-task are `[x]`. D1–D6 are `[x]`. The site is `https://lifeline-five-murex.vercel.app` and the Worker is `https://lifeline.lifeline-shreyas.workers.dev`. A planner audit found 21 problems on production (§7B.1). Among them:
+
+- every judge shares one IP for the claim rate limit;
+- a reload or a return visit dead-ends;
+- the liquidation history overstates dollars by orders of magnitude;
+- twin distances are null;
+- the scheduled ops runner mints accounts it can't register.
+
+V0 is done. The next task is **V2**, then V1, then the §7B tasks through V14, then the judge rehearsal, D7.
 
 **Durable Object storage (2026-10-07).** The free plan's 5,000,000 `rows_read` per day was used up. Storage calls failed, the Lifeline constructor threw, and `/health` returned 500. Worker `ebeb878d-64f6-40aa-9381-2a520056d346` keeps the 2 second alarm. A tick reads armed mandates, pending actions, and confirmed actions with no `dist_after` from memory, and reads SQLite again at most once a minute. A send still reads and writes `keys` for the nonce. Migration 9 adds indexes for the residual scans and `actions.created_at`. `/saves` and the soak history are the last 7 days and at most 200 rows. `/twins` is at most 200 pairs. While storage is down, `/health` returns 503 `{"status":"error","degraded":"..."}` and the next request retries migration. Production returned that 503 at 2026-10-07 15:17 UTC (`Exceeded allowed rows read in Durable Objects free tier.`). The quota resets at 2026-10-08 00:00 UTC. The next successful `/health` should return 200 and arm the keeper. Local `wrangler dev` returned 200, `degraded:false`, with 43 ticks. `pnpm --filter @lifeline/worker exec vitest run` passed 46 tests. Expected steady state is about 150,000 rows read per day.
 
@@ -34,10 +43,11 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 | 6 | D6 | Done | Ops runbook in `README.md`. Refill and the kill switch were dry-run. |
 | 6b | U11 | Done | `/judges` bounty map. Proof links answered. |
 | 7 | U14 | Done | Static replay of mainnet Bitcoin liquidation block 111199304. |
-| 8 | D7 | Human | Run the demo on a phone and a laptop. |
-| 9 | D8 | Human | Record the ≤ 3 minute demo and send the link. |
-| 10 | R1 | Agent | README, MIT license, clean `secrets:check`. |
-| 11 | R2 | Human | Submit on the Metropolis portal: Track 1, plus Perpl API, Perpl Analytics, Envio, and Privy. |
+| 8 | V0–V14 (§7B) | Agent, with three human checks (V2 if needed, V7 and V8 batched, V14) | Fix the production flow-breakers and numbers. Ship the landing page, `/app` onboarding and dashboard, `/radar`, the risk report, proof pages, `/developers`, and the judge tour in Anthropic style. Pass both journey specs and re-run D5. |
+| 9 | D7 | Human | Run both §7B.2 stories on a phone and a laptop. |
+| 10 | D8 | Human | Record the ≤ 3 minute judge tour and send the link. |
+| 11 | R1 | Agent | README, MIT license, clean `secrets:check`. |
+| 12 | R2 | Human | Submit on the Metropolis portal: Track 1, plus Perpl API, Perpl Analytics, Envio, and Privy. |
 
 Phase 8 (X1–X9, B1–B7) starts only after D5. X5 is already `[-]`, replaced by U14. Those items are not required to submit.
 
@@ -175,7 +185,7 @@ You may **not**:
 | Crash slider range | ±10% | §F2 |
 | "Saved" rule | free balance covers the deposit needed to stay at least 1% from the shocked price | §F2 |
 | Claim drip | 0.08 testnet MON | §F4 |
-| Rate limits | 1 claim per Privy user; 3 per IP per hour | §F4 |
+| Rate limits | 1 claim per Privy user; 3 per IP per hour. **Amended by V2:** 10 claims and 10 demo-mode arms per real client IP per hour, where the IP is forwarded by our server with `PROXY_SECRET`. Update this row when V2 lands. | §F4 |
 | Pool account funding | 400 AUSD (about 100 to the position, about 300 free) | §5.9 |
 | Pool size | at least 20 available; alert below 10 | §5.9 |
 | Pool positions | BTC at the highest allowed leverage up to 15×; ETH up to 12× | §5.9 |
@@ -1006,24 +1016,28 @@ The human can prepare these in advance.
 - **Evidence:** `README.md` Operations has the commands. `pnpm cli pool:refill --target 30 --per-side 12 --in-band 10` exited 0 at `available=34 long=17 short=17 inBand=10`. The next run printed `pool:refill nothing new` and exited 0. `LIFELINE_PAUSED=true` plus `POST /admin/alarm/clear` made `/health` return `paused:true` with `poolAvailable` 34 still present. Setting the secret back to `false` and clearing the alarm returned `paused:false`.
 
 #### [ ] D7 Judge rehearsal on real devices
-- **Type:** **HUMAN** · **Depends on:** D5
-- **Prompt the human:** Run the demo script yourself on (a) a phone browser and (b) a laptop browser in a fresh profile, ideally one with a VPN set to a US location. Reply with any step that felt slow or confusing.
+- **Type:** **HUMAN** · **Depends on:** D5, V14 (§7B)
+- **Prompt the human:** Run both §7B.2 stories yourself on (a) a phone browser and (b) a laptop browser in a fresh profile, ideally one with a VPN set to a US location.
+  - Story J: start at `/`, take the tour, and finish on the evidence page.
+  - Story C: check a mainnet address, open a practice account, protect it, close the tab, come back, withdraw, and pause.
+  - Reply with any step that felt slow, confusing, or unpolished.
 - **Pass:** The human confirms both runs completed. The agent fixes the issues reported (each one becomes a new task appended to Phase 5 or 6) and re-runs D5.
 - **Evidence:**
 
 #### [ ] D8 Backup demo video
 - **Type:** **HUMAN** · **Depends on:** D7
-- **Prompt the human:** Record the PRD §9 script (≤ 3 min) with screen and voiceover. Upload it (unlisted YouTube or similar) and reply with the link.
+- **Prompt the human:** Record the PRD §9 script (≤ 3 min) with screen and voiceover. After V0, that script is the judge tour (§7B.2 Story J), starting on the landing page. Upload it (unlisted YouTube or similar) and reply with the link.
 - **Pass:** The link plays and covers all §9 beats. The agent adds it to the README.
 - **Evidence:**
 
 ### Phase 7: Release
 
 #### [ ] R1 README and repository hygiene
-- **Type:** AGENT · **Depends on:** D5
+- **Type:** AGENT · **Depends on:** D5, V14 (§7B)
 - **Do:**
   - **README sections:**
-    - what Lifeline is (the PRD §2 paragraph) and live links;
+    - what Lifeline is (the PRD §2 paragraph) and live links (`/`, `/app`, `/radar`, `/tour`, `/developers`);
+    - the two user stories from §7B.2;
     - an architecture diagram as text or Mermaid;
     - how to run locally and the repository map;
     - a security model: operator least privilege, keys are testnet-only, and the `Ownable2Step` claim flow;
@@ -1432,11 +1446,1136 @@ These tasks come from a review of the build's progress against the prize targets
 
 ---
 
+## 7B. Productization: from prototype to product
+
+Planner review, 2026-10-07. The engine works on chain: contract-exact math, a live keeper, real top-ups, Privy guests. The web app, though, reads like a test harness. Its pages are disconnected, there's no landing page, state is lost on reload, nothing exists after the first receipt, the copy is developer-speak, and several numbers on production are wrong. This section turns it into a product that a trader or a judge can use from the first click. It has one landing page, one account that survives a reload, a dashboard to come back to, a guided judge tour, and one visual system in Anthropic's style. It also fixes the flow-breakers and wrong numbers found on production today.
+
+Everything here follows the protocol in §1 (pass checks, evidence, commits, human stops) and every hard rule in §2.1. §7B comes **before D7, D8, R1, and R2**.
+
+### 7B.0 Rules for this section
+
+1. **Order.** Work V0 → V14 in the order in §7B.7. A task starts only when everything in its `Depends on` is `[x]`.
+2. **Hard rules stay.** The ones most at risk here:
+   - **H3:** no browser request may go to `*.perpl.xyz`. Fonts are self-hosted by `next/font`, so they are fine. Perpl API calls stay in server routes.
+   - **H8:** no paid fonts, paid UI kits, or paid analytics. No new dependency is required. If you add one (for example `lucide-react` for icons), it must be free and MIT or ISC licensed, and you log it in §9.
+   - **H12:** at most one wallet transaction before the first receipt.
+   - **H7:** Privy stays the only account layer.
+3. **Keep every working behaviour.** This is a redesign of the experience, not a rewrite of the engine. Don't change `packages/core` math, the mandate typed data, or the Worker's keeper logic, except where a V-task says so.
+4. **Keep tests; update them.** Update existing unit tests and Playwright specs to the new routes and copy. Never delete a test to make a task pass. Keep every existing `data-testid` value, because D5 and the specs read them. Add new test ids as needed.
+5. **Test hooks live in attributes, not in copy.** Elapsed ms, wallet-transaction counts, raw distances, and account addresses used by tests may stay in `data-*` attributes. They must not appear as visible text.
+6. **Screenshots.** Every page task saves screenshots at 390 px and 1440 px to `apps/web/e2e/artifacts/v/<task>-<page>-<width>.png`, each under about 500 KB. Look at them before marking the task done. The Pass checks say what to look for.
+7. **Copy.** Copy marked *verbatim* in this section is used exactly as written. Everything else follows §7B.4.6. You may improve copy that isn't verbatim; log notable changes in §9.
+8. **Commits.** Commit per task as `<V-id>: <short summary>`, and run `pnpm secrets:check` before every commit.
+9. **Deploys.**
+   - Deploy a Vercel preview after each page task, and production after V13.
+   - Worker deploys follow the alarm-gap caution in the W7 decision-log line. After a Worker deploy, `/health` must return `degraded:false` within 60 s.
+
+### 7B.1 Audit: what is broken or unprofessional today
+
+Verified against production on 2026-10-07: site `https://lifeline-five-murex.vercel.app`, Worker `https://lifeline.lifeline-shreyas.workers.dev`.
+
+| # | Finding | Evidence | Why it matters | Fixed in |
+|---|---|---|---|---|
+| F1 | **Every judge shares one IP for rate limits.** `apps/web/lib/worker-proxy.ts` calls the Worker from Vercel's server, so the Worker's `cf-connecting-ip` is Vercel's egress IP, not the judge's. The "3 claims per IP per hour" limit (`claim.ts` `IP_LIMIT`) and the sandbox limit (`sandbox.ts` `LIMIT`) are therefore shared by every visitor. The automated runs passed only because the e2e wallet sends a synthetic `x-lifeline-ip`. | `claim.ts` lines 98–103; `e2e-wallet.ts` line 116 | The fourth judge in an hour gets a 429 and a dead end | V2 |
+| F2 | **The browser can send privileged headers.** `worker-proxy.ts` forwards `x-admin-secret`, `x-lifeline-user`, and `x-lifeline-ip` from the browser request. | `FORWARD` list | A leaked admin secret would bypass Turnstile and the IP limits from any browser | V2 |
+| F3 | **No resume.** The try flow keeps all state in React memory. A reload loses the claim. Trying again returns 409 `claimed` with no data, so the UI says "This wallet already claimed a position." and stops. | `try-panel.tsx`; `claimGate` | A judge who refreshes, or comes back later, is locked out of their own position | V2, V7, V8 |
+| F4 | **Nothing after the receipt.** No page shows "my position," its live health, Lifeline's later actions, or any controls. | `/lifeline` | It's a demo, not a product; there's nothing to come back to | V8 |
+| F5 | **Liquidation dollars are wrong by orders of magnitude.** `apps/web/lib/history-store.ts` passes `scales: new Map()`, so `summarizeLiquidations` uses 0 price and lot decimals. On live `/api/liquidations`, a 579-lot ETH liquidation shows `notionalMicro` 150154386000000 ($150M), and `totals.notionalMicro` is about $6 trillion. | live `curl` | A judge who opens the Envio proof link sees impossible numbers | V1 |
+| F6 | **"Avoidable" is almost always true.** `eligible = idleAtLiq >= posDepositCNS`, but `posDepositCNS` in `PositionLiquidated` is the deposit *after* liquidation, which is 0 on a full close. The radar's "Avoidable with the account's own idle AUSD" ($58.6k of $62.4k) is overstated. | every live row has `posDepositCNS: "0"` | Overclaiming in the headline pitch | V1 |
+| F7 | **"30 days" is all-time.** `historyStore` starts at cursor 0, so the totals cover every liquidation since genesis (3,521), while the copy says 30 days. | `history-store.ts` | The headline number is mislabelled | V1 |
+| F8 | **Raw integer prices.** The account page prints `liquidationPricePNS` (for example `837023`) instead of $83,702.3. | `account-lookup.tsx` line 71 | Looks broken | V1, V6 |
+| F9 | **Perp ids instead of market names.** The radar tape shows `perp 10`. | `radar-board.tsx` line 248 | Unreadable | V1, V5 |
+| F10 | **Mainnet transaction linked to the testnet explorer.** `/replay` links the mainnet liquidation with the testnet `txUrl`. | `replay/page.tsx` | Broken proof link | V1 |
+| F11 | **Twins distances are null.** Every leg in live `/twins` has `distanceE6: null`. `readLegStates` reads through `openChain`'s client, which makes one HTTP call per contract read since D2 turned batching off. That's the same pattern that tripped the Worker subrequest cap for claims (A7 decision log), and the error is swallowed. Amounts also render as raw CNS. | live `/api/twins` | The strongest proof page says "Distance unread" | V2, V9 |
+| F12 | **Saves are hard-coded to 0.** The Worker's `/saves` returns `{count: 0, saves: []}` whatever the data says, and `judgeSave` is never called. | `lifeline.ts` `saves()` | U13's claim isn't backed by code | V2 |
+| F13 | **Sandbox arms a twin.** `sandboxProxy` picks a twin's protected leg, and `sandboxArm` replaces its house mandate with a user mandate. sol-short is now `kind=user`. | `sandbox.ts`; §9 U4 | Contaminates the twins evidence | V2 |
+| F14 | **The ops runner mints accounts it can't register.** Scheduled `ops` runs 37543613519, 37560690810, and 37598188847 failed: `pool:refill` created accounts, then `pool:register` printed `ADMIN_SECRET missing` and exited 1. `actions/cache` doesn't save on a failed job, so those accounts are missing from both the runner's `pool.json` and local `cli-state`. Each holds about 400 AUSD, has no house mandate, and can't be claimed. Every failed run repeats this. | `gh run view 37598188847 --log-failed` | Burns MON and AUSD on every run, and `/health` stays `low:true` (`poolInBand` 1) | V2 |
+| F15 | **Developer copy in the UI.** "Gas 108076. The nonce is the wallet's pending count. The wallet prompt stays off."; "Wallet transactions before the receipt: 1"; "N ms from the first click"; "Revoked selectors: execOrder, …"; trigger and target as raw bps text inputs; `(ABOVE_TRIGGER)` codes; `CNS` amounts; "1% · 2% · 5% around the mark at bucket 60"; "Saves 0" with no explanation. | `try-panel.tsx`, `twins-panel.tsx`, `radar-board.tsx` | Reads as a test harness | V7–V12 |
+| F16 | **No landing page, and the pages are disconnected.** `/` is the radar. `/methodology`, `/a/[address]`, and the lookup aren't in the nav. There's no footer. "Mainnet / Testnet" has no explanation. | `(shell)/layout.tsx` | No story; judges don't know where to start | V3, V4, V11, V13 |
+| F17 | **`/dev/gate-privy` is public in production** (HTTP 200). | live `curl` | Exposes a test page | V13 |
+| F18 | **Turnstile tokens are single-use, but the widget is never reset.** `waitForTurnstile` hands back the same spent token, so a retry after a failed claim, or a demo-mode arm after a claim attempt, gets 403. | `turnstile-box.tsx`, `try-panel.tsx` | Retry dead end | V7 |
+| F19 | **Wasteful polling.** The radar re-fetches `/api/liquidations`, `/api/markets`, and `/api/saves` every 2 s along with the snapshot. | `radar-board.tsx` lines 91–95 | Wasted function time and HyperSync budget | V1 |
+| F20 | **Empty markets render.** Mainnet shows panels with no buckets for SOL, TAO, NEAR, UNI, ARB, AAVE, MORPHO, and ENA. | live `/api/radar` | Clutter | V5 |
+| F21 | **Misleading status banner.** It says "RPC degraded" whenever `/api/ops-health` itself fails, and there's no positive status at all. | `health-banner.tsx` | Alarming, and says nothing useful | V3 |
+
+### 7B.2 User stories
+
+Two stories define "done" for the product. V14 turns each acceptance line into a Playwright step.
+
+#### Story C: the trader (the actual customer)
+
+**Persona.** Maya trades Perpl perps with isolated margin. She holds a 15× BTC long and keeps a few hundred AUSD idle in the same Perpl account. She has been liquidated before while that idle money sat next to the position, because Perpl doesn't use free balance to save a position.
+
+**Story.** *Verbatim:* "As a Perpl trader, I want my own idle AUSD to move into my position's margin when it gets close to liquidation, so I stop paying liquidation penalties while my money sits idle, and nobody, including Lifeline, can trade or withdraw my funds."
+
+**Journey.** These steps are the product's real sequence.
+
+1. She lands on `/` and understands the problem in one screen: live mainnet numbers and Perpl's own sentence about free balance.
+2. "Check an address": she pastes her mainnet address and gets the risk report at `/a/<address>?chain=143`, with liquidation price, distance, idle AUSD, penalty at stake, and what Lifeline would do now.
+3. Mainnet is read-only, so the report says mainnet protection is coming via API-key mode and offers "Try it on a testnet practice account."
+4. At `/app` she clicks "Open my practice account." A wallet is created for her, and a testnet account with a real 15× BTC long and about 300 AUSD idle is reserved for her.
+5. "Take ownership" (one transaction): now she's the owner.
+6. She sets her safety line ("keep at least X% from liquidation") and signs. Signing costs no gas.
+7. If the position is inside her line, Lifeline acts at once. She sees a receipt with before and after values and an explorer link.
+8. Dashboard: live position health, Lifeline's heartbeat, activity, and budget used.
+9. She closes the tab. When she comes back on the same device, `/app` opens straight on her dashboard, including any top-ups Lifeline made while she was away.
+10. She withdraws idle AUSD to her wallet (only she can), pauses or adjusts protection, and keeps the account by adding her email.
+
+**Acceptance (given / when / then).**
+
+- **C1.** Given a first visit to `/`, when the page loads, then these are visible above the fold at 1440 px, and within one scroll at 390 px: the hero, the live mainnet strip with real numbers, and both primary actions ("Protect a position" and the address check).
+- **C2.** Given a valid mainnet address with positions, when Maya submits it on `/` or `/check`, then `/a/<address>?chain=143` shows one card per position. Each card has a dollar liquidation price, the distance in %, idle AUSD, the penalty at stake, the dry-run sentence, and a "Try it on a testnet practice account" action that opens `/app`.
+- **C3.** Given an address with no Perpl account or no positions, then the report says so in one sentence and offers two example addresses and the practice account.
+- **C4.** Given `/app` with no session, when Maya clicks "Open my practice account," then within 15 s she sees her practice position card (market, side, leverage, distance, idle AUSD, liquidation price) and one "Take ownership" button.
+- **C5.** When she takes ownership, then exactly one wallet transaction is sent, and the step completes with an explorer link.
+- **C6.** When she sets a safety line and signs, then no gas is spent.
+  - If the position is inside the line, a top-up confirms. The receipt shows distance before → after, liquidation price before → after, AUSD added, and an explorer link.
+  - If it is outside the line, the dashboard says Lifeline is watching and will act if the position falls below the line.
+- **C7.** Given she reloads the page at any step after the claim, then `/app` resumes at the same step with the same account.
+- **C8.** Given she returns after closing the tab (same browser), then `/app` opens on the dashboard. The activity list includes every top-up recorded for her account, including those Lifeline made while she was away.
+- **C9.** When she withdraws any amount up to her idle AUSD, then her wallet's AUSD rises by that amount. The page says Lifeline's key can't do this and links to the account on the explorer.
+- **C10.** When she pauses protection, then the mandate is inactive (`GET /mandate/<proxy>` returns 404) and the dashboard says so. When she resumes, a new mandate is active.
+- **C11.** When she chooses "Keep this account," then Privy's login opens. After she enters an email, the same wallet and the same account are still hers.
+- **C12.** No visible text anywhere in her journey contains a forbidden term (§7B.4.6).
+
+#### Story J: the judge
+
+**Persona.** Jordan judges Monad Metropolis. He has about three minutes per project, no wallet installed, may be on a phone, and may be in the US. Perpl's frontend is geo-blocked there; Lifeline must not care.
+
+**Story.** *Verbatim:* "As a judge, I want to verify in three minutes that Lifeline is real: real mainnet risk data, a protection I trigger myself on chain, and proof that Lifeline's key cannot take funds. Then I want to find the evidence for each bounty without hunting."
+
+**Journey.** Five tour stops, always in this order. Each stop shows "What you're seeing," "Why it matters," and "Check it yourself" (one proof link).
+
+1. **Live market risk** (`/radar`, mainnet). He drags BTC to −3%.
+2. **A real liquidation Lifeline would have stopped** (`/replay`).
+3. **Protect a live position yourself** (`/app`, testnet): the same onboarding as Story C.
+4. **Try to break it.** Withdraw (owner only), see Lifeline's permissions, compare the twins (`/app` dashboard, then `/twins`).
+5. **Evidence:** the bounty map, methodology, and the risk API (`/tour/evidence`).
+
+**Acceptance.**
+
+- **J1.** Given `/`, then "Judging Metropolis? Take the 3-minute tour" is visible in the hero, and a "Judge tour" pill is in the header. Both open `/tour`.
+- **J2.** `/tour` lists the five stops with one sentence each and a "Start the tour" button. Once started, a tour rail appears on every page with the stop name, "Stop N of 5," "Back," "Next," and "Exit tour."
+- **J3.** Tour progress survives navigation and reload (localStorage `lifeline.tour`).
+- **J4.** Stop 1 shows live mainnet numbers within 3 s and asks him to drag the BTC slider; the crash line updates.
+- **J5.** Stop 3 reaches a confirmed top-up receipt within 60 s of "Open my practice account," with at most one wallet transaction (H12), no install, and no login prompt.
+- **J6.** Stop 4 withdraws AUSD from the account he now owns and shows the permissions panel with explorer links. `/twins` shows every pair with numeric distances.
+- **J7.** Stop 5 lists each targeted bounty with the requirement, how Lifeline meets it, the code path, and one working proof link. The link check passes.
+- **J8.** If Privy or the pool is unavailable, stop 3 falls back to "Demo mode" with a clear label, and still produces a real top-up receipt on a house account. This is the A9 behaviour, relabelled.
+- **J9.** The whole tour works at 390 px.
+- **J10.** Across the whole tour, zero browser requests go to `*.perpl.xyz` (H3).
+
+### 7B.3 Information architecture
+
+#### Routes
+
+| Route | Name in nav | Job of the page | Data | Primary action |
+|---|---|---|---|---|
+| `/` | Logo | Explain Lifeline, show it's live, route people | `/api/radar?chain=143`, `/api/liquidations`, `/api/ops-health` | Protect a position · Check an address · Take the tour |
+| `/app` | "Protect a position" (CTA button) | The product: onboarding, then the dashboard | Privy, `/api/lifeline/*`, `/api/account`, `/api/actions`, `/api/ops-health` | Open my practice account, then dashboard controls |
+| `/radar` | Market risk | Live liquidation map, crash simulator, at-risk table, liquidations tape | `/api/radar`, `/api/liquidations`, `/api/markets` | Drag a crash slider; open a lookup |
+| `/check` | Check an address | Address entry with examples | none | Check |
+| `/a/[address]` | (from Check) | Risk report for one address | `/api/account` | Protect this account / try a practice account |
+| `/proof` | Proof | Hub: twins, replay, methodology, saves, permissions | `/api/twins`, `/api/saves` | Open a proof |
+| `/twins` | (from Proof) | Protected and unprotected pairs | `/api/twins` | Explorer links |
+| `/replay` | (from Proof) | One real mainnet liquidation, replayed | `data/mainnet-replay.json` | Explorer link |
+| `/methodology` | (from Proof) | The exact liquidation rule and the fork check | fixture summary JSON | Reproduce |
+| `/developers` | Developers | Risk API docs with a live example | `/api/v1/risk` | Run the example |
+| `/tour` | "Judge tour" (header pill) | Guided 3-minute path | none | Start the tour |
+| `/tour/evidence` | (tour stop 5) | Bounty evidence map | `lib/bounties.ts` | Proof links |
+
+**Redirects.** Permanent, set in `next.config.ts` `redirects()`:
+
+- `/lifeline` → `/app`
+- `/judges` → `/tour`
+- `/?chain=10143` → `/radar?chain=10143` (use a `has` query matcher)
+- `/a/[address]` stays as it is.
+
+**Not routable in production.**
+
+- `/dev/*`: return `notFound()` unless `process.env.NODE_ENV !== "production"`.
+- `/api/e2e/*`: already 404 in production; keep it that way.
+
+#### Navigation
+
+- **Header (every page).**
+  - Logo "Lifeline" with the trace mark, linking to `/`.
+  - Links: Market risk, Check an address, Proof, Developers.
+  - Right side: the status pill (§7B.4.5), a "Judge tour" pill linking to `/tour`, and the primary button "Protect a position" linking to `/app`.
+  - The active link has `aria-current="page"`.
+- **Mobile.** At 800 px and below, the links collapse into a "Menu" button. It opens a full-width sheet with the same items; focus is trapped inside, and Escape closes it.
+- **Footer (every page).** Three columns:
+  - Product: Protect a position, Market risk, Check an address, Developers.
+  - Proof: Twins, A real liquidation, Methodology, Judge tour, Evidence.
+  - About: How it works (`/#how`), Security (`/#security`), FAQ (`/#faq`), the source code link once the repository is public (R1), and "Built for Monad Metropolis."
+  - Bottom line, *verbatim*: "Lifeline runs protection on Monad testnet. Market data is read live from Monad mainnet and never written to. Testnet tokens have no value."
+- **Rule.** Every route in the table is reachable from `/` in one click (header, hero, or footer), and no page is an orphan. V13 adds a link checker that proves it.
+
+```mermaid
+flowchart LR
+  Landing["/ Landing"] --> App["/app Protect a position"]
+  Landing --> Radar["/radar Market risk"]
+  Landing --> Check["/check"]
+  Check --> Report["/a/address risk report"]
+  Report --> App
+  Landing --> Proof["/proof"]
+  Proof --> Twins["/twins"]
+  Proof --> Replay["/replay"]
+  Proof --> Method["/methodology"]
+  Landing --> Dev["/developers"]
+  Landing --> Tour["/tour"]
+  Tour --> Radar
+  Tour --> Replay
+  Tour --> App
+  Tour --> Twins
+  Tour --> Evidence["/tour/evidence"]
+  App --> Onboard["Onboarding"]
+  Onboard --> Dash["Dashboard"]
+```
+
+#### Code layout (inside `apps/web`)
+
+- **`app/(site)/layout.tsx`:** the shared shell (header, status, footer, tour rail). It replaces `app/(shell)/layout.tsx`.
+- **`app/(site)/<route>/…`:** one folder per route in the table.
+- **`app/ui/`:** the components of §7B.4.5, each with its own CSS file.
+- **`app/styles/tokens.css` and `app/styles/base.css`:** design tokens and base styles.
+- **`lib/format.ts`, `lib/messages.ts`, `lib/explorer.ts`:** the only places that format numbers, word errors, and build explorer links.
+- **`lib/api-docs.ts`:** the single source for the `/developers` field tables.
+
+### 7B.4 Design system: Anthropic style
+
+The visual direction is Anthropic's:
+
+- warm ivory paper and near-black ink;
+- one clay accent;
+- a geometric sans for headings and a book serif for reading;
+- generous space, quiet hairlines, and calm motion.
+
+The colors and fonts come from Anthropic's public brand guidelines (`github.com/anthropics/skills`, skill `brand-guidelines`):
+
+- Dark `#141413`, Light `#faf9f5`, Mid Gray `#b0aea5`, Light Gray `#e8e6dc`;
+- Orange `#d97757`, Blue `#6a9bcc`, Green `#788c5d`;
+- Poppins for headings and Lora for body text.
+
+Don't use Anthropic's logo or wordmark, or the name "Claude," anywhere. Lifeline keeps its own name and its trace mark.
+
+#### 7B.4.1 Color tokens (exact)
+
+Put these in `apps/web/app/styles/tokens.css` as CSS custom properties. The contrast figures were computed for this backlog (WCAG 2.1); V3 adds a unit test that recomputes them.
+
+| Token | Hex | Use | Contrast on `--paper` |
+|---|---|---|---|
+| `--paper` | `#faf9f5` | Page background | — |
+| `--surface` | `#ffffff` | Cards, inputs, menus | — |
+| `--well` | `#f0eee6` | Sunk areas: chart bands, code blocks, slider tracks | — |
+| `--line` | `#e8e6dc` | Hairlines and borders | Non-text |
+| `--line-strong` | `#b0aea5` | Input borders, chart axes, disabled outlines | Non-text only (2.11) |
+| `--ink` | `#141413` | Primary text; primary button background | 17.50 |
+| `--ink-2` | `#3d3d3a` | Body text on cards | 10.34 |
+| `--muted` | `#5e5d59` | Secondary text, captions, labels | 6.26 (5.67 on `--well`) |
+| `--clay` | `#d97757` | Accent fill: the trace, long-liquidation bars, highlights, focus ring | Non-text (ink on clay is 5.90) |
+| `--clay-ink` | `#a8492a` | Accent text and links | 5.46 (4.95 on `--well`) |
+| `--blue` | `#6a9bcc` | Short-liquidation bars, info fills | Non-text |
+| `--blue-ink` | `#386591` | Info text | 5.80 |
+| `--olive` | `#788c5d` | Protected and safe fills, the "Armed" dot, the heartbeat | Non-text |
+| `--olive-ink` | `#566a3d` | Success text | 5.66 |
+| `--danger` | `#b3402a` | Liquidated fills, crossed lines | 5.41 |
+| `--danger-ink` | `#a33a26` | Error text | 6.25 |
+| `--on-ink` | `#faf9f5` | Text on `--ink` buttons | 17.50 |
+
+Rules:
+
+- Text uses only `--ink`, `--ink-2`, `--muted`, and the `-ink` variants. Never put text in `--clay`, `--blue`, `--olive`, or `--line-strong`.
+- Clay is the only saturated color outside charts and status.
+- No gradients, with one exception: the hero may have a very soft radial wash of `--well` behind the trace.
+- No dark mode in this pass (`color-scheme: light`).
+
+#### 7B.4.2 Typography
+
+Load the fonts with `next/font/google` in `app/layout.tsx` (self-hosted at build time, `display: "swap"`, subset `latin`) and expose them as CSS variables.
+
+| Role | Family | Weights | Use |
+|---|---|---|---|
+| Display and headings | Poppins | 500, 600 | h1–h4, nav, buttons, stat numbers |
+| Body | Lora | 400, 500, 400 italic | Paragraphs, descriptions, FAQ, the sentences on receipts |
+| Data | JetBrains Mono | 400, 500 | Addresses, transaction hashes, block numbers, code |
+
+Type scale, given as desktop / mobile size in px, then line-height:
+
+- display 56 / 40, 1.05 (letter-spacing −0.02em, weight 500);
+- h1 40 / 32, 1.1;
+- h2 28 / 24, 1.2;
+- h3 20 / 18, 1.3;
+- body-lg 19 / 18, 1.6;
+- body 17 / 16, 1.6;
+- small 14, 1.5;
+- micro 12, 1.4 (Poppins 500, letter-spacing 0.04em, sentence case; no all-caps eyebrows anywhere).
+
+Figures in stats and tables use `font-variant-numeric: tabular-nums` in Poppins. Prose has `max-width: 66ch`.
+
+#### 7B.4.3 Space, shape, depth, motion
+
+- **Spacing scale (px):** 4, 8, 12, 16, 24, 32, 48, 64, 96, 128.
+- **Layout.**
+  - Sections get 96 px vertical padding on desktop and 64 px on mobile.
+  - The container is at most 1120 px wide, with 24 px side padding (16 px under 600 px).
+  - The grid has 12 columns with a 24 px gutter.
+- **Radii:** 8 (inputs, chips), 12 (cards), 20 (large panels, hero media), 999 (buttons, pills, status).
+- **Borders and depth.**
+  - Borders are 1 px `--line`.
+  - Cards use a `--surface` background with a 1 px `--line` border and no heavy shadows.
+  - Menus and toasts are the only places a shadow is allowed: `0 1px 2px rgba(20,20,19,.06), 0 8px 24px rgba(20,20,19,.06)`.
+- **Focus:** a 2 px `--clay` outline with a 2 px offset on every interactive element (`:focus-visible`).
+- **Motion.**
+  - Hover and press transitions are 150–250 ms ease-out.
+  - The two signature moments (the trace drawing and the receipt marker) take 600–800 ms.
+  - Everything respects `prefers-reduced-motion: reduce`: no animation, instant state changes.
+
+#### 7B.4.4 Signature elements (the only two "loud" things)
+
+1. **The lifeline trace.** The existing ECG-style path (the brand SVG in `(shell)/layout.tsx`) becomes the brand mark.
+   - In the header it is 20 px high, in `--clay`.
+   - In the hero it runs the full container width and draws once on load (`stroke-dashoffset`, 800 ms).
+   - Its last segment ends at the live heartbeat.
+2. **The keeper heartbeat.** A small `--olive` dot with the text "Lifeline checked N armed positions Xs ago · block B" (testnet data).
+   - It pulses once each time `/health` `lastAlarmAt` advances, polling `/api/ops-health` every 5 s.
+   - It appears in the hero, on the dashboard, and in the status pill's popover.
+   - It is real data, not decoration.
+
+Spend boldness only there. Everything else stays quiet.
+
+#### 7B.4.5 Components (in `apps/web/app/ui/`, plain CSS, no UI library)
+
+| Component | Spec |
+|---|---|
+| `Button` | **Variants:** `primary` (bg `--ink`, text `--on-ink`, pill shape, 44 px minimum height, Poppins 500 at 16 px); `secondary` (bg `--surface`, 1 px `--line-strong` border, text `--ink`); `quiet` (text `--clay-ink`, underlined on hover). **States:** hover (primary bg `#2b2b28`), pressed, disabled (`--line-strong` text), and busy (inline spinner plus the verb in -ing form, for example "Taking ownership…"). Never two primary buttons in one view. |
+| `Card` | `--surface`, 1 px `--line`, radius 12, padding 24 (16 on mobile). Optional header row: a title (h3) with meta on the right. |
+| `Stat` | Label (small, `--muted`, Lora) above the value (Poppins 600, 28 px, tabular). Optional sub-label. |
+| `StatusPill` | Replaces `HealthBanner`. **States** come from `/api/ops-health`: "All systems normal" (olive dot); "Lifeline is paused" (clay dot, `--clay-ink` text); "Lifeline is degraded" (danger dot); "Status unavailable" (muted dot). **Popover** (on click): the heartbeat, the last block, "Practice accounts available: N," and a link to `/developers#status`. Keep a banner only for paused and degraded, and keep the texts "Lifeline paused" and "Lifeline degraded" inside it for the existing tests. |
+| `Badge` | Small pill. Tones: neutral, clay, olive, blue, danger. Used for "Contract-exact," "Armed," "Paused," "Demo mode," "Testnet," and "Mainnet · read-only." |
+| `ContractExactBadge` | Replaces `ExactBadge`. `--olive-ink` text "Contract-exact" with a check icon, linking to `/methodology`. Tooltip: "Matches Perpl's contract to the tick on 912 live positions." (the number comes from the summary JSON). Keep `calibrationMark` and its tests. |
+| `Field`, `Input`, `Select` | Label above; 44 px height; radius 8; 1 px `--line-strong` border; `--surface` background; error text in `--danger-ink` below, wired with `aria-describedby`. Address inputs use JetBrains Mono. |
+| `PercentSlider` | Range input with a `--well` track and an `--ink` thumb. Shows its value in %. Step 0.5%; arrow keys step 0.5%, Shift plus arrow steps 1%. A live preview line sits under it (V7). |
+| `Stepper` | Vertical on mobile, horizontal on desktop. Step states: upcoming, current, done (olive check), failed (danger). Each step has a title and one line of help. |
+| `Timeline` | Activity rows: icon, title, sentence, relative time ("2 min ago," with the absolute time on hover), and a `TxLink`. |
+| `TxLink` and `AddressChip` | Shortened `0x1234…abcd` in JetBrains Mono. A copy button gives "Copied" feedback. The explorer link opens in a new tab (`rel="noopener noreferrer"`) on the right explorer for the chain (V1). |
+| `DistanceGauge` | Horizontal bar from 0% (liquidation, at the left, `--danger`) to 15% (right). **Markers:** the current distance (`--ink`), the act-below line (`--clay`, dashed), and the safety line (`--olive`). **Accessible text:** "3.2% from liquidation. Lifeline acts below 4.5% and restores 6.5%." |
+| `Toast` | Bottom right (bottom on mobile), `--surface`, with the allowed shadow. Hides itself after 5 s; `aria-live="polite"`. Used for "Transaction sent," "Confirmed," and errors with a retry. |
+| `Skeleton` | `--well` blocks with a 1.2 s shimmer, turned off under reduced motion. Replaces every "Reading the book." and "Reading twin pairs." placeholder. |
+| `EmptyState` and `ErrorState` | A title (h3), one sentence, and one action. Errors say what happened and what to do (§7B.4.7). |
+| `TourRail` | Sticky bar under the header while a tour is active: "Judge tour · Stop 2 of 5 · A real liquidation," then Back, Next (primary), and Exit tour. |
+| `Disclosure` | Native `<details>`, styled. Used for "Advanced" settings and FAQ items. |
+
+#### 7B.4.6 Voice, words, and numbers
+
+**Voice.** Plain, calm, exact. Sentence case everywhere. No exclamation marks, and no hype words ("revolutionary," "seamless," "supercharge"). Describe what happens, from the user's side of the screen.
+
+**One name per thing, used everywhere.** This glossary is *verbatim*.
+
+| Say in the UI | Never say in the UI | Internal meaning |
+|---|---|---|
+| practice account | proxy, DelegatedAccount, pool position | A claimed pool `DelegatedAccount` on testnet |
+| your wallet | embedded wallet, guest, EOA, signer | The Privy embedded wallet |
+| take ownership | acceptOwnership, pendingOwner | `acceptOwnership()` |
+| safety line | target, targetBps | The mandate's target distance |
+| act-below line | trigger, triggerBps | The mandate's trigger distance |
+| distance from liquidation | distanceE6 | The contract distance |
+| idle AUSD | free balance, freeCNS | The account's free balance |
+| margin | deposit, depositCNS | The position's deposit |
+| Lifeline's key | operator, operator key, selectors | The operator EOA |
+| what Lifeline can and can't do | allowlist, revoked selectors | The operator allowlist |
+| pause protection / resume protection | disarm / arm | The mandate's active flag |
+| budget | budgetCNS | The mandate budget |
+| per top-up limit | maxPerActionCNS | The per-action cap |
+| demo mode | sandbox | A sandbox arm on a house account |
+| top-up | increasePositionCollateral | One operator action |
+| Lifeline checks every 2 seconds | keeper, alarm, Durable Object | The alarm loop |
+
+**Forbidden in visible text.** V12 enforces this with a test over the rendered text of every route and state:
+
+- unit and field names: `CNS`, `PNS`, `LNS`, `\bbps\b`, any `\w+E6\b`;
+- protocol terms: `nonce`, `selector`, `calldata`, `proxy`, `DelegatedAccount`, `acceptOwnership`, `increasePositionCollateral`, `execOrder`, `pendingOwner`, `operator`, `sandbox`, `keeper`, `Durable Object`;
+- `perp` followed by a digit;
+- reason codes: `ABOVE_TRIGGER`, `BELOW_MIN`, `MARK_INVALID`, `PAUSED`, `EXPIRED`, and any other `[A-Z]{3,}_[A-Z_]+`;
+- test-harness phrases: `ms from`, `Wallet transactions before`;
+- broken values: `\bundefined\b`, `\bNaN\b`, `\bnull\b`.
+
+The only exception: `/developers` and `/methodology` may show field names inside `<code>` and `<pre>`. The test ignores text inside those elements.
+
+**Numbers.**
+
+| Kind | Format | Example |
+|---|---|---|
+| Dollars under $10k | Cents only when they aren't .00 | `$4,951.60` |
+| Dollars, $10k to $1M | Thousands | `$274.5k` |
+| Dollars, $1M and up | Millions | `$3.15M` |
+| Prices | The market's price decimals from the chain; never raw integers | `$83,702.3` for BTC (price decimals 1) |
+| AUSD | At most 2 decimals | `152 AUSD`, `152.40 AUSD` |
+| Distances | One decimal in sentences, two in tables | `3.2%`, `3.21%` |
+| Blocks | With separators | `block 68,909,759` |
+| Times | Relative | `12 s ago`, `3 min ago` |
+| Leverage | With × | `15×` |
+
+Put the exact dollar value in a `title` tooltip whenever a dollar figure is compacted.
+
+**Addresses and hashes** are shortened, in JetBrains Mono, with a copy button and an explorer link.
+
+#### 7B.4.7 Error messages (one map: `apps/web/lib/messages.ts`)
+
+Every API error code and every error thrown in the user flows maps to one of these rows. The titles are *verbatim*; you may refine the sentences.
+
+| Code or condition | Title | Sentence and action |
+|---|---|---|
+| Claim 409 `claimed` | You already have a practice account | "Opening it now." Then resume via `/me`; never a dead end. |
+| Claim 429 `rate` | Too many new accounts from this network | "Try again in a few minutes, or use demo mode now." [Use demo mode] |
+| Claim 503 `empty` or `sandbox:true` | All practice accounts are in use | "Demo mode runs the same protection on a shared account." [Use demo mode] |
+| Claim 503 `sponsor floor` | Practice accounts are paused for a moment | "We're refilling testnet gas. Try demo mode, or retry in a few minutes." |
+| 403 `turnstile` | Please confirm you're human | Show the Turnstile widget; retry automatically once a token arrives. |
+| 401 `unauthorized`, or Privy fails to start | Your wallet didn't start | "Reload the page. If it keeps failing, demo mode works without a wallet." |
+| Ownership transaction fails | Ownership wasn't transferred | "Your account is still reserved for you and Lifeline is still protecting it. Try again." [Try again]. Keeps the meaning of the PRD's `PENDING_OWNER`. |
+| Arm `skipped` with `ABOVE_TRIGGER` | Protection is on | "Your position is X% from liquidation, above your act-below line of Y%. Lifeline will step in if it falls below." Success tone, not an error. |
+| Arm `skipped` with `BELOW_MIN` | Protection is on | "The top-up needed right now is under 5 AUSD, so Lifeline is waiting." |
+| Arm `skipped` because the budget or cap is used up | Budget used up | "Raise the budget or withdraw less to let Lifeline keep acting." |
+| Arm 409 `nonce` | That signature was already used | "Sign again." [Sign again] |
+| Arm 500 `reverted` | The top-up didn't go through | "No funds moved. Lifeline will retry on its next check." Include the transaction link. |
+| RPC failure or 502 | Monad testnet is slow to answer | "Your funds are safe. Retrying…" Retry automatically with backoff. |
+| Withdraw fails | Withdrawal didn't go through | "You can withdraw up to your idle AUSD. Try a smaller amount." |
+| `/health` `paused` | Lifeline is paused | "New top-ups are stopped while we check something. Your account and funds are unaffected." |
+
+Map every remaining reason code from `packages/core` `evaluate` to a row, and list them in the evidence.
+
+### 7B.5 Page specs
+
+Wireframes show layout intent, not pixel specs. Copy marked *verbatim* is used exactly as written.
+
+#### `/` Landing
+
+```
+header: Lifeline~trace | Market risk  Check an address  Proof  Developers | ● All systems normal  [Judge tour]  (Protect a position)
+────────────────────────────────────────────────────────────────────────────────────────────────────────────
+HERO
+  Don't get liquidated with money in your account.                                   (display, Poppins)
+  Lifeline moves your own idle AUSD into a Perpl position's margin when it nears
+  liquidation. Its key can add margin and nothing else.                               (body-lg, Lora)
+  (Protect a position)   [ Paste a Perpl account address ______________  Check ]
+  Judging Metropolis? Take the 3-minute tour →
+  ~~~~~~~~~~~~~~~~~~~ lifeline trace, drawn once ~~~~~~~~~~~~~~~~~~~  ● Lifeline checked 41 positions 1 s ago · block …
+────────────────────────────────────────────────────────────────────────────────────────────────────────────
+LIVE STRIP   Live on Monad mainnet · read-only · block 111,275,464 · Contract-exact
+  $3.15M open interest | 141 positions within 5% ($274.5k) | $127.4k idle beside them | $X penalties (30 days)
+  See the market risk map →
+────────────────────────────────────────────────────────────────────────────────────────────────────────────
+THE PROBLEM   "A position can be liquidated even while your account holds ample free balance."  (Perpl documentation)
+  [diagram: one account = small "Position margin" bar + large "Idle AUSD" bar; price falls; the position is liquidated;
+   the idle AUSD never moves]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────
+HOW IT WORKS (#how)    1 Give Lifeline a narrow key  ·  2 Draw your safety line  ·  3 Lifeline steps in
+────────────────────────────────────────────────────────────────────────────────────────────────────────────
+WHAT LIFELINE'S KEY CAN'T DO (#security)    Can | Can't   + "Checked on chain" explorer links
+────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PROOF    cards: Twins · A real liquidation · Contract-exact · Saves
+────────────────────────────────────────────────────────────────────────────────────────────────────────────
+TWO WAYS IN    [For traders: check your address, open a practice account]  [For judges: the tour and the evidence]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────
+FAQ (#faq)    ·    closing band with (Protect a position)    ·    footer
+```
+
+*Verbatim* copy:
+
+- **H1:** "Don't get liquidated with money in your account."
+- **Sub:** "Lifeline moves your own idle AUSD into a Perpl position's margin when it nears liquidation. Its key can add margin and nothing else."
+- **Primary button:** "Protect a position."
+- **Address input placeholder:** "Paste a Perpl account address."
+- **Tour link:** "Judging Metropolis? Take the 3-minute tour."
+- **Live strip label:** "Live on Monad mainnet · read-only."
+- **Problem quote:** "A position can be liquidated even while your account holds ample free balance." Attributed to "Perpl documentation."
+- **How it works.** These are a real sequence, so numbering is right.
+  1. "Give Lifeline a narrow key." Then: "Your Perpl account appoints Lifeline's key. It can do one thing: move your account's idle AUSD into a position's margin."
+  2. "Draw your safety line." Then: "Choose how far from liquidation you want to stay, a per top-up limit, and a total budget. You sign it; it costs no gas."
+  3. "Lifeline steps in." Then: "Lifeline checks every 2 seconds. When a position falls below your line, it adds margin from your idle AUSD in the next block."
+- **Security heading:** "What Lifeline's key can't do."
+  - Can: "Add your idle AUSD to a position's margin, within your budget and per top-up limit."
+  - Can't: "Open, close, or change trades. Withdraw or move funds out. Remove margin. Act after you pause it."
+- **FAQ.** The questions are *verbatim*. You write each answer, in three sentences or fewer, from the PRD.
+  - "Is this real or a simulation?" Real transactions on Monad testnet; the market data is live mainnet; testnet tokens have no value.
+  - "Why testnet?" Mainnet stays read-only during the hackathon; mainnet protection is coming via API-key mode.
+  - "What can Lifeline's key do with my account?"
+  - "What if the price keeps moving against me?" Say the `TRADEOFF` text in plain words.
+  - "How do I stop it?"
+  - "Does it cost anything?" Free on testnet. Signing needs no gas, and a little testnet MON is sent to your wallet for the one ownership transaction.
+  - "Is the liquidation price exact?" Link `/methodology`.
+- **Proof cards.**
+  - Twins: "Same trade, opened twice. One has Lifeline."
+  - Replay: "A real Bitcoin long liquidated on mainnet, and what Lifeline would have added."
+  - Contract-exact: "Our liquidation price matches Perpl's contract to the tick on 912 live positions."
+  - Saves: "Positions still open after the market crossed the liquidation price they had before Lifeline's top-up." Show the live count; 0 is shown as 0.
+
+**Live data rules.**
+
+- Numbers come from `/api/radar?chain=143`, so they equal those on `/radar`.
+- Refresh every 10 s on the landing page, not every 2 s.
+- Show skeletons until the first load.
+- If the API fails, show "Live numbers are taking a moment." and keep the rest of the page.
+
+#### `/radar` Market risk
+
+- **Header row.**
+  - h1 "Market risk," with the sub "Every open Perpl position, read from the contract, with its exact liquidation price."
+  - A chain segmented control with these *verbatim* labels: "Mainnet · live, read-only" and "Testnet · where Lifeline acts."
+  - The Contract-exact badge, and the block number with a relative time.
+- **Headline stats** (four `Stat`s):
+  - Open interest;
+  - Within 5% of liquidation (count and $);
+  - Idle AUSD beside them;
+  - Penalties paid in 30 days.
+- **Under the stats, two sentences:**
+  - "Of $X in penalties over 30 days, $Y belonged to accounts whose idle AUSD could have moved the liquidation price at least 1% away." This uses V1's corrected rule.
+  - "Penalty at stake now: $W."
+- **Market selector.**
+  - Chips for the markets that have positions, sorted by at-risk notional. Default: BTC.
+  - Markets with no buckets collapse into one line: "No positions near liquidation in SOL, TAO, NEAR, …"
+- **Liquidation map** (SVG for the selected market; hand-rolled, no chart library):
+  - **x-axis:** price, from mark −15% on the left to +15% on the right. Ticks every 5%, each labelled with the price and the % (for example "$79,600 · −5%").
+  - **Mark:** a solid `--ink` vertical line at the center, labelled "Mark $83,702."
+  - **Bands:** shaded `--well` rectangles for ±1%, ±2%, and ±5%, lighter as they widen, with small labels.
+  - **Bars:**
+    - one bar per 0.25% bucket;
+    - long-liquidation notional below the mark in `--clay`, short-liquidation notional above it in `--blue`;
+    - height on a square-root scale of notional, with the y-axis labelled "$ at risk".
+  - **Crash slider** under the chart: a `PercentSlider` from −10 to +10, step 1, keeping the existing test ids.
+    - Dragging moves a dashed `--clay` "shocked mark" line.
+    - Crossed buckets fill with `--danger` and keep the `hit` class.
+    - The existing `crashLine` sentence sits below, then the label "First-order: excludes cascade price impact." (the sentence-case form of `CRASH_LABEL`).
+  - **Tooltip** on hover or focus of a bar: "12 longs · $48.2k · liquidate between $81,600 and $81,800 · 7 have idle AUSD." The bars are focusable buttons (keep `data-testid="bucket"`).
+  - **Sparkline:** a 24-hour sparkline next to the market name when `/api/markets` has one.
+- **At-risk table** (a real `<table>`).
+  - Columns: Market, Side, Size ($), Distance, Idle beside it, Lifeline could protect now (Yes or No), and the anonymized ID (mono).
+  - Sorted by distance, closest first. Show 25 rows, with "Show all."
+  - Clicking a row opens a side drawer with the anonymized detail and a "Check an address" link.
+  - On testnet, the signed-in user's own position is marked "Your position" (V5's server highlight).
+- **Recent liquidations.**
+  - Titled "Recent liquidations (mainnet)."
+  - Rows like "BTC long · $1,501 · block 111,200,117 · 4 min ago," each with a mainnet explorer link.
+- **Polling:** the snapshot every 2 s while the tab is visible; history every 60 s; markets every 5 min; saves every 30 s (V1).
+
+#### `/check` and `/a/[address]`
+
+- **`/check`.**
+  - h1 "Check an address," with the sub "See how close each position is to liquidation and what Lifeline would do right now. Nothing is signed or sent."
+  - An address input (mono), a chain select ("Mainnet" by default, or "Testnet"), and a "Check" button.
+  - Two example chips: "A live mainnet account" (`0x77A89C51f106D6cD547542a3A83FE73cB4459135`, chain 143) and "A testnet practice account" (a registered pool account; a constant in `lib/bounties.ts`).
+  - An invalid address shows the inline error "That isn't a valid address." without navigating.
+- **`/a/[address]`.**
+  - **Header:** an `AddressChip` and a chain badge ("Mainnet · read-only" or "Testnet"), then an account summary row (idle AUSD, number of positions, total margin).
+  - **One `Card` per position:**
+    - title, for example "BTC long · 15×" (leverage when it's available);
+    - a `DistanceGauge`;
+    - a grid with entry, mark, and liquidation price (all in $; the liquidation price comes from `liquidationMicro`), margin, idle AUSD, and "If liquidated now you'd forfeit about $Z";
+    - the dry-run sentence from the existing `dryRunSentence`. Keep the testid `dry-run`. On mainnet its element still contains "Protection on mainnet: coming via API-key mode." (A6 test), shown as a second sentence.
+  - **Actions:**
+    - mainnet: the PRD note above, plus a "Try it on a testnet practice account" button that opens `/app`;
+    - testnet, when the address is the signed-in user's practice account: "Open your dashboard";
+    - any other testnet address: "Open a practice account."
+  - **States:**
+    - loading skeleton cards;
+    - no account: "This address has no Perpl account on mainnet." (or "on testnet");
+    - no positions: "This account has no open positions.";
+    - RPC error, with a retry.
+
+#### `/app` onboarding (no claim yet, or the claim isn't finished)
+
+```
+h1: Protect a position                                                                 [Testnet]
+sub: You'll get a testnet practice account that already holds a live 15× BTC position and idle
+     AUSD, which is the exact setup Lifeline is built for.
+
+Stepper:  (1) Practice account   (2) Take ownership   (3) Safety line   (4) Protected
+
+Step 1 card   (Open my practice account)
+              Creates a wallet in this browser. No email, no extension. Testnet only.
+              after:  ✓ Wallet 0x6892…23d4     ✓ Practice account reserved
+              position: BTC long · 15× · 3.2% from liquidation · 300 AUSD idle · liquidation $81,040
+
+Step 2 card   This account is held for you. Taking ownership makes your wallet its owner;
+              after this, only you can withdraw from it. Until you set your own line, a house
+              safety line keeps it from liquidation.
+              (Take ownership)    one transaction, paid with testnet MON we sent to your wallet
+
+Step 3 card   Keep my position at least [ 6.5% ] from liquidation          (PercentSlider)
+              Lifeline steps in below 4.5%                                 (derived; editable under Advanced)
+              preview: DistanceGauge + "Today 3.2%. Lifeline would add about 61 AUSD now and move your
+                        liquidation price from $81,040 to about $78,920."
+              Advanced: per top-up limit 150 AUSD · budget 150 AUSD (half your idle) · lasts 7 days
+              callout: the trade-off sentence
+              (Sign and turn on protection)    no gas
+
+Step 4        receipt, which then becomes the top of the dashboard
+```
+
+- **One click.** "Open my practice account" runs `prepare()` (the guest wallet) and then `claim()` (Turnstile plus the claim). Progress shows two sub-steps: "Creating your wallet" → "Reserving a practice account."
+- **Position card data.** The card reads `/api/account/<proxy>?chain=10143` (today's `readLive`) for the liquidation price and idle AUSD.
+- **Defaults** come from `armDefaults(distance)` (U3). The copy, as *verbatim* templates:
+  - Always: "Your position is X% from liquidation. Lifeline recommends a safety line of Z% and will step in below Y%."
+  - Inside the line: "That's inside your line, so Lifeline will add margin right after you sign."
+  - Outside the line: "That's above your line, so Lifeline will wait and act if the price moves against you."
+- **"Test Lifeline now"** (U3) moves under Advanced as a quiet button. Keep that exact label for its test.
+- **Preview estimate.** The estimated top-up uses `desiredDepositMicro` on the client, with no network call, and is labelled "about."
+- **Receipt card.** This is the A7 receipt, restyled. Keep testid `receipt` and its data attributes.
+  - Title: "Lifeline protected your position."
+  - A `DistanceGauge` whose marker animates from before to after (the signature motion).
+  - Lines: "Distance 3.2% → 6.5%"; "Liquidation price $81,040 → $78,920"; "Added 61 AUSD from your idle balance"; "Confirmed in block 68,909,760."
+  - A `TxLink` "View the top-up," then "Go to your dashboard" (primary).
+- **Demo mode** (the sandbox).
+  - A `Badge` "Demo mode" and this *verbatim* text: "You're using a shared house account, so you can see protection work without a wallet. Nothing here belongs to you."
+  - The same safety-line step and receipt; no ownership step and no withdraw.
+
+#### `/app` dashboard (claim accepted)
+
+```
+h1: Your protection                                             [● Armed]  or  [Paused]
+┌ Position health  (live, every 3 s) ──────────────┐  ┌ Lifeline ─────────────────────────────────┐
+│ BTC long · 15× · testnet                          │  │ ● Checked 1 s ago · block 68,9…           │
+│ DistanceGauge (now, act-below line, safety line)  │  │ Safety line 6.5% · steps in below 4.5%    │
+│ Mark $83,702 · Liquidation $78,920                │  │ Budget 61 of 150 AUSD used · 6 days left  │
+│ Margin 161 AUSD · Idle 239 AUSD                   │  │ (Adjust safety line)  [Pause protection]  │
+└───────────────────────────────────────────────────┘  └───────────────────────────────────────────┘
+┌ Activity ──────────────────────────────────────────────────────────────────────────────────────┐
+│ Lifeline added 61 AUSD · 3.2% → 6.5% · 2 min ago · View                                         │
+│ You turned on protection (signed, no gas) · 2 min ago                                           │
+│ You took ownership · 3 min ago · View                                                           │
+│ Practice account reserved for you · 3 min ago · View                                            │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌ Your money ──────────────────────────────┐  ┌ What Lifeline can and can't do ────────────────────┐
+│ Wallet 0x6892…23d4 · 0.07 MON · 0 AUSD    │  │ Can: add idle AUSD to margin within your budget.   │
+│ Withdraw idle AUSD [ 50 ] [Max] (Withdraw)│  │ Can't: trade, close, withdraw, or move funds out.  │
+│ Only you can do this.                     │  │ Checked on chain → this account on the explorer    │
+└───────────────────────────────────────────┘  └────────────────────────────────────────────────────┘
+Keep this account   [Save with email]   Your wallet lives in this browser. Add an email to keep it.
+See it on the testnet market map →
+```
+
+- **Paused state.** The badge reads "Paused," and the Lifeline card says: "Paused. Lifeline won't add margin until you resume." Show [Resume protection].
+
+#### `/proof`, `/twins`, `/replay`, `/methodology`
+
+- **`/proof`.**
+  - h1 "Proof," with the sub "Everything here links to a transaction or a file you can check yourself."
+  - Four cards: Twins, A real liquidation, Contract-exact, Saves.
+  - A fifth card, "What Lifeline's key can't do," lists the six revoked permissions as plain actions: "Place or cancel orders (single or batch)," "Remove margin," "Buy liquidations," "Deposit on your behalf," "Forward orders." It links to a pool account on the explorer.
+- **`/twins`.**
+  - h1 "Twins," with this *verbatim* sub: "Each pair is the same trade opened at the same time, price, and leverage. One has Lifeline. One doesn't."
+  - A summary row on top: number of pairs, protected legs alive, unprotected legs liquidated, saves.
+  - Each pair is a `Card` with a header like "BTC long · 15× · opened block N" and two columns, Protected and Unprotected. Each column has:
+    - an outcome `Badge` ("Alive," "Liquidated at block N," or "Crossed its liquidation price at block N");
+    - a `DistanceGauge`;
+    - "Lifeline added X AUSD across N top-ups";
+    - a `Timeline` of actions in AUSD with explorer links.
+- **`/replay`.**
+  - h1 "A real liquidation." The story is in three short sections: what happened; what the contract said; what Lifeline would have done.
+  - An SVG chart:
+    - x is block (48 samples) and y is the mark price;
+    - lines for the liquidation price (`--danger`) and the 4% act-below line (`--clay`, dashed);
+    - a "Lifeline would have acted here" marker at `wouldAct.block`, and a "Liquidated" end marker.
+  - Stats: margin, idle AUSD beside it, what Lifeline would have added.
+  - All links go to the **mainnet** explorer.
+- **`/methodology`.**
+  - h1 "Contract-exact." Plain explanation first: "Lifeline computes the liquidation price the same way Perpl's contract does, and rounds one tick toward safety."
+  - Then the formula in a code block.
+  - Then the fork-check numbers as `Stat`s: positions, markets, shorts, with premium, with residue, and exact match 100%, plus the date.
+  - Then "Reproduce it," with the command in a code block.
+
+#### `/developers`
+
+- h1 "Developers," with the sub "A free risk endpoint for anyone building on Perpl."
+- **Risk API section:**
+  - `GET /api/v1/risk/{address}?chain=143` (or `chain=10143`);
+  - a parameters table, and a response-fields table with a plain description of each field;
+  - the rate limit (60 per minute per IP) and the CORS policy (open);
+  - a `curl` example with a copy button;
+  - a live "Run" panel: an address input prefilled with the example, a chain select, and "Run," which shows the status, the latency, and pretty-printed JSON in a `<pre>`.
+- **Liquidation history section:** the `/api/liquidations` fields.
+- **Status section** (`#status`): what each `/health` field means, in plain words.
+
+#### `/tour` and `/tour/evidence`
+
+- **`/tour`.**
+  - h1 "The 3-minute tour," with the sub "Five stops. Every number is live and every transaction is real."
+  - An ordered list of the five stops: title, one sentence, and the page it opens.
+  - Two buttons: "Start the tour" (primary) and "Go straight to the evidence" (quiet).
+- **Stop panels.** While the tour is on, each stop's panel is a small `Card` pinned at the top of its page.
+  1. **Live market risk.** What: "Every open Perpl position on mainnet, with its exact liquidation price." Why: "This is the risk Lifeline exists to remove." Do: "Drag the BTC slider to −3%." Check: Contract-exact, linking `/methodology`.
+  2. **A real liquidation.** What: "A Bitcoin long liquidated on mainnet with idle AUSD next to it." Why: "Lifeline would have added that idle AUSD before the liquidation." Check: the mainnet transaction.
+  3. **Protect a position.** What: "A testnet practice account with a live 15× BTC position." Do: "Open it, take ownership, sign your safety line." Why: "You trigger a real top-up yourself." Check: the top-up transaction on the receipt.
+  4. **Try to break it.** Do: "Withdraw some AUSD; only you can. Then open the twins." Why: "Lifeline's key can add margin and nothing else." Check: the permissions link, then `/twins`.
+  5. **Evidence.** Opens `/tour/evidence`.
+- **`/tour/evidence`.**
+  - The `BOUNTIES` map as cards: requirement, how Lifeline meets it, the code path (a GitHub link if the repository is public, otherwise a mono path), and the proof link.
+  - A live "Key numbers" panel: positions tracked, liquidations in 30 days, exact-match %, top-ups made, practice accounts claimed today (`/health` `claimsToday`).
+
+#### Not found and errors
+
+- **`app/not-found.tsx`:** "This page doesn't exist." with links to `/`, `/app`, and `/radar`.
+- **`app/error.tsx`** (client): "Something went wrong on this page." with "Try again" (calls `reset`) and "Go home." Log the error to the console only.
+
+### 7B.6 Tasks
+
+#### [x] V0 Sync the PRD with this section
+- **Type:** AGENT · **Depends on:** — · **Why:** §1 of this file says the PRD wins on conflicts. These amendments make the PRD agree with §7B, so nothing below conflicts with it.
+- **Do:** Edit `prd.md` as product amendments, and log one line per amendment in §9. Don't add any timeline.
+  1. **§1:** add "Primary user story" and "Judge story": the two story statements from §7B.2, each followed by its journey as one short numbered list.
+  2. **New §4.0 "Information architecture":** the route table from §7B.3 (route, job, primary action) and the redirects.
+  3. **F1 step 1:** "The radar lives at `/radar`. The landing page `/` shows the same live headline numbers from `GET /api/radar?chain=143` and routes users to the product, the radar, the lookup, and the judge tour."
+  4. **F4:** claims are rate-limited per real client IP, as forwarded by our server. Add: "A user who already claimed gets their existing account back."
+  5. **F7:** "Withdraw" takes any amount up to the idle balance (it was a fixed 50 AUSD). "Keep this account" upgrades the guest with Privy `login()`.
+  6. **F9 step 1:**
+     - Replace `eligible = idleAtLiq ≥ posDepositCNS` with `eligible = idleAtLiq ≥ 1% of notional at the liquidation mark`.
+     - Add one sentence on why: `posDepositCNS` is the deposit after liquidation, and 1% matches F2's "saved" rule.
+     - State that the 30-day window is enforced by block range.
+  7. **New F10 "Dashboard":** live position health, Lifeline status and heartbeat, activity, adjust, pause and resume, withdraw, keep the account, and resume on return.
+  8. **§9 demo script:** replace it with the judge tour (§7B.2 Story J) as five timed beats that add up to 3 minutes. Keep the backup line.
+- **Pass:**
+  - `prd.md` contains all eight changes, and §9 here has the lines.
+  - No timeline text was added: `git diff prd.md` contains no dates, durations, or "deadline".
+- **Evidence:** `prd.md` has §1 stories, §4.0, the F1 landing sentence, the F4 resume sentence, F7 withdraw-any and `login()`, F9's 1% rule and block-range window, F10, and the five-beat §9 script with the backup line kept. `git diff prd.md` has no dates and no "deadline". The only duration words added are the verbatim judge story ("three minutes") and the required "30-day window" phrase. The old clock-timed script was removed.
+
+#### [ ] V1 Numbers judges can check
+- **Type:** AGENT · **Depends on:** V0
+- **Why:** The Envio ($1k) and Perpl Analytics ($3k) proofs show impossible dollar figures today (F5–F10). A judge who opens one stops trusting the rest. Track 1 and Grand Champion depend on credibility.
+- **Do:**
+  1. **Market scales for the history.**
+     - In `apps/web/lib/history-store.ts`, build `scales` from `listPerps(client, exchange)` on mainnet (`priceDecimals` and `lotDecimals` per `perpId`), cache it in memory for 1 hour, and pass it to `liquidationHistory`.
+     - If a perp is missing from the map, fetch `getPerpetualInfoV2(perpId)` once.
+     - `summarizeLiquidations` must not silently fall back to 0 decimals. Mark such a row `scaleMissing` and leave it out of the totals.
+  2. **The 30-day window.**
+     - On first load, compute `fromBlock = latest − blocksForDays(…, 30)` with the existing `blocksForDays`, instead of starting at cursor 0.
+     - On every read, drop rows older than 30 days by block.
+     - Totals, penalties, and the eligible count cover the window only.
+  3. **Eligibility.**
+     - In `packages/core/src/hypersync/analytics.ts`, set `eligible = idleAtLiq * 100n >= notionalMicro`, meaning idle is at least 1% of notional at the liquidation mark.
+     - Keep `posDepositCNS` in the row for display.
+     - Unit tests: idle 0 is false; exactly 1% is true; 0.99% is false.
+  4. **Market symbols.** History rows and the tape carry `symbol` (from the same `listPerps`) and `side` ("long" or "short" from `positionType`). The UI never shows `perp N`.
+  5. **Formatted liquidation price.**
+     - `/api/account` and `/api/v1/risk` add `liquidationMicro` and `priceDecimals` next to `liquidationPricePNS`.
+     - The UI uses a new `formatPrice(micro, priceDecimals)` in `lib/format.ts` wherever a price is shown.
+     - Keep `data-liq` with the raw value for the tests.
+  6. **Explorers per chain.**
+     - Add `lib/explorer.ts` with `txUrl(chainId, hash)` and `addressUrl(chainId, address)`. Testnet is `https://testnet.monadexplorer.com`.
+     - For mainnet, try `https://monadscan.com` first, then `https://monadvision.com`. Pick the one whose `/tx/<replay tx>` page shows the transaction in a real browser (use Playwright, headed if a bot wall blocks headless), and log the choice.
+     - Replace every call site of the `twins-view` `txUrl`; the replay and the liquidation tape use mainnet.
+  7. **Polling cadence.**
+     - In `radar-board.tsx`: the snapshot every 2 s, only while `document.visibilityState === "visible"`; `/api/liquidations` every 60 s; `/api/markets` every 5 min; `/api/saves` every 30 s.
+     - The landing page's live strip refreshes every 10 s.
+  8. **Penalties.** Recompute the radar's "paid" and "avoidable" penalties from the corrected rows.
+- **Pass:**
+  - **Notional:** a unit test over 5 real mainnet `PositionLiquidated` events (a fixture JSON that includes their decimals) shows each row's `notionalMicro` equals an independent `markPNS / 10^pd × liqLotLNS / 10^ld × 1e6`, to the micro-dollar.
+  - **Live history:** on a local server reading mainnet, `/api/liquidations` matches the independent formula on the latest 50 rows; `totals.count` is the 30-day count; and `eligible.count < totals.count`.
+  - **Penalties:** on live data, the radar's "avoidable" is less than "paid," and both reconcile with the rows.
+  - **DOM:** no text matches `/perp \d/`, and the account card shows `$` prices.
+  - **Explorer:** the replay link goes to the chosen mainnet explorer host, and that page loads in a browser showing the hash.
+  - **Polling:** with a mocked clock, the radar makes at most 1 `/api/liquidations` request per 60 s and at most 1 `/api/markets` request per 5 min.
+- **Evidence:**
+
+#### [ ] V2 Worker: resume, real client IP, honest ops, isolated demo mode
+- **Type:** AGENT, plus a HUMAN step only if a GitHub secret can't be set from the CLI · **Depends on:** V0
+- **Why:** These are the flow-breakers (F1–F3, F11–F14). Without them, the Privy ($5k) and Track 1 ($10k) demos fail for the fourth judge in an hour, for anyone who reloads, and on the twins proof. The ops runner is also burning MON on every scheduled run.
+- **Do (start with step 9, because it is losing funds now):**
+  1. **`GET /me`** on the Worker, plus `GET /api/lifeline/me` on the web through `proxyWorker`.
+     - Auth is the Privy bearer token only; a read needs no wallet proof. Also accept the admin path (`x-admin-secret` plus `x-lifeline-user`) for e2e, like `readClaimant`.
+     - Response:
+       ```
+       { userId,
+         claim: null | { proxy, perpId, accountId, market, side, leverage, claimedAt, acceptedAt,
+                         transferTx, dripTx, ownerOnchain, pendingOwnerOnchain },
+         mandate: null | { kind, active, triggerBps, targetBps, maxPerActionCNS, budgetCNS,
+                           budgetUsedCNS, expiry } }
+       ```
+     - `ownerOnchain` and `pendingOwnerOnchain` come from one `aggregate3` call.
+     - Add `op: "me"` to `lib/e2e-wallet.ts`.
+  2. **A repeat claim returns the claim.** The `claimGate` 409 body becomes `{ error: "claimed", proxy, perpId, accountId, position }`, read from `claims` and `pool`, with the distance from `readDistances`. Update the claim tests.
+  3. **Record claim transactions and acceptance.**
+     - Migration 9 (the next one after the current 8) adds `transfer_tx`, `drip_tx`, and `accept_tx` to `claims`. `claimPosition` writes the first two.
+     - When `/me`, `/arm`, or `/disarm` sees `owner() == claims.owner` and `accepted_at IS NULL`, set `accepted_at`.
+     - `POST /claim/accepted { txHash }` (with Privy auth) stores `accept_tx`.
+     - Recycling (U4) must still skip accepted claims.
+  4. **The real client IP.**
+     - **New secret `PROXY_SECRET`:** 32 random bytes, generated by `keys:generate` into `secrets/services.env` (never overwrite an existing value) and synced by `secrets:sync-worker` and `secrets:sync-vercel`.
+     - **`lib/worker-proxy.ts`:**
+       - stop forwarding `x-admin-secret`, `x-lifeline-user`, and `x-lifeline-ip` from the browser;
+       - set `x-lifeline-client-ip` from the first entry of Vercel's `x-forwarded-for` (or `x-real-ip`);
+       - set `x-lifeline-proxy-secret` to `PROXY_SECRET`.
+     - **Worker `clientIp` and `readClaimant`:**
+       - trust `x-lifeline-client-ip` only when `x-lifeline-proxy-secret` equals `PROXY_SECRET`; otherwise use `cf-connecting-ip`;
+       - the admin `x-lifeline-ip` override stays for the CLI and e2e (admin only).
+     - **Turnstile:** pass the same IP as `remoteip`.
+     - **Limits:** raise the claim IP limit and the sandbox limit to 10 per hour each. Venue Wi-Fi puts many judges on one IP, and Turnstile is the main anti-abuse control. Update §2.2 and log it in §9.
+  5. **`/health`** adds `armed` (count of active mandates), `lastBlock` (from the keeper's last read), and `claimsToday` (claims in the last 24 h). The existing fields don't change.
+  6. **`/actions`** adds `distBefore`, `distAfter`, and `reason` per row, from the existing `dist_before`, `dist_after`, and `reason` columns.
+  7. **Twins distances.**
+     - Rewrite `readLegStates` to read positions and market data in one `aggregate3` call on the first testnet RPC, exactly like `readDistances` does: at most 2 HTTP subrequests in total.
+     - On failure, return the error per leg (`distanceError: "rpc"`) instead of a silent null. The UI shows "Reading…" and retries.
+  8. **Saves, for real.**
+     - **Migration 9 table:** `saves (tx_hash TEXT PRIMARY KEY, proxy TEXT, perp_id TEXT, side TEXT, pre_liq TEXT, cross_block INTEGER, cross_mark TEXT, added_cns TEXT, recorded_at INTEGER)`.
+     - **Each keeper tick:** for every confirmed action with `liq_before` whose position was read that tick (armed positions already are), compare the mark with `markCrossed(side, preLiq, mark)` in the same units. Confirm the units of `liq_before` against `liquidationMicroFromContract` and log them. On the first cross while the position is still open, insert a save.
+     - **Every 60 s:** for watched actions whose account is no longer armed, read their positions in one `aggregate3` call and apply the same check.
+     - **Liquidation first:** a `PositionLiquidated` before the cross is not a save (`judgeSave` semantics).
+     - **`GET /saves`** returns `{ count, watched, saves: [{ txHash, proxy, market, side, crossBlock, addedCNS }] }`.
+  9. **Repair the ops runner (F14).**
+     - Add `ADMIN_SECRET` and `PROXY_SECRET` to the GitHub repository secrets with `gh secret set`, reading each value from the secrets file without echoing it. If `gh` can't do this, prompt the human with the §1.3 template.
+     - Pass both secrets to the `prepare testnet env` step, and have `scripts/ops-prepare.mjs` write them into the runner's `secrets/services.env`.
+     - **`pool:refill` preflight:** exit 1 before sending any transaction if `ADMIN_SECRET` or the Worker URL is missing. Cap creations at 4 accounts per run (`--max-new 4`, default 4).
+     - **Recover the orphaned accounts:**
+       - parse the `created 0x… side=…` lines from the failed runs' logs (`gh run view <id> --log`);
+       - verify each one on chain: the owner is the pool owner, the position is open, and the operator's six selectors are revoked;
+       - append them to local `cli-state/pool.json` and to the `CLI_STATE_POOL` secret;
+       - run `pool:register`.
+     - Save `cli-state` with `actions/cache/save` under `if: always()`, so a failed run still keeps its state.
+     - Re-run the workflow with `workflow_dispatch` until one run is green.
+  10. **Isolate demo mode (F13).**
+      - Add the pool role `sandbox`. Either create two accounts with `pool:create --role sandbox --count 2 --market BTC`, or mark two existing free pool accounts `role: "sandbox"` in `pool.json`. Your call; log it. Register them.
+      - `sandboxArm` accepts only `role = 'sandbox'`. A new `GET /sandbox/accounts` lists them, and the web's demo mode picks from it, never from `/twins`.
+      - `pickPool` never hands out a `sandbox` account.
+      - Restore every twin leg whose mandate is `kind=user` to its house mandate, through `pool:register --restore-twins` or an admin route.
+  11. **Deploy** the Worker between soak windows, and confirm `/health` returns `degraded:false`.
+- **Pass:**
+  - **Worker unit tests:**
+    - `/me` with and without a claim;
+    - a repeat-claim 409 that includes `proxy`;
+    - `accepted_at` set exactly once;
+    - a spoofed browser `x-lifeline-ip` is ignored;
+    - `x-lifeline-client-ip` is honored only with the right secret;
+    - the 11th claim from one client IP within an hour returns 429, while the first claim from another IP is allowed;
+    - saves: a synthetic cross gives 1 save; liquidated before the cross gives 0; no cross gives 0;
+    - `sandboxArm` returns 404 for a twin's account.
+  - **Live checks:**
+    - `GET /api/twins` has a numeric `distanceE6` on every leg, in 3 reads 10 s apart;
+    - in the e2e run, `GET /api/lifeline/me` returns the claim after a page reload;
+    - `/health` includes `armed`, `lastBlock`, and `claimsToday`;
+    - one green `ops` run with `pool:register` exiting 0;
+    - the recovered accounts are registered (`/health` `poolAvailable` rises by their number), and `pnpm cli status` prints `budget ok`.
+  - **Pool band:** after the refill, `/health` reports `low:false`. If the in-band target can't be met cheaply, stop and ask, because it changes alerting: report why, and propose a different threshold.
+- **Evidence:**
+
+#### [ ] V3 Design system and app shell
+- **Type:** AGENT · **Depends on:** V0
+- **Why:** First impressions decide "prototype or product" for the Grand Champion and Track 1 judges (F16, F21).
+- **Do:**
+  1. **Styles.**
+     - The tokens from §7B.4.1 go in `app/styles/tokens.css`.
+     - Base styles go in `base.css`: reset, type scale, links, focus, reduced motion.
+     - Each component in `app/ui/` gets its own CSS file next to it.
+     - Remove the old dark palette from `globals.css` once every page has moved. V13 checks that no old variable remains.
+  2. **Fonts.** Load them with `next/font/google` (§7B.4.2) in `app/layout.tsx`: `<html lang="en">` with the font variables, and `color-scheme: light`.
+  3. **Components and gallery.** Build the components of §7B.4.5, with a gallery page at `/dev/ui` that shows every variant and state. It is dev only and returns 404 in production.
+  4. **Shell.**
+     - Move the shell from `(shell)/layout.tsx` into a shared `app/(site)/layout.tsx`: the header, the mobile menu, the status pill (replacing `HealthBanner` but keeping the paused and degraded banner texts), the footer with the testnet line, and the tour rail slot.
+     - `Providers` (Privy) stays in the root layout, so every page shares one Privy session.
+  5. **Site files.**
+     - `not-found.tsx` and `error.tsx`.
+     - `app/icon.svg`: the trace in clay on ivory.
+     - `app/opengraph-image.tsx` with `next/og`: ivory background, "Lifeline," the H1 sentence, and the trace in clay; 1200×630.
+     - `metadataBase` set to the production origin.
+  6. **`/api/ops-health`** returns `{ status: "normal" | "paused" | "degraded" | "unreachable", lastAlarmAt, lastBlock, armed, poolAvailable }`, plus the old boolean fields for compatibility.
+- **Pass:**
+  - **Contrast:** a unit test recomputes WCAG contrast for every text-on-background pair in §7B.4.1 and asserts at least 4.5:1, and at least 3:1 for non-text marks against neighbouring colors.
+  - **Playwright:**
+    - every route renders with zero console errors at 390 and 1440 px;
+    - every route has the header and footer links;
+    - Escape closes the mobile menu, and focus returns to the Menu button.
+  - **Gallery:** `/dev/ui` returns 404 on a production build.
+  - **Lighthouse** (mobile, against `next start`) on `/`: accessibility ≥ 95.
+  - **Screenshots:** `v3-shell-390.png`, `v3-shell-1440.png`, `v3-ui-gallery-1440.png`.
+- **Evidence:**
+
+#### [ ] V4 Landing page `/`
+- **Type:** AGENT · **Depends on:** V1, V3
+- **Why:** One place that explains the product, shows it's live, and routes both stories. It's the first frame of the video (D8) and of every judge's visit.
+- **Do:**
+  - Build `/` per §7B.5 Landing, with the *verbatim* copy.
+  - Move the radar to `/radar` (V5) in the same commit, so `/` is never empty.
+  - The hero address input submits to `/a/<address>?chain=143`.
+  - The trace draws once, and the heartbeat reads `/api/ops-health`.
+  - The problem diagram is inline SVG: two stacked bars ("Position margin," small; "Idle AUSD," large), a falling price arrow, and the caption "Perpl liquidates the position. The idle AUSD never moves."
+- **Pass:**
+  - **Playwright:**
+    - the H1 text is *verbatim*;
+    - the live strip's numbers equal `/api/radar?chain=143` (parsed the same way as the A4 test);
+    - every route in §7B.3 is reachable from `/` in one click (collect `a[href]`);
+    - the hero buttons are above the fold at 1440×900 and visible after one scroll at 390 px.
+  - **Network:** zero browser requests to `*.perpl.xyz` (network capture).
+  - **Lighthouse** (mobile) on `/`: performance ≥ 80, accessibility ≥ 95, best practices ≥ 90.
+  - **Reduced motion:** with `prefers-reduced-motion` emulated, no animation runs after load (`document.getAnimations().length === 0`).
+  - **Screenshots:** `v4-landing-390.png` and `v4-landing-1440.png`. Check for one primary button per view, no all-caps, and no text in clay.
+- **Evidence:**
+
+#### [ ] V5 Market risk `/radar`
+- **Type:** AGENT · **Depends on:** V1, V3
+- **Why:** The Perpl Analytics bounty ($3k) is judged on this page.
+- **Do:**
+  1. **Rebuild the board.** Move `RadarBoard` to `app/(site)/radar/` and rebuild its UI per §7B.5 `/radar`: the header and chain control, the stats, the market selector with empty markets collapsed, the SVG map with its price axis and bands, the crash slider, tooltips, the at-risk table and drawer, and recent liquidations.
+  2. **Keep the logic and test ids.**
+     - Keep the `crashLine`, `bucketHit`, and `simulate` logic.
+     - Keep every existing test id: `open-interest`, `at-risk-count`, `idle`, `block`, `bucket`, `bucket-detail`, `risk-detail`, `crash-line`, `crash-label`, `spark`, `penalties`, `at-stake`, `saves`.
+  3. **"Your position" highlight.**
+     - `GET /api/radar?chain=10143&highlight=<proxy>` computes `radarId(salt, 10143, accountId)` on the server for that address (read `getAccountByAddr`) and returns it as `highlightId`.
+     - The client passes the address from `/me` when the user is signed in.
+     - The map outlines that position's bucket in `--ink`, and its table row reads "Your position."
+  4. **Tests.** Update `e2e/radar.spec.ts`, `test/crash-ui.test.ts`, and `e2e/fallbacks.spec.ts` to the new route (`/?rpc=dead` becomes `/radar?rpc=dead`).
+- **Pass:**
+  - **Specs:** the existing radar, crash, and fallback specs pass on `/radar`, and the A5 check still finishes each slider step within 100 ms with 650 positions.
+  - **Markets:** every market with buckets renders a chart; markets without any appear only in the collapsed line.
+  - **Privacy:** no raw account IDs or addresses appear on the map (the A4 DOM check, kept).
+  - **Highlight:** with a signed-in e2e session, the testnet view shows "Your position."
+  - **Screenshots:** `v5-radar-390.png`, `v5-radar-1440.png`, and `v5-radar-crash-1440.png` (BTC at −3%).
+- **Evidence:**
+
+#### [ ] V6 Check an address and the risk report
+- **Type:** AGENT · **Depends on:** V1, V3
+- **Why:** Story C starts here, and the dry run is the human-facing proof for the Perpl API bounty.
+- **Do:**
+  - Build `/check` and rebuild `/a/[address]` per §7B.5, using `liquidationMicro` and `formatPrice`.
+  - Keep `data-testid="risk-card"`, `data-testid="dry-run"`, and the cards' data attributes.
+  - The testnet example address is a registered pool account, kept as a constant in `lib/bounties.ts` and checked by the bounties link test.
+- **Pass:**
+  - **Lookup test:** `test/lookup.test.ts` is updated and passes. For mainnet `0x77A89C51…` and one testnet pool account:
+    - the card values equal `/api/account`;
+    - the liquidation price is shown in `$`;
+    - the mainnet card includes "Protection on mainnet: coming via API-key mode."
+  - **Bad input:** an invalid address shows the inline error without navigating; an address with no account shows the empty state with both examples.
+  - **Routing:** the action button opens `/app`.
+  - **Screenshots:** `v6-check-1440.png`, `v6-report-mainnet-390.png`, `v6-report-mainnet-1440.png`.
+- **Evidence:**
+
+#### [ ] V7 `/app` onboarding
+- **Type:** AGENT, plus **HUMAN** (one real Privy run, batched with V8's human step) · **Depends on:** V2, V3
+- **Why:** This is the Privy ($5k) and Track 1 ($10k) demo moment. It has to feel like signing up for a real product, and it must never dead-end (F3, F15, F18).
+- **Do:**
+  1. **New route and state machine.**
+     - Create the route `app/(site)/app/page.tsx`.
+     - Move the flow logic out of `try-panel.tsx` into a state-machine hook `useProtection(client)` in `app/(site)/app/use-protection.ts`.
+     - States: `idle → preparing → claiming → owning → choosing → signing → protected`, plus `demo` and `error`.
+     - On mount, derive the starting state:
+       - no Privy session → `idle`;
+       - a session, and `/me` has no claim → `idle`;
+       - a claim with `ownerOnchain != wallet` → `owning`;
+       - a claim with `ownerOnchain == wallet` and no user mandate → `choosing`;
+       - a user mandate, active or paused → the dashboard (V8).
+  2. **Client and fallbacks.**
+     - Keep the `TryClient` interface and `e2eClient`, and add `me()` and `accepted(txHash)` to the interface.
+     - Keep `offlineClient` and the `SandboxBoundary` fallback, relabelled "Demo mode."
+     - After the ownership transaction, call `accepted(txHash)` (it posts to `/claim/accepted`).
+  3. **UI.**
+     - Build it per §7B.5 `/app` onboarding, with the *verbatim* copy and the §7B.4.7 messages.
+     - **Safety line:** one `PercentSlider` for the safety line (target, step 0.5%) and a derived act-below line (target − 2%), editable under Advanced and clamped to the C5 limits. Defaults come from `armDefaults`.
+     - **Live preview:** a `DistanceGauge` and the estimated top-up from `desiredDepositMicro`.
+     - **Advanced:**
+       - budget: defaults to half the idle AUSD;
+       - per top-up limit: 150 AUSD;
+       - expiry: 7 days;
+       - all as plain AUSD and day inputs.
+  4. **Turnstile.**
+     - Render the widget in the step 1 card, and call `turnstile.reset(widgetId)` after each token is used.
+     - If no token arrives within 4 s, show the widget (`appearance: "always"`) with "Please confirm you're human."
+     - Never send an empty token.
+  5. **Hide test values.** Gas, nonces, wallet-transaction counts, elapsed ms, function names, and reason codes leave the visible text. Keep them as `data-*` on the receipt: `data-owner-txs`, `data-elapsed-ms`, and the existing `data-dist`, `data-target`, `data-proxy`, and `data-perp`.
+  6. **Links.** Link to `/app` everywhere; V13 adds the `/lifeline` redirect.
+  7. **Tests.** Update `e2e/try-lifeline.spec.ts` and `e2e/fallbacks.spec.ts` to `/app` and the new button labels, keeping the same pass checks.
+- **Pass:**
+  - **Happy path:** `e2e/try-lifeline.spec.ts` with `E2E_WALLET=test`, 3 consecutive runs:
+    - first click to receipt within 60 s;
+    - `data-owner-txs="1"`;
+    - a chain read of `distAfter` lands inside the W7 band;
+    - no forbidden term is visible on any step (V12's helper, or an inline check until V12 lands).
+  - **Resume:** in the same spec, a reload after the claim shows the ownership step for the same account, and a reload after ownership shows the safety-line step. There is no "already claimed" dead end.
+  - **Fallbacks:**
+    - aborting Privy → Demo mode → a receipt;
+    - claim 503 → Demo mode;
+    - 429 → the message with "Use demo mode";
+    - Turnstile 403 → the visible widget, then an automatic retry.
+  - **Demo isolation:** Demo mode never uses a twin's account; assert that the account is in the sandbox list.
+  - **Human run** (the U6 rule): one real Privy guest run on the production preview at 390 px, verified on chain (owner, top-up, receipt). Prompt with the §1.3 template, batched with V8's human step.
+  - **Screenshots:** every step at 390 and 1440 px (`v7-step1-…` through `v7-receipt-…`).
+- **Evidence:**
+
+#### [ ] V8 `/app` dashboard
+- **Type:** AGENT, plus **HUMAN** (enable Privy email login) · **Depends on:** V7
+- **Why:** This is what a customer comes back to. It also shows that protection is continuous (the keeper loop), not a one-off at arm time (F4).
+- **Human step** (prompt once with the §1.3 template, together with V7's human run): in the Privy dashboard → Login methods, enable Email (free) for this app, keep guest accounts on, and confirm the production origin is still allowed. Reply "done."
+- **Do:**
+  1. **Data and polling.** Build the dashboard per §7B.5 `/app` dashboard.
+     - `/api/account/<proxy>?chain=10143` every 3 s while the tab is visible. Add a 2 s per-address cache to `/api/account` so many open dashboards don't multiply RPC reads.
+     - `/api/actions?account=<proxy>` every 5 s.
+     - `/api/lifeline/me` on mount and after each control.
+     - `/api/ops-health` every 5 s for the heartbeat.
+  2. **Activity timeline.** Merge, newest first:
+     - the claim (`transferTx`, `dripTx` from `/me`);
+     - the ownership transaction (`accept_tx`);
+     - mandate events: signed, adjusted, paused, resumed, from `/me` plus a local log in localStorage `lifeline.app.<userId>`;
+     - every top-up from `/actions`, with distance before → after.
+  3. **Controls.**
+     - **Adjust safety line:** opens the same safety-line panel. Signing posts a new mandate (new nonce) through `/arm`, and the result appears in the timeline.
+     - **Pause protection:** calls `/disarm` with the existing EIP-191 message.
+     - **Resume protection:** signs a new mandate with the last terms.
+     - **Withdraw:**
+       - an AUSD amount input, with a maximum of the idle balance and a "Max" button;
+       - the owner transaction `withdrawCollateral(amount)`;
+       - after confirmation, show the wallet's AUSD and MON from a new `/api/wallet/<address>` route (AUSD `balanceOf` plus the MON balance).
+     - **Keep this account:**
+       - Privy `login()`, which upgrades the guest; afterwards show "Saved to <email>";
+       - if Privy returns "Could not link existing account," show: "That email already has a Privy account. Use a different email, or keep using this browser."
+  4. **Permissions card.** Plain-language can and can't lists, with an explorer link to the account.
+  5. **Map link.** "See it on the testnet market map" opens `/radar?chain=10143`, with V5's highlight.
+- **Pass:**
+  - **e2e** (`E2E_WALLET=test`):
+    - after the receipt, a reload shows the dashboard with the same account, the top-up in Activity with its transaction link, and the safety line;
+    - adjusting to a higher line makes `GET /mandate/<proxy>` show the new target;
+    - Pause → 404; Resume → active again;
+    - withdrawing 25 raises the wallet's AUSD by 25 (chain read);
+    - the heartbeat text changes within 10 s.
+  - **Keeper continuity:** call `/admin/breach` on the e2e account (admin, test only); a keeper top-up appears in Activity within 15 s, with no user action.
+  - **Human:** after enabling email, the human clicks "Keep this account," enters an email, reloads, and still sees the same dashboard. The agent verifies that `owner()` didn't change.
+  - **Screenshots:** `v8-dashboard-390.png`, `v8-dashboard-1440.png`, `v8-withdraw-1440.png`.
+- **Evidence:**
+
+#### [ ] V9 Proof pages
+- **Type:** AGENT · **Depends on:** V2, V3
+- **Why:** The twins and the replay are the strongest Track 1 and Grand Champion beats, and the methodology page is the Perpl Analytics credibility proof.
+- **Do:**
+  - Build `/proof`, and rebuild `/twins`, `/replay`, and `/methodology` per §7B.5.
+  - **Twins:**
+    - amounts in AUSD (`formatAusd`) and distances from the V2 fix;
+    - outcomes through `outcomeBadge`;
+    - keep the `twin-pair`, `outcome`, and `twin-action` test ids and their data attributes.
+  - **Replay:** the chart reads `data/mainnet-replay.json` (`samples`, `wouldAct`, `eventLiqPricePNS`, `triggerE6`), and every link goes to the mainnet explorer.
+  - **Saves card:** the real count from V2, with its one-line definition.
+- **Pass:**
+  - **Tests:** the A8 and U14 tests are updated and pass.
+  - **Data:** every pair renders numeric distances, and the replay chart marks `wouldAct.block` as the first sample below the trigger (existing test).
+  - **Links:** every link on the four pages resolves (the link checker).
+  - **Screenshots:** `v9-<page>-390.png` and `v9-<page>-1440.png`.
+- **Evidence:**
+
+#### [ ] V10 Developers page
+- **Type:** AGENT · **Depends on:** V1, V3
+- **Why:** "Best use of Perpl's API" ($5k) reads better when the give-back is a documented, runnable API than when it's a JSON link.
+- **Do:**
+  - Build `/developers` per §7B.5.
+  - The Run panel calls the same-origin `/api/v1/risk/...` and shows the status, latency, and JSON.
+  - The field tables come from one source, `lib/api-docs.ts`, so they can't drift from the route.
+- **Pass:**
+  - **Run:** the example returns 200 and renders JSON whose `liquidationPricePNS` equals `/api/account` for the same address.
+  - **Copy:** the `curl` block's copy button works.
+  - **Rate limit:** with the limiter mocked in a unit test, a 61st call within a minute shows the 429 message in the panel.
+  - **Screenshot:** `v10-developers-1440.png`.
+- **Evidence:**
+
+#### [ ] V11 Judge tour and evidence
+- **Type:** AGENT · **Depends on:** V4–V10
+- **Why:** Bounty judges skim. A guided path with one proof per claim raises the odds on every bounty. This makes U11 a product feature.
+- **Do:**
+  - **Pages and rail.** Build `/tour`, `/tour/evidence`, the `TourRail`, and the stop panels per §7B.5.
+  - **State.** Keep it in localStorage as `lifeline.tour = { active, stop, startedAt }`. Stop 3's panel stays visible through the whole `/app` onboarding.
+  - **Update `lib/bounties.ts`:**
+    - Perpl Analytics proof → `/radar`;
+    - Perpl API → add `/developers`;
+    - Privy → `/app` plus the ownership transaction;
+    - Track 1 → `/twins` plus the top-up transaction;
+    - Envio → `/api/liquidations` plus the `/radar` tape.
+  - **Judge path.** `JUDGE_PATH` mirrors the five stops.
+  - **Key numbers.** Add the "Key numbers" panel.
+- **Pass:**
+  - **Playwright judge path:**
+    - start the tour and click Next through all five stops (stop 3 runs with `E2E_WALLET=test`);
+    - reload at stop 2 and the tour resumes at stop 2;
+    - Exit tour hides the rail.
+  - **Links:** the `test/bounties.test.ts` link check passes.
+  - **Screenshots:** each stop at 390 px.
+- **Evidence:**
+
+#### [ ] V12 Copy, terminology, and number sweep
+- **Type:** AGENT · **Depends on:** V4–V11
+- **Why:** One stray "CNS" or "ABOVE_TRIGGER" makes the product read as a prototype again (F15).
+- **Do:**
+  - **Copy test.** Add `e2e/copy.spec.ts`:
+    - it visits every route and every `/app` state, using the e2e wallet and forced fallbacks;
+    - it collects `document.body.innerText`, leaving out text inside `code` and `pre`;
+    - it asserts that no §7B.4.6 forbidden pattern appears.
+  - **Plain-language strings.** Rewrite `lib/copy.ts` into plain language (for example, `WITHDRAW_NOTE` says "Lifeline's key," not "operator," and `REVOKED_SELECTORS` gets plain-language labels for display). Update `test/ui.test.ts` to match.
+  - **One error path.** Every user-facing error goes through `lib/messages.ts`.
+  - **One formatting path.** All number rendering goes through `lib/format.ts`: `formatUsd`, `formatUsdCompact`, `formatPrice`, `formatAusd`, `formatPct`, `formatBlock`, and `timeAgo`.
+  - **Sentence case.** Audit every heading and button.
+- **Pass:**
+  - `copy.spec.ts` is green.
+  - `rg -n "toFixed\(|toLocaleString\(" apps/web/app` finds no direct number formatting outside `lib/format.ts`, or each remaining case is justified in the evidence.
+  - A unit test shows every `evaluate` reason code has a row in `messages.ts`.
+- **Evidence:**
+
+#### [ ] V13 Routing, cleanup, and docs
+- **Type:** AGENT · **Depends on:** V4–V12
+- **Why:** No broken links, no exposed test pages, no orphan pages (F16, F17).
+- **Do:**
+  - **Routes.** Add the redirects from §7B.3 and make `/dev/*` return 404 in production.
+  - **Dead code.** Delete the old `(shell)` layout and its dead CSS; no `--amber`, `--panel`, or other old dark tokens remain.
+  - **Site files.** Add `app/sitemap.ts` and `app/robots.ts`.
+  - **README.**
+    - Update the live links: `/` landing, `/radar`, `/app`, `/tour`, `/developers`.
+    - Update the bounty map, and every `/judges` reference.
+    - Add the two user stories from §7B.2.
+  - **Link checker.** Add `e2e/links.spec.ts`. It crawls every internal link from `/` to depth 2, asserts every status is below 400, and asserts that every route in §7B.3 was reached.
+- **Pass:**
+  - **Links:** `links.spec.ts` is green against local and the production preview.
+  - **Production `curl` checks:** `/dev/gate-privy` returns 404; `/lifeline` returns 308 to `/app`; `/judges` returns 308 to `/tour`.
+  - **Build:** `pnpm -r build && pnpm -r test && pnpm lint` is green.
+  - **Production:** the production deploy is done, and D1's Privy origin check is still clean (no origin error in the console on `/app`).
+- **Evidence:**
+
+#### [ ] V14 Journey acceptance, then re-run D5
+- **Type:** AGENT, plus **HUMAN** (one real Privy run on production) · **Depends on:** V13
+- **Why:** It turns both stories into repeatable proof before the human rehearsal (D7) and the video (D8).
+- **Do:**
+  1. **Customer journey.** `e2e/journeys/customer.spec.ts` runs C1–C12 as steps: locally with `E2E_WALLET=test` for the wallet steps, and the public pages against production as well.
+  2. **Judge journey.** `e2e/journeys/judge.spec.ts` runs J1–J10 as steps.
+  3. **Screenshots.** Run both at 390 and 1440 px, and save each step's screenshot to `apps/web/e2e/artifacts/v/journeys/`.
+  4. **Lighthouse** (mobile, production): accessibility ≥ 95 on `/`, `/radar`, and `/app`; performance ≥ 80 on `/`, ≥ 75 on `/radar`, ≥ 70 on `/app`.
+  5. **Re-run D5** under its own pass checks, with these changes:
+     - the radar steps use `/radar`;
+     - claim, ownership, arm, withdraw, and pause use `/app`;
+     - it's 3 automated runs plus 1 human Privy run on production, verified on chain;
+     - zero `perpl.xyz` requests;
+     - pool availability stays ≥ 17 afterward.
+- **Pass:**
+  - Both journey specs are green 3 consecutive times.
+  - The Lighthouse thresholds are met.
+  - The D5 re-run evidence is appended, with the date, to D5's Evidence.
+- **Evidence:**
+
+### 7B.7 Order of work
+
+1. **V0.**
+2. **V2, then V1.** The data and backend fixes. Start V2 with its step 9, the ops-runner repair, because the runner loses MON and AUSD on every scheduled run.
+3. **V3.**
+4. **V4 with V5** in the same commit, because the radar moves to `/radar`. Then **V6**.
+5. **V7, then V8.** Batch their human steps (the real Privy run and the Privy email setting) into one prompt.
+6. **V9 and V10.**
+7. **V11.**
+8. **V12, then V13.**
+9. **V14**, which re-runs D5.
+10. Then **D7** (human rehearsal of both stories), **D8** (a video of the judge tour), **R1**, and **R2**.
+
+**Human prompts in §7B, all of them:**
+
+- V2: GitHub secrets, only if `gh` can't set them.
+- V7 and V8 together: one real Privy run, plus enabling email login.
+- V14: one real Privy run on production.
+
+---
+
 ## 8. Definition of done (core)
 
 The core is done when all of these hold:
 
-- Every task in Phases 0–7 and every U-task in §7A is `[x]`, or `[-]` with a logged reason. No `[!]` remains.
+- Every task in Phases 0–7, every U-task in §7A, and every V-task in §7B is `[x]`, or `[-]` with a logged reason. No `[!]` remains.
+- Both §7B.2 stories pass as Playwright journeys (V14): `e2e/journeys/customer.spec.ts` and `e2e/journeys/judge.spec.ts`.
 - G4 is `[x]` and `CALIBRATED=true`, backed by a 100% exact tick match in `gate:4 --fork`.
 - D5 has passed 3 consecutive times on production.
 - Every hard rule in §2.1 holds. Specifically:
@@ -1569,4 +2708,17 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - A9 | `?rpc=dead` in development prepends a dead RPC | the radar has to keep rendering when the first public URL fails | headline visible
 - A10 | Lighthouse is measured on `next start`, not the dev server | the dev server compiles on request and understates the score | mobile performance 80, accessibility 96
 - U12 | guest `/claim` and `/sandbox/arm` require a Turnstile token; admin calls do not | the pool drain is a guest script, and the CLI already holds `ADMIN_SECRET` | live 403 for a missing token; admin no-token is 401; Chrome widget height 0
+- 7B (planner) | add §7B Productization (V0–V14) before D7 | an audit of production on 2026-10-07 found 21 problems (§7B.1): flow-breakers, wrong numbers, developer copy, and disconnected pages | live `curl` of `/api/liquidations`, `/api/twins`, `/api/saves`, `/health`, `/dev/gate-privy`; source reads cited in §7B.1
+- 7B (planner) | the visual direction is Anthropic style: ivory `#faf9f5`, ink `#141413`, clay `#d97757`, Poppins headings, Lora body, JetBrains Mono data | the human asked for Anthropic style; the colors and fonts are from the public `anthropics/skills` brand-guidelines skill | WCAG contrast computed for every token pair in §7B.4.1
+- 7B (planner) | claim and sandbox IP limits are shared by all visitors through Vercel | `worker-proxy.ts` forwards no client IP, so `cf-connecting-ip` is Vercel's egress IP; the e2e runs sent a synthetic `x-lifeline-ip` | `claim.ts` lines 98–103; `e2e-wallet.ts` line 116
+- 7B (planner) | the scheduled ops runner has been failing since run 37543613519 and orphaning new pool accounts | `pool:register` prints `ADMIN_SECRET missing`, and `actions/cache` does not save on a failed job | `gh run view 37598188847 --log-failed`: `pool:refill available=37 … inBand=10`, then `ADMIN_SECRET missing`; `/health` `poolInBand` 1, `low:true`
+- 7B (planner) | liquidation eligibility becomes idle ≥ 1% of notional, replacing idle ≥ `posDepositCNS` | `posDepositCNS` is the post-liquidation deposit (0 on every live row), so nearly every liquidation counted as avoidable | live `/api/liquidations` rows; the 1% matches PRD F2's "saved" rule
 - ops | the 2s keeper reads armed mandates, pending actions, and open distances from Durable Object memory and refreshes SQLite at most once a minute; `/health` returns 503 while storage throws | a full scan of `actions` every tick passed the free 5,000,000 rows_read/day cap on 2026-10-07, and the constructor throw turned `/health` into 500 | worker `ebeb878d`; local 43 ticks, `degraded:false`; production 503 until 2026-10-08 00:00 UTC; worker vitest 46 passed
+- V0 | §1 gains the trader story and the judge story, each with its journey | the PRD has to agree with §7B.2 before later tasks ship pages | `prd.md` §1
+- V0 | new §4.0 lists the route table and the redirects | §7B.3 is the information architecture | `prd.md` §4.0
+- V0 | F1 step 1 puts the radar at `/radar` and the live headlines on `/` | `/` is no longer the radar | `prd.md` F1
+- V0 | F4 rate-limits by the forwarded client IP and returns an existing claim | judges were sharing one server IP, and a reload dead-ended | `prd.md` F4
+- V0 | F7 withdraws any amount up to idle AUSD, and keep-account calls Privy `login()` | the fixed 50 AUSD button was a demo control | `prd.md` F7
+- V0 | F9 eligibility is idle at least 1% of notional, and the window is a block range | `posDepositCNS` is the deposit after liquidation, so the old rule marked almost every close eligible | `prd.md` F9
+- V0 | new F10 is the dashboard a trader returns to | there was nothing after the receipt | `prd.md` F10
+- V0 | §9 is the five-beat judge tour, and the backup line stays | the video and the rehearsal follow that tour | `prd.md` §9
