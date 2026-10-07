@@ -1,0 +1,22 @@
+.ui-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 24px;
+}
+
+.ui-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.ui-card-head h3 { margin: 0; }
+.ui-card-meta { color: var(--muted); font-size: 14px; line-height: 1.5; }
+.ui-card p { margin: 0; color: var(--ink-2); }
+
+@media (max-width: 600px) {
+  .ui-card { padding: 16px; }
+}

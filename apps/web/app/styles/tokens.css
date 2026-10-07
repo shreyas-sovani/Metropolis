@@ -1,0 +1,36 @@
+:root {
+  --paper: #faf9f5;
+  --surface: #ffffff;
+  --well: #f0eee6;
+  --line: #e8e6dc;
+  --line-strong: #b0aea5;
+  --ink: #141413;
+  --ink-2: #3d3d3a;
+  --muted: #5e5d59;
+  --clay: #d97757;
+  --clay-ink: #a8492a;
+  --blue: #6a9bcc;
+  --blue-ink: #386591;
+  --olive: #788c5d;
+  --olive-ink: #566a3d;
+  --danger: #b3402a;
+  --danger-ink: #a33a26;
+  --on-ink: #faf9f5;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --space-10: 128px;
+  --radius-control: 8px;
+  --radius-card: 12px;
+  --radius-panel: 20px;
+  --radius-pill: 999px;
+  --shadow-pop: 0 1px 2px rgba(20, 20, 19, 0.06), 0 8px 24px rgba(20, 20, 19, 0.06);
+  --container: 1120px;
+  --header-offset: 72px;
+}

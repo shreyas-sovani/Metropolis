@@ -1,0 +1,2 @@
+.ui-state[role="alert"] h3,
+[role="alert"] .ui-state h3 { color: var(--ink); }

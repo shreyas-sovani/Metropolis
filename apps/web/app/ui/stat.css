@@ -1,0 +1,21 @@
+.ui-stat-label {
+  color: var(--muted);
+  font-family: var(--font-body), Georgia, serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.ui-stat-value {
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-weight: 600;
+  font-size: 28px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.ui-stat-hint {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}

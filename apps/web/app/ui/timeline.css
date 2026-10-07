@@ -1,0 +1,24 @@
+.ui-timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.ui-timeline li { display: grid; grid-template-columns: 24px 1fr; gap: 12px; }
+.ui-timeline strong {
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-weight: 500;
+}
+.ui-timeline p { margin: 4px 0 0; color: var(--ink-2); }
+.ui-timeline-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.ui-timeline-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: var(--olive);
+}

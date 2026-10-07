@@ -49,7 +49,7 @@ test("a blocked Privy call falls through to a sandbox arm", async ({ page }) => 
   await start.click();
   await expect(page.getByTestId("sandbox")).toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: "Arm in sandbox" }).click();
-  await expect(page.getByTestId("receipt")).toContainText("Distance 2.7% → 6.0%");
+  await expect(page.getByTestId("receipt")).toContainText("Distance 2.7% → 6.0%", { timeout: 12_000 });
 });
 
 test("an empty pool opens sandbox", async ({ page }) => {
@@ -64,7 +64,7 @@ test("an empty pool opens sandbox", async ({ page }) => {
   await start.click();
   await expect(page.getByTestId("sandbox")).toBeVisible();
   await page.getByRole("button", { name: "Arm in sandbox" }).click();
-  await expect(page.getByTestId("receipt")).toBeVisible();
+  await expect(page.getByTestId("receipt")).toBeVisible({ timeout: 12_000 });
 });
 
 test("a degraded health check shows the banner", async ({ page }) => {

@@ -1,0 +1,52 @@
+.ui-steps {
+  display: flex;
+  gap: 24px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ui-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  flex: 1;
+  color: var(--ink);
+}
+
+.ui-step strong {
+  display: block;
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-weight: 500;
+  font-size: 16px;
+}
+
+.ui-step-help {
+  display: block;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.ui-step-mark {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1.5px solid var(--line-strong);
+  color: var(--on-ink);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.ui-step-mark.is-current { border-color: var(--ink); background: var(--ink); }
+.ui-step-mark.is-done { border-color: var(--olive); background: var(--olive); color: var(--paper); }
+.ui-step-mark.is-failed { border-color: var(--danger); background: var(--danger); }
+.ui-step.is-upcoming { color: var(--muted); }
+
+@media (max-width: 800px) {
+  .ui-steps { flex-direction: column; }
+}

@@ -15,21 +15,46 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 and U11 and U14 are done. V0 and V1 are done. **V2 is `[!]`** until the Durable Object rows-read quota resets (2026-10-08 00:00 UTC) and `pool:register` succeeds. D7 waits for V14.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 and U11 and U14 are done. V0, V1, and V3 are done. **V2 is `[!]`** until the Durable Object rows-read quota resets (2026-10-08 00:00 UTC) and `pool:register` succeeds. D7 waits for V14.
 5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6, U11, and U14 are done.
-6. **Then read §7B (Productization) in full. It comes before D7.** It turns the prototype into the product: two user stories (a trader and a judge), one landing page, a persistent `/app` with onboarding and a dashboard, a judge tour, and an Anthropic-style design system. It also fixes the flow-breakers and wrong numbers found on production on 2026-10-07. V0 and V1 are done. V2's code is in, and its live checks are blocked on the Durable Object quota. After that quota resets, finish V2's live checks, then continue at **V3**.
+6. **Then read §7B (Productization) in full. It comes before D7.** It turns the prototype into the product: two user stories (a trader and a judge), one landing page, a persistent `/app` with onboarding and a dashboard, a judge tour, and an Anthropic-style design system. It also fixes the flow-breakers and wrong numbers found on production on 2026-10-07. V0, V1, and V3 are done. V2's code is in, and its live checks are blocked on the Durable Object quota. V3 is local only and is not deployed, so production still serves the previous shell. After that quota resets, finish V2's live checks, then continue at **V4**.
 
-**Where the build stands (2026-10-07).** Phases 0–5 and every U-task are `[x]`. D1–D6 are `[x]`. The site is `https://lifeline-five-murex.vercel.app` and the Worker is `https://lifeline.lifeline-shreyas.workers.dev`. A planner audit found 21 problems on production (§7B.1). Among them:
+**Where the build stands (2026-10-07, 18:30 UTC).** Phases 0–5, every U-task, and D1–D6 are `[x]`. The site is `https://lifeline-five-murex.vercel.app`. The Worker is `https://lifeline.lifeline-shreyas.workers.dev`, version `1f8bfcc5-5728-492c-a419-483f63a2678c`. V0, V1, and V3 are done locally. V2's live checks are still blocked. V3 is not deployed, so production still shows the previous shell. V4–V14, D7, D8, R1, and R2 are not started.
 
-- every judge shares one IP for the claim rate limit;
-- a reload or a return visit dead-ends;
-- the liquidation history overstates dollars by orders of magnitude;
-- twin distances are null;
-- the scheduled ops runner mints accounts it can't register.
+**Done**
 
-V0 and V1 are done. V2 is blocked on the Durable Object free-tier rows-read quota until 2026-10-08 00:00 UTC. After `pool:register` and `/health` succeed, continue at **V3**, then the §7B tasks through V14, then the judge rehearsal, D7.
+| Task | Status | What landed |
+|---|---|---|
+| V0 | `[x]` | `prd.md` matches §7B: both stories, §4.0 routes, F1 landing sentence, F4 resume, F7 withdraw-any and `login()`, F9 1% rule, F10 dashboard, five-beat §9 tour. |
+| V1 | `[x]` | Liquidation dollars use market decimals. Eligible means idle AUSD is at least 1% of notional. The history window is 30 days by block. Prices render as dollars. Mainnet links use Monadscan. Live check: 577 rows from block 102785487, latest 50 notionals match the formula, avoidable penalty is less than paid. |
+| V2 code | committed, not `[x]` | `GET /me`, repeat-claim 409 includes the proxy, acceptance stamped once, real client IP via `PROXY_SECRET`, limits raised to 10/hour, `/health` fields `armed` / `lastBlock` / `claimsToday`, `/actions` distance and reason, twins distances in one multicall, real `/saves`, ops preflight and `--max-new 4`, sandbox role. Worker unit tests: 56 passed. |
+| V3 | `[x]` | Anthropic tokens, Poppins / Lora / JetBrains Mono, the component set, the ivory shell, `/dev/ui` (404 in production), and `/api/ops-health`. Lighthouse mobile accessibility on `next start` `/` is 100. Not deployed. |
 
-**Durable Object storage (2026-10-07).** The free plan's 5,000,000 `rows_read` per day was used up. Storage calls failed, the Lifeline constructor threw, and `/health` returned 500. Worker `ebeb878d-64f6-40aa-9381-2a520056d346` keeps the 2 second alarm. A tick reads armed mandates, pending actions, and confirmed actions with no `dist_after` from memory, and reads SQLite again at most once a minute. A send still reads and writes `keys` for the nonce. Migration 9 adds indexes for the residual scans and `actions.created_at`. `/saves` and the soak history are the last 7 days and at most 200 rows. `/twins` is at most 200 pairs. While storage is down, `/health` returns 503 `{"status":"error","degraded":"..."}` and the next request retries migration. Production returned that 503 at 2026-10-07 15:17 UTC (`Exceeded allowed rows read in Durable Objects free tier.`). The quota resets at 2026-10-08 00:00 UTC. The next successful `/health` should return 200 and arm the keeper. Local `wrangler dev` returned 200, `degraded:false`, with 43 ticks. `pnpm --filter @lifeline/worker exec vitest run` passed 46 tests. Expected steady state is about 150,000 rows read per day.
+**Blocking V2 (live checks only).** V3 is done locally and is not on production. Do not deploy the new shell, and do not run `pool:refill`, until the checks below pass.
+
+The Durable Object free plan used up its 5,000,000 `rows_read` for the day. At 2026-10-07 16:47 UTC, after the deploy above, `GET /health` was still 503: `Exceeded allowed rows read in Durable Objects free tier.` The quota resets at **2026-10-08 00:00 UTC**. Until then every storage call fails, so these V2 pass checks are open:
+
+- `/health` is not `degraded:false`, and it cannot yet show `armed`, `lastBlock`, or `claimsToday`.
+- `pnpm cli pool:register` returned `register failed 500` with that same quota error. The 20 recovered accounts are in `cli-state/pool.json` and in the `CLI_STATE_POOL` secret, but they are not registered on the Worker. `poolAvailable` has not risen. `pnpm cli status` was not re-run.
+- `pool:register --restore-twins` was not run, so a twin left as `kind=user` (sol-short, F13) may still be a user mandate.
+- No green `ops` workflow. `workflow_dispatch` was not run.
+- `GET /api/twins` numeric distances, and `GET /api/lifeline/me` after a reload, were not checked on production.
+- `PROXY_SECRET` is in `secrets/services.env`, in the Worker, and in GitHub. It was **not** synced to Vercel (`secrets:sync-vercel` was not run), so the production web app does not yet stamp `x-lifeline-proxy-secret`.
+
+**Do not run `pool:refill` while `/health` is 503.** The old workflow mints accounts and then fails register. The fix is committed locally and is not on GitHub until this branch is pushed. The last failed scheduled runs are 37543613519, 37560690810, and 37598188847. No scheduled run has appeared since 09:05 UTC on 2026-10-07.
+
+**After the quota resets, in this order**
+
+1. Push `master` so the ops workflow passes `ADMIN_SECRET` and `PROXY_SECRET` and saves `cli-state` even when a step fails.
+2. `pnpm cli secrets:sync-vercel` so production can forward the real client IP.
+3. `pnpm cli pool:register`, then `pnpm cli pool:register --restore-twins`.
+4. `curl` `/health` until it is `degraded:false`. Confirm `armed`, `lastBlock`, `claimsToday`, and whether `low` is false. If the in-band target cannot be met without a large refill, stop and ask.
+5. `gh workflow run ops.yml` and wait for one green run with `pool:register` exiting 0.
+6. Mark V2 `[x]` only when the live checks in its Pass section hold. Then start **V4**. V3 is already `[x]` locally.
+
+**Recovered accounts (already verified, waiting on register).** Twenty proxies from those three failed runs: pool owner, pending owner zero, six operator selectors revoked, one open BTC position (perp 16). Appended to local `cli-state/pool.json` (85 accounts). Left out, no open position: `0x240dBDd7`, `0x8d33670A`, `0xB2337bbE`, `0x1DF440A0`. Marked `role: "sandbox"` instead of minting new ones: `0x9d5c146f` (short) and `0x0d603487` (long).
+
+**Durable Object storage (2026-10-07).** The free plan's 5,000,000 `rows_read` per day was used up. Storage calls failed, the Lifeline constructor threw, and `/health` returned 500. Worker `ebeb878d-64f6-40aa-9381-2a520056d346` keeps the 2 second alarm. A tick reads armed mandates, pending actions, and confirmed actions with no `dist_after` from memory, and reads SQLite again at most once a minute. A send still reads and writes `keys` for the nonce. Migration 9 adds indexes for the residual scans and `actions.created_at`. `/saves` and the soak history are the last 7 days and at most 200 rows. `/twins` is at most 200 pairs. While storage is down, `/health` returns 503 `{"status":"error","degraded":"..."}` and the next request retries migration. Production returned that 503 at 2026-10-07 15:17 UTC (`Exceeded allowed rows read in Durable Objects free tier.`). The same 503 was still returned at 2026-10-07 16:47 UTC, after Worker `1f8bfcc5` deployed. The quota resets at 2026-10-08 00:00 UTC. The next successful `/health` should return 200 and arm the keeper. Local `wrangler dev` returned 200, `degraded:false`, with 43 ticks. `pnpm --filter @lifeline/worker exec vitest run` passed 46 tests before V2 and 56 tests after V2. Expected steady state is about 150,000 rows read per day.
 
 **Still required to finish the core, in order:**
 
@@ -43,7 +68,11 @@ V0 and V1 are done. V2 is blocked on the Durable Object free-tier rows-read quot
 | 6 | D6 | Done | Ops runbook in `README.md`. Refill and the kill switch were dry-run. |
 | 6b | U11 | Done | `/judges` bounty map. Proof links answered. |
 | 7 | U14 | Done | Static replay of mainnet Bitcoin liquidation block 111199304. |
-| 8 | V0–V14 (§7B) | Agent, with three human checks (V2 if needed, V7 and V8 batched, V14) | Fix the production flow-breakers and numbers. Ship the landing page, `/app` onboarding and dashboard, `/radar`, the risk report, proof pages, `/developers`, and the judge tour in Anthropic style. Pass both journey specs and re-run D5. |
+| 8a | V0 | Done | PRD matches §7B. Commit `9705f73`. |
+| 8b | V1 | Done | Liquidation numbers, 30-day window, dollar prices, Monadscan. Commit `edd5cd7`. |
+| 8c | V2 | Blocked | Code is deployed (`1f8bfcc5`, commit `61b4f15`). Live checks wait on the Durable Object quota reset at 2026-10-08 00:00 UTC, then `pool:register` and a green ops run. See "Where the build stands" above. |
+| 8d | V3 | Done | Design system and ivory shell. Local only; production is unchanged. Lighthouse accessibility 100. |
+| 8e | V4–V14 | Not started | Landing page, `/radar`, risk report, `/app`, proof, developers, judge tour, journeys. V4 depends on V1 and V3, both `[x]`. |
 | 9 | D7 | Human | Run both §7B.2 stories on a phone and a laptop. |
 | 10 | D8 | Human | Record the ≤ 3 minute judge tour and send the link. |
 | 11 | R1 | Agent | README, MIT license, clean `secrets:check`. |
@@ -2256,7 +2285,7 @@ See it on the testnet market map →
   - **Pool band:** after the refill, `/health` reports `low:false`. If the in-band target can't be met cheaply, stop and ask, because it changes alerting: report why, and propose a different threshold.
 - **Evidence:** Unit tests pass (`pnpm --filter @lifeline/worker exec vitest run`, 56 tests). Repeat claims return `{error:"claimed", proxy, …}`. `acceptedStamp` writes once. A browser `x-lifeline-ip` is ignored; `x-lifeline-client-ip` is honored only with `PROXY_SECRET`. The 11th claim from one IP is rejected and another IP is allowed (`IP_LIMIT` 10). `classifyWatched` saves an open cross, and not a closed position or a mark that has not crossed. `sandboxArm` returns 404 for a twin. `/me` returns the claim or an empty claim. Migration 10 adds `claims.transfer_tx`, `drip_tx`, `accept_tx`, and the `saves` table (migration 9 already existed). `liq_before` stays in price-native units, the same unit as `markPNS`, not micro-dollars. `keys:generate` appended `PROXY_SECRET` and kept `ADMIN_SECRET`. GitHub secrets `ADMIN_SECRET` and `PROXY_SECRET` were set on `shreyas-sovani/Metropolis` without printing the values. Worker `secrets:sync-worker` set `PROXY_SECRET`. Deployed Worker version `1f8bfcc5-5728-492c-a419-483f63a2678c`. **Live checks are blocked.** `GET /health` is 503 `Exceeded allowed rows read in Durable Objects free tier.` The quota resets at 2026-10-08 00:00 UTC. `pool:register` then returned `register failed 500` with that same error, so the recovered accounts are not registered and `/health` cannot show `low:false`, `armed`, `lastBlock`, or `claimsToday`. Twenty of the 24 orphaned proxies from ops runs 37543613519, 37560690810, and 37598188847 verified on chain (pool owner, no pending owner, six selectors revoked, one open BTC position) and were appended to local `cli-state/pool.json` (now 85 accounts). The first four (`0x240dBDd7`, `0x8d33670A`, `0xB2337bbE`, `0x1DF440A0`) had no open position and were left out. Two verified accounts, `0x9d5c146f` (short) and `0x0d603487` (long), are `role: "sandbox"` so demo mode does not take a twin. `CLI_STATE_POOL` was updated. **Do not run `pool:refill` until `/health` is 200.** The workflow change that passes `ADMIN_SECRET` is local until this branch is pushed; the scheduled workflow on GitHub still has the old file. After the quota reset: `pnpm cli pool:register`, then `pnpm cli pool:register --restore-twins`, confirm `/health` is `degraded:false` with `low:false`, and dispatch `ops`.
 
-#### [ ] V3 Design system and app shell
+#### [x] V3 Design system and app shell
 - **Type:** AGENT · **Depends on:** V0
 - **Why:** First impressions decide "prototype or product" for the Grand Champion and Track 1 judges (F16, F21).
 - **Do:**
@@ -2285,7 +2314,7 @@ See it on the testnet market map →
   - **Gallery:** `/dev/ui` returns 404 on a production build.
   - **Lighthouse** (mobile, against `next start`) on `/`: accessibility ≥ 95.
   - **Screenshots:** `v3-shell-390.png`, `v3-shell-1440.png`, `v3-ui-gallery-1440.png`.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/web exec vitest run test/v3.test.ts` passed 5 tests. Text on paper, well, surface, ink, and clay is at least 4.5:1 (ink on paper 17.50, muted on paper 6.26, muted on well 5.67, clay-ink on well 4.95, ink on clay 5.90). Olive, danger, and ink marks are at least 3:1 on paper, surface, and well. Clay on paper is 2.96 and blue on paper is 2.78, so those fills always sit with a text label. `--line-strong` on paper is 2.11 and is not used for text. `userMessage` covers every `SKIP_REASONS` value plus the claim, wallet, ownership, top-up, and withdraw rows; visible sentences do not contain the forbidden field names. `opsHealthFromWorker` adds `status`, `lastAlarmAt`, `lastBlock`, `armed`, and `poolAvailable` and keeps `degraded`, `paused`, and `rpc`. Playwright `e2e/shell.spec.ts` passed 18 tests: `/`, `/lifeline`, `/twins`, `/judges`, `/replay`, `/methodology`, `/a/0x000…0001`, and `/dev/ui` at 390 and 1440 with an empty console-error list, the header and footer links, and the verbatim footer line. Escape closes the mobile menu and focus returns to Menu. Screenshots: `apps/web/e2e/artifacts/v3-shell-390.png`, `v3-shell-1440.png`, `v3-ui-gallery-1440.png`. `next build` then `next start`: `GET /dev/ui` is 404, `GET /` is 200, `GET /opengraph-image` is 200, `GET /icon.svg` is 200. Lighthouse mobile accessibility on `http://127.0.0.1:3456/` is 100. `e2e/radar.spec.ts` and `e2e/fallbacks.spec.ts` still pass (7 tests). The shell is not deployed. Existing routes stay in a dark `.legacy` island until V4–V11 move them. V13 still removes the old variables.
 
 #### [ ] V4 Landing page `/`
 - **Type:** AGENT · **Depends on:** V1, V3
@@ -2551,9 +2580,9 @@ See it on the testnet market map →
 
 ### 7B.7 Order of work
 
-1. **V0.**
-2. **V2, then V1.** The data and backend fixes. Start V2 with its step 9, the ops-runner repair, because the runner loses MON and AUSD on every scheduled run.
-3. **V3.**
+1. **V0.** Done (`9705f73`).
+2. **V2, then V1.** V1 is done (`edd5cd7`). V2's code is committed (`61b4f15`) and deployed (`1f8bfcc5`). V2 stays `[!]` until the Durable Object quota resets at 2026-10-08 00:00 UTC and the live checks in its Evidence pass. Do not refill the pool before `/health` is 200. Push before the next scheduled ops run, or GitHub keeps the workflow that mints accounts and then fails `pool:register`.
+3. **V3.** Done locally. Depends on V0 only. The human asked to continue work that does not depend on the Durable Object quota, so V3 landed while V2 is still `[!]`. It is not deployed. Production keeps the previous shell until V2's live checks pass and a later deploy.
 4. **V4 with V5** in the same commit, because the radar moves to `/radar`. Then **V6**.
 5. **V7, then V8.** Batch their human steps (the real Privy run and the Privy email setting) into one prompt.
 6. **V9 and V10.**
@@ -2731,3 +2760,7 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - V2 | watched actions are loaded at most once a minute; the mark comparison still runs every keeper tick | a full actions scan every 2 s already exhausted the free rows-read quota | `noteSaves`; unarmed positions are read in one multicall at most once a minute
 - V2 | two recovered BTC accounts are `role: "sandbox"` instead of minting two more | the pool was already minting accounts it could not register | `0x9d5c146f` short and `0x0d603487` long in `cli-state/pool.json`
 - V2 | live register and `/health` stay blocked until the Durable Object quota resets | production `/health` is 503 `Exceeded allowed rows read in Durable Objects free tier` and `pool:register` returned 500 with the same text | worker `1f8bfcc5`; reset 2026-10-08 00:00 UTC
+- V3 | the new shell ships locally while V2's live checks are still blocked | V3 depends only on V0, and deploying it would make the unfinished resume path the page judges hit | not deployed; production shell unchanged
+- V3 | unmigrated pages keep the dark palette inside `.legacy` | the token names `--ink`, `--line`, `--muted`, and `--danger` changed meaning, and V4–V11 are what move each page | `apps/web/app/styles/base.css`; V13 still deletes the old variables
+- V3 | clay on paper is 2.96:1 and blue on paper is 2.78:1 | those brand fills miss the 3:1 non-text bar, so a screen never uses them as the only signal | `test/v3.test.ts`; olive and danger clear 3:1
+- V3 | `/dev/gate-privy` uses the root Privy provider | a second `PrivyProvider` on that page made `next build` throw "Multiple PrivyProvider instances found" | `apps/web/app/dev/gate-privy/page.tsx`

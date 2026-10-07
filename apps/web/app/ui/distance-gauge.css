@@ -1,0 +1,43 @@
+.ui-gauge { display: grid; gap: 8px; }
+.ui-gauge p { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.5; }
+.ui-gauge-track {
+  position: relative;
+  height: 28px;
+  margin: 0 28px 28px;
+  background: var(--well);
+  border-radius: 999px;
+}
+.ui-gauge-track::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 999px;
+  background: var(--danger);
+}
+.ui-gauge-mark {
+  position: absolute;
+  top: 4px;
+  width: 2px;
+  height: 20px;
+  transform: translateX(-1px);
+}
+.ui-gauge-now { background: var(--ink); width: 3px; }
+.ui-gauge-act {
+  border-left: 2px dashed var(--clay);
+  background: transparent;
+  width: 0;
+}
+.ui-gauge-safe { background: var(--olive); }
+.ui-gauge-edge {
+  position: absolute;
+  top: 32px;
+  left: 0;
+  color: var(--muted);
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+}
+.ui-gauge-end { left: auto; right: 0; }

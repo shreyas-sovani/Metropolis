@@ -1,0 +1,29 @@
+.ui-field { display: grid; gap: 8px; }
+.ui-field label {
+  color: var(--ink-2);
+  font-family: var(--font-body), Georgia, serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ui-input,
+.ui-select {
+  min-height: 44px;
+  width: 100%;
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+.ui-input-mono,
+.ui-select-mono {
+  font-family: var(--font-data), ui-monospace, monospace;
+  font-size: 14px;
+}
+.ui-field-error {
+  margin: 0;
+  color: var(--danger-ink);
+  font-size: 14px;
+  line-height: 1.5;
+}

@@ -1,27 +1,10 @@
 "use client";
 
-import { PrivyProvider, useGuestAccounts, usePrivy, useWallets } from "@privy-io/react-auth";
+import { useGuestAccounts, usePrivy, useWallets } from "@privy-io/react-auth";
 import { useEffect, useState } from "react";
-import { monadTestnet } from "viem/chains";
-
-const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? "";
 
 export default function GatePrivyPage() {
-  return (
-    <PrivyProvider
-      appId={appId}
-      config={{
-        defaultChain: monadTestnet,
-        supportedChains: [monadTestnet],
-        embeddedWallets: {
-          ethereum: { createOnLogin: "all-users" },
-          showWalletUIs: false,
-        },
-      }}
-    >
-      <Gate />
-    </PrivyProvider>
-  );
+  return <Gate />;
 }
 
 function Gate() {

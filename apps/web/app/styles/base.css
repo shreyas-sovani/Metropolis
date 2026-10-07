@@ -1,0 +1,158 @@
+html {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body), Georgia, "Iowan Old Style", serif;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-weight: 500;
+  color: inherit;
+}
+
+h1 { font-size: 40px; line-height: 1.1; }
+h2 { font-size: 28px; line-height: 1.2; }
+h3 { font-size: 20px; line-height: 1.3; }
+h4 { font-size: 20px; line-height: 1.3; }
+
+.display {
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-size: 56px;
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.body-lg { font-size: 19px; line-height: 1.6; }
+.small { font-size: 14px; line-height: 1.5; }
+.micro {
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+}
+
+.prose { max-width: 66ch; }
+.tabular { font-variant-numeric: tabular-nums; }
+
+a { color: var(--clay-ink); }
+a:hover { text-decoration: underline; }
+
+:focus-visible {
+  outline: 2px solid var(--clay);
+  outline-offset: 2px;
+}
+
+.container {
+  width: min(var(--container), calc(100% - 48px));
+  margin-inline: auto;
+}
+
+.section { padding-block: 96px; }
+
+.grid-12 {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  column-gap: 24px;
+}
+
+.skip {
+  position: absolute;
+  left: 16px;
+  top: -48px;
+  z-index: 50;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+}
+
+.skip:focus { top: 8px; }
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.site {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.legacy {
+  flex: 1;
+  --ink: #12181f;
+  --panel: #1b242d;
+  --line: #31414d;
+  --text: #e7eef3;
+  --muted: #8ea3b0;
+  --amber: #e0a15a;
+  --danger: #e15d4c;
+  --ok: #7dbea5;
+  --display: "Iowan Old Style", Palatino, "Palatino Linotype", serif;
+  --body: "Avenir Next", "Segoe UI", sans-serif;
+  --data: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: dark;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--body);
+  background-image: linear-gradient(180deg, #182028 0%, var(--ink) 220px);
+}
+
+.legacy a { color: inherit; text-decoration: none; }
+
+.legacy:has(> .ui-scope) {
+  background: var(--paper);
+  background-image: none;
+  color: #141413;
+  color-scheme: light;
+}
+
+.ui-scope {
+  --ink: #141413;
+  --line: #e8e6dc;
+  --muted: #5e5d59;
+  --danger: #b3402a;
+  background: var(--paper);
+  color: var(--ink);
+  color-scheme: light;
+  font-family: var(--font-body), Georgia, serif;
+  min-height: 100%;
+}
+
+#content:focus,
+#content:focus-visible { outline: none; }
+
+@media (max-width: 800px) {
+  h1, .display { font-size: 32px; }
+  .display { font-size: 40px; }
+  h2 { font-size: 24px; }
+  h3, h4 { font-size: 18px; }
+  .body-lg { font-size: 18px; }
+  .section { padding-block: 64px; }
+}
+
+@media (max-width: 600px) {
+  body { font-size: 16px; }
+  .container { width: min(var(--container), calc(100% - 32px)); }
+}

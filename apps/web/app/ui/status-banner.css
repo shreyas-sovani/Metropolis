@@ -1,0 +1,8 @@
+.status-banner {
+  padding: 8px 24px;
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+}
+.status-banner.is-paused { background: var(--well); color: var(--clay-ink); }
+.status-banner.is-degraded { background: var(--well); color: var(--danger-ink); }

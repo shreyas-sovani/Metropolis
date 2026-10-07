@@ -1,0 +1,19 @@
+.ui-skeleton {
+  display: block;
+  background: var(--well);
+  border-radius: var(--radius-control);
+  position: relative;
+  overflow: hidden;
+}
+.ui-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  opacity: 0.35;
+  transform: translateX(-100%);
+  animation: ui-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes ui-shimmer {
+  to { transform: translateX(100%); }
+}

@@ -1,0 +1,8 @@
+.ui-state {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  padding: 24px 0;
+}
+.ui-state h3 { margin: 0; }
+.ui-state p { margin: 0; max-width: 66ch; color: var(--ink-2); }

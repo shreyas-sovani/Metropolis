@@ -1,0 +1,25 @@
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.ui-chip-value {
+  font-family: var(--font-data), ui-monospace, monospace;
+  font-size: 14px;
+  color: var(--ink);
+}
+.ui-chip-copy,
+.ui-chip a {
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--clay-ink);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
+}
+.ui-chip-copy:hover,
+.ui-chip a:hover { text-decoration: underline; }

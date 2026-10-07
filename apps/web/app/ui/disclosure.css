@@ -1,0 +1,11 @@
+.ui-disclosure { border-top: 1px solid var(--line); }
+.ui-disclosure summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-weight: 500;
+  color: var(--ink);
+}
+.ui-disclosure-body { padding: 0 0 16px; color: var(--ink-2); }

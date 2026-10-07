@@ -28,3 +28,25 @@ export function formatPct(distanceE6: string): string {
   const value = Number(distanceE6) / 10_000;
   return `${value.toFixed(2)}%`;
 }
+
+export function formatBlock(block: number | string): string {
+  const value = typeof block === "number" ? block : Number(block);
+  return `block ${value.toLocaleString("en-US")}`;
+}
+
+/** Relative time: `12 s ago`, `3 min ago`. */
+export function formatAgo(thenMs: number, nowMs = Date.now()): string {
+  const sec = Math.max(0, Math.floor((nowMs - thenMs) / 1000));
+  if (sec < 60) return `${sec} s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} min ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 48) return `${hr} h ago`;
+  return `${Math.floor(hr / 24)} d ago`;
+}
+
+export function shortenHex(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= 12) return trimmed;
+  return `${trimmed.slice(0, 6)}…${trimmed.slice(-4)}`;
+}

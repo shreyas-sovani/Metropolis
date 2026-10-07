@@ -1,0 +1,39 @@
+.ui-status { position: relative; }
+.ui-status-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.ui-status.is-paused .ui-status-button { color: var(--clay-ink); }
+.ui-status-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--olive); }
+.ui-status.is-paused .ui-status-dot { background: var(--clay); }
+.ui-status.is-degraded .ui-status-dot { background: var(--danger); }
+.ui-status.is-unreachable .ui-status-dot { background: var(--muted); }
+.ui-status-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 30;
+  width: min(320px, 80vw);
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ui-status-pop p { margin: 0; }
