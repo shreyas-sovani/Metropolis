@@ -15,11 +15,11 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 1. The pnpm workspace from S0.1 is in place. Product docs stay at the repo root. Role keys and service secrets live only in gitignored `secrets/`.
 2. Read `prd.md` §2–§5 and §9, then this file's §1–§6.
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
-4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 and U11 and U14 are done. V0, V1, and V3 are done. **V2 is `[!]`** until the Durable Object rows-read quota resets (2026-10-08 00:00 UTC) and `pool:register` succeeds. D7 waits for V14.
+4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 and U11 and U14 are done. V0, V1, V3, and V4 are done. **V2 is `[!]`** until the Durable Object rows-read quota resets (2026-10-08 00:00 UTC) and `pool:register` succeeds. D7 waits for V14.
 5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6, U11, and U14 are done.
-6. **Then read §7B (Productization) in full. It comes before D7.** It turns the prototype into the product: two user stories (a trader and a judge), one landing page, a persistent `/app` with onboarding and a dashboard, a judge tour, and an Anthropic-style design system. It also fixes the flow-breakers and wrong numbers found on production on 2026-10-07. V0, V1, and V3 are done. V2's code is in, and its live checks are blocked on the Durable Object quota. V3 is local only and is not deployed, so production still serves the previous shell. After that quota resets, finish V2's live checks, then continue at **V4**.
+6. **Then read §7B (Productization) in full. It comes before D7.** It turns the prototype into the product: two user stories (a trader and a judge), one landing page, a persistent `/app` with onboarding and a dashboard, a judge tour, and an Anthropic-style design system. It also fixes the flow-breakers and wrong numbers found on production on 2026-10-07. V0, V1, V3, and V4 are done. V2's code is in, and its live checks are blocked on the Durable Object quota. V3 and V4 are local only and are not deployed, so production still serves the previous shell. After that quota resets, finish V2's live checks, then continue at **V5**.
 
-**Where the build stands (2026-10-07, 18:30 UTC).** Phases 0–5, every U-task, and D1–D6 are `[x]`. The site is `https://lifeline-five-murex.vercel.app`. The Worker is `https://lifeline.lifeline-shreyas.workers.dev`, version `1f8bfcc5-5728-492c-a419-483f63a2678c`. V0, V1, and V3 are done locally. V2's live checks are still blocked. V3 is not deployed, so production still shows the previous shell. V4–V14, D7, D8, R1, and R2 are not started.
+**Where the build stands (2026-10-08).** Phases 0–5, every U-task, and D1–D6 are `[x]`. The site is `https://lifeline-five-murex.vercel.app`. The Worker is `https://lifeline.lifeline-shreyas.workers.dev`, version `1f8bfcc5-5728-492c-a419-483f63a2678c`. V0, V1, V3, and V4 are done locally. V2's live checks are still blocked. V3 and V4 are not deployed, so production still shows the previous shell. V5–V14, D7, D8, R1, and R2 are not started.
 
 **Done**
 
@@ -29,6 +29,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 | V1 | `[x]` | Liquidation dollars use market decimals. Eligible means idle AUSD is at least 1% of notional. The history window is 30 days by block. Prices render as dollars. Mainnet links use Monadscan. Live check: 577 rows from block 102785487, latest 50 notionals match the formula, avoidable penalty is less than paid. |
 | V2 code | committed, not `[x]` | `GET /me`, repeat-claim 409 includes the proxy, acceptance stamped once, real client IP via `PROXY_SECRET`, limits raised to 10/hour, `/health` fields `armed` / `lastBlock` / `claimsToday`, `/actions` distance and reason, twins distances in one multicall, real `/saves`, ops preflight and `--max-new 4`, sandbox role. Worker unit tests: 56 passed. |
 | V3 | `[x]` | Anthropic tokens, Poppins / Lora / JetBrains Mono, the component set, the ivory shell, `/dev/ui` (404 in production), and `/api/ops-health`. Lighthouse mobile accessibility on `next start` `/` is 100. Not deployed. |
+| V4 | `[x]` | `/` is the landing page. The previous radar board is at `/radar` until V5 rebuilds it. Live strip uses `/api/radar?chain=143` every 10 s. Lighthouse mobile on `next start` `/`: performance 95, accessibility 100, best practices 100. Not deployed. |
 
 **Blocking V2 (live checks only).** V3 is done locally and is not on production. Do not deploy the new shell, and do not run `pool:refill`, until the checks below pass.
 
@@ -50,7 +51,7 @@ The Durable Object free plan used up its 5,000,000 `rows_read` for the day. At 2
 3. `pnpm cli pool:register`, then `pnpm cli pool:register --restore-twins`.
 4. `curl` `/health` until it is `degraded:false`. Confirm `armed`, `lastBlock`, `claimsToday`, and whether `low` is false. If the in-band target cannot be met without a large refill, stop and ask.
 5. `gh workflow run ops.yml` and wait for one green run with `pool:register` exiting 0.
-6. Mark V2 `[x]` only when the live checks in its Pass section hold. Then start **V4**. V3 is already `[x]` locally.
+6. Mark V2 `[x]` only when the live checks in its Pass section hold. Then start **V5**. V3 and V4 are already `[x]` locally.
 
 **Recovered accounts (already verified, waiting on register).** Twenty proxies from those three failed runs: pool owner, pending owner zero, six operator selectors revoked, one open BTC position (perp 16). Appended to local `cli-state/pool.json` (85 accounts). Left out, no open position: `0x240dBDd7`, `0x8d33670A`, `0xB2337bbE`, `0x1DF440A0`. Marked `role: "sandbox"` instead of minting new ones: `0x9d5c146f` (short) and `0x0d603487` (long).
 
@@ -72,7 +73,7 @@ The Durable Object free plan used up its 5,000,000 `rows_read` for the day. At 2
 | 8b | V1 | Done | Liquidation numbers, 30-day window, dollar prices, Monadscan. Commit `edd5cd7`. |
 | 8c | V2 | Blocked | Code is deployed (`1f8bfcc5`, commit `61b4f15`). Live checks wait on the Durable Object quota reset at 2026-10-08 00:00 UTC, then `pool:register` and a green ops run. See "Where the build stands" above. |
 | 8d | V3 | Done | Design system and ivory shell. Local only; production is unchanged. Lighthouse accessibility 100. |
-| 8e | V4–V14 | Not started | Landing page, `/radar`, risk report, `/app`, proof, developers, judge tour, journeys. V4 depends on V1 and V3, both `[x]`. |
+| 8e | V5–V14 | Not started | Rebuild `/radar`, then the risk report, `/app`, proof, developers, judge tour, and journeys. V4 is `[x]` locally. The radar board already lives at `/radar`. |
 | 9 | D7 | Human | Run both §7B.2 stories on a phone and a laptop. |
 | 10 | D8 | Human | Record the ≤ 3 minute judge tour and send the link. |
 | 11 | R1 | Agent | README, MIT license, clean `secrets:check`. |
@@ -2316,7 +2317,7 @@ See it on the testnet market map →
   - **Screenshots:** `v3-shell-390.png`, `v3-shell-1440.png`, `v3-ui-gallery-1440.png`.
 - **Evidence:** `pnpm --filter @lifeline/web exec vitest run test/v3.test.ts` passed 5 tests. Text on paper, well, surface, ink, and clay is at least 4.5:1 (ink on paper 17.50, muted on paper 6.26, muted on well 5.67, clay-ink on well 4.95, ink on clay 5.90). Olive, danger, and ink marks are at least 3:1 on paper, surface, and well. Clay on paper is 2.96 and blue on paper is 2.78, so those fills always sit with a text label. `--line-strong` on paper is 2.11 and is not used for text. `userMessage` covers every `SKIP_REASONS` value plus the claim, wallet, ownership, top-up, and withdraw rows; visible sentences do not contain the forbidden field names. `opsHealthFromWorker` adds `status`, `lastAlarmAt`, `lastBlock`, `armed`, and `poolAvailable` and keeps `degraded`, `paused`, and `rpc`. Playwright `e2e/shell.spec.ts` passed 18 tests: `/`, `/lifeline`, `/twins`, `/judges`, `/replay`, `/methodology`, `/a/0x000…0001`, and `/dev/ui` at 390 and 1440 with an empty console-error list, the header and footer links, and the verbatim footer line. Escape closes the mobile menu and focus returns to Menu. Screenshots: `apps/web/e2e/artifacts/v3-shell-390.png`, `v3-shell-1440.png`, `v3-ui-gallery-1440.png`. `next build` then `next start`: `GET /dev/ui` is 404, `GET /` is 200, `GET /opengraph-image` is 200, `GET /icon.svg` is 200. Lighthouse mobile accessibility on `http://127.0.0.1:3456/` is 100. `e2e/radar.spec.ts` and `e2e/fallbacks.spec.ts` still pass (7 tests). The shell is not deployed. Existing routes stay in a dark `.legacy` island until V4–V11 move them. V13 still removes the old variables.
 
-#### [ ] V4 Landing page `/`
+#### [x] V4 Landing page `/`
 - **Type:** AGENT · **Depends on:** V1, V3
 - **Why:** One place that explains the product, shows it's live, and routes both stories. It's the first frame of the video (D8) and of every judge's visit.
 - **Do:**
@@ -2335,13 +2336,13 @@ See it on the testnet market map →
   - **Lighthouse** (mobile) on `/`: performance ≥ 80, accessibility ≥ 95, best practices ≥ 90.
   - **Reduced motion:** with `prefers-reduced-motion` emulated, no animation runs after load (`document.getAnimations().length === 0`).
   - **Screenshots:** `v4-landing-390.png` and `v4-landing-1440.png`. Check for one primary button per view, no all-caps, and no text in clay.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/web exec vitest run test/v4.test.ts` passed 2 tests. `formatUsdCompact("3150000000000")` is `$3.15M` and `formatUsd` of the same value is `$3,150,000`; `$274.5k` and `$127.4k` match the same way, and amounts under $10k stay on `formatUsd`. The verbatim H1, sub, primary button, placeholder, tour link, live label, problem quote, three how-it-works steps, security lines, and seven FAQ questions are the §7B.5 strings. Each FAQ answer is at most three sentences, and the visible copy does not match the forbidden patterns. Playwright `e2e/landing.spec.ts` passed 4 tests. The strip equals the mocked `/api/radar?chain=143`: `$3.15M` open interest, `141` positions within 5% (`$274.5k`), `$127.4k` idle beside them, `$12,400` penalties (30 days), and `block 111,275,464`, with the exact dollar titles. The saves card shows `0`. Header, hero, proof cards, two ways in, and footer together link to `/`, `/app`, `/radar`, `/check`, `/proof`, `/twins`, `/replay`, `/methodology`, `/developers`, `/tour`, and `/tour/evidence`. The hero form opens `/a/0x77A89C51f106D6cD547542a3A83FE73cB4459135?chain=143` and rejects `not-an-address` with "That isn't a valid address." The hero primary is inside the 1440×900 viewport and within one 800 px scroll at 390. The browser made zero requests to `perpl.xyz`. A 503 radar shows "Live numbers are taking a moment." and leaves How it works on the page. With `prefers-reduced-motion`, `document.getAnimations().length` is 0 after the numbers load. No visible text computes to `--clay`. Screenshots: `apps/web/e2e/artifacts/v4-landing-1440.png` and `v4-landing-390.png`. The hero has one primary button; Check is secondary. The shell's "Protect a position" stays in the header. `e2e/radar.spec.ts` and `e2e/fallbacks.spec.ts` pass on `/radar`, including `/radar?rpc=dead`. `e2e/shell.spec.ts` passes, and `/` now shows the landing H1. `next build` succeeds. Lighthouse mobile against `next start` at `http://localhost:3000/`: performance 95, accessibility 100, best practices 100. Not deployed. V5 still rebuilds the radar UI.
 
 #### [ ] V5 Market risk `/radar`
 - **Type:** AGENT · **Depends on:** V1, V3
 - **Why:** The Perpl Analytics bounty ($3k) is judged on this page.
 - **Do:**
-  1. **Rebuild the board.** Move `RadarBoard` to `app/(site)/radar/` and rebuild its UI per §7B.5 `/radar`: the header and chain control, the stats, the market selector with empty markets collapsed, the SVG map with its price axis and bands, the crash slider, tooltips, the at-risk table and drawer, and recent liquidations.
+  1. **Rebuild the board.** The previous board already lives at `app/(site)/radar/radar-board.tsx` and is served at `/radar` (V4). Rebuild its UI per §7B.5 `/radar`: the header and chain control, the stats, the market selector with empty markets collapsed, the SVG map with its price axis and bands, the crash slider, tooltips, the at-risk table and drawer, and recent liquidations.
   2. **Keep the logic and test ids.**
      - Keep the `crashLine`, `bucketHit`, and `simulate` logic.
      - Keep every existing test id: `open-interest`, `at-risk-count`, `idle`, `block`, `bucket`, `bucket-detail`, `risk-detail`, `crash-line`, `crash-label`, `spark`, `penalties`, `at-stake`, `saves`.
@@ -2349,7 +2350,7 @@ See it on the testnet market map →
      - `GET /api/radar?chain=10143&highlight=<proxy>` computes `radarId(salt, 10143, accountId)` on the server for that address (read `getAccountByAddr`) and returns it as `highlightId`.
      - The client passes the address from `/me` when the user is signed in.
      - The map outlines that position's bucket in `--ink`, and its table row reads "Your position."
-  4. **Tests.** Update `e2e/radar.spec.ts`, `test/crash-ui.test.ts`, and `e2e/fallbacks.spec.ts` to the new route (`/?rpc=dead` becomes `/radar?rpc=dead`).
+  4. **Tests.** `e2e/radar.spec.ts` and `e2e/fallbacks.spec.ts` already open `/radar` (`/?rpc=dead` is `/radar?rpc=dead`). Keep that. Update `test/crash-ui.test.ts` only if a route string is still `/`.
 - **Pass:**
   - **Specs:** the existing radar, crash, and fallback specs pass on `/radar`, and the A5 check still finishes each slider step within 100 ms with 650 positions.
   - **Markets:** every market with buckets renders a chart; markets without any appear only in the collapsed line.
@@ -2583,7 +2584,7 @@ See it on the testnet market map →
 1. **V0.** Done (`9705f73`).
 2. **V2, then V1.** V1 is done (`edd5cd7`). V2's code is committed (`61b4f15`) and deployed (`1f8bfcc5`). V2 stays `[!]` until the Durable Object quota resets at 2026-10-08 00:00 UTC and the live checks in its Evidence pass. Do not refill the pool before `/health` is 200. Push before the next scheduled ops run, or GitHub keeps the workflow that mints accounts and then fails `pool:register`.
 3. **V3.** Done locally. Depends on V0 only. The human asked to continue work that does not depend on the Durable Object quota, so V3 landed while V2 is still `[!]`. It is not deployed. Production keeps the previous shell until V2's live checks pass and a later deploy.
-4. **V4 with V5** in the same commit, because the radar moves to `/radar`. Then **V6**.
+4. **V4** is done locally. The previous radar board already serves `/radar`. **V5** rebuilds that page. Then **V6**.
 5. **V7, then V8.** Batch their human steps (the real Privy run and the Privy email setting) into one prompt.
 6. **V9 and V10.**
 7. **V11.**
@@ -2764,3 +2765,8 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - V3 | unmigrated pages keep the dark palette inside `.legacy` | the token names `--ink`, `--line`, `--muted`, and `--danger` changed meaning, and V4–V11 are what move each page | `apps/web/app/styles/base.css`; V13 still deletes the old variables
 - V3 | clay on paper is 2.96:1 and blue on paper is 2.78:1 | those brand fills miss the 3:1 non-text bar, so a screen never uses them as the only signal | `test/v3.test.ts`; olive and danger clear 3:1
 - V3 | `/dev/gate-privy` uses the root Privy provider | a second `PrivyProvider` on that page made `next build` throw "Multiple PrivyProvider instances found" | `apps/web/app/dev/gate-privy/page.tsx`
+- V4 | `/` is the landing page and the previous radar board moves to `/radar` without a visual rebuild | V4 has to explain the product, and V5 still owns the radar redesign | `app/(site)/page.tsx`; `app/(site)/radar/radar-board.tsx`
+- V4 | landing dollar headlines use the §7B.4.6 compact form, with `formatUsd` in the title | the wireframe shows `$3.15M` and `$274.5k`; the radar page still shows the uncompacted figure until V5 | `formatUsdCompact`; Playwright titles
+- V4 | reduced motion sets `animation` and `transition` to `none` | a 0.01 ms duration still leaves a finished animation in `document.getAnimations()` | `app/styles/motion.css`; landing Playwright length 0
+- V4 | the wallet library loads only on `/lifeline`, `/app`, and `/dev` | on `/` it added the iframe, third-party cookies, and about 580 KiB of script, and Lighthouse best practices fell below 90 | `app/providers.tsx`; mobile Lighthouse on `localhost:3000` performance 95, accessibility 100, best practices 100
+- V4 | links to routes that are not built yet use `prefetch={false}` | Next prefetched `/app` and `/tour`, both 404, and Lighthouse counted those as console errors | `site-header.tsx`; landing buttons

@@ -48,7 +48,7 @@ test("radar matches the payload", async ({ page }) => {
   await page.route(/\/api\/ops-health/, (route) => route.fulfill({ json: { degraded: false, paused: false, rpc: false } }));
 
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto("/radar", { waitUntil: "domcontentloaded" });
   await expect(page.getByTestId("open-interest")).toHaveText("$1,500", { timeout: 30_000 });
   await expect(page.getByTestId("at-risk-count")).toHaveText("2 · $400");
   await expect(page.getByTestId("idle")).toHaveText("$25");
@@ -86,7 +86,7 @@ test("radar still renders when the Perpl API is blocked", async ({ page }) => {
   await page.route(/\/api\/markets/, (route) => route.fulfill({ status: 200, json: { markets: [], source: "onchain" } }));
   await page.route(/\/api\/saves/, (route) => route.fulfill({ json: { count: 0, saves: [] } }));
   await page.route(/\/api\/ops-health/, (route) => route.fulfill({ json: { degraded: false, paused: false, rpc: false } }));
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto("/radar", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "BTC" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "ETH" })).toBeVisible();
   await expect(page.getByTestId("open-interest")).toHaveText("$1,500");

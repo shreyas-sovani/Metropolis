@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ExactBadge } from "../exact-badge";
-import { ONE_LINER } from "../../lib/copy";
-import { bucketHit, crashLine } from "../../lib/crash-line";
-import { MAINNET_ID, blockUrl, txUrl } from "../../lib/explorer";
-import { formatPct, formatUsd } from "../../lib/format";
-import { LIQUIDATIONS_MS, MARKETS_MS, RADAR_MS, SAVES_MS, pollDue } from "../../lib/poll";
-import { liquidationTape } from "../../lib/tape";
-import type { CompactPosition } from "../../../../packages/core/src/radar/schema";
+import { ExactBadge } from "../../exact-badge";
+import { ONE_LINER } from "../../../lib/copy";
+import { bucketHit, crashLine } from "../../../lib/crash-line";
+import { MAINNET_ID, blockUrl, txUrl } from "../../../lib/explorer";
+import { formatPct, formatUsd } from "../../../lib/format";
+import { LIQUIDATIONS_MS, MARKETS_MS, RADAR_MS, SAVES_MS, pollDue } from "../../../lib/poll";
+import { liquidationTape } from "../../../lib/tape";
+import type { CompactPosition } from "../../../../../packages/core/src/radar/schema";
 
 interface Bucket {
   index: number;

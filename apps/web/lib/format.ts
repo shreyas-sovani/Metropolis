@@ -8,6 +8,34 @@ export function formatUsd(micro: string): string {
   return frac === "00" ? text : `${text}.${frac}`;
 }
 
+const MICRO = 1_000_000n;
+
+function roundDiv(value: bigint, unit: bigint): bigint {
+  return (value + unit / 2n) / unit;
+}
+
+/** Compact dollars for headlines. Under $10k matches `formatUsd`. The exact figure stays in a title. */
+export function formatUsdCompact(micro: string): string {
+  const negative = micro.startsWith("-");
+  const digits = (negative ? micro.slice(1) : micro).replace(/\D/g, "") || "0";
+  const value = BigInt(digits);
+  if (value < 10_000n * MICRO) return formatUsd(negative ? `-${digits}` : digits);
+  const sign = negative ? "-" : "";
+  if (value < 1_000_000n * MICRO) {
+    const tenths = roundDiv(value, 100n * MICRO);
+    if (tenths >= 10_000n) return `${sign}$1M`;
+    const whole = tenths / 10n;
+    const frac = tenths % 10n;
+    return frac === 0n ? `${sign}$${whole}k` : `${sign}$${whole}.${frac}k`;
+  }
+  const hundredths = roundDiv(value, 10_000n * MICRO);
+  const whole = hundredths / 100n;
+  const frac = hundredths % 100n;
+  if (frac === 0n) return `${sign}$${whole}M`;
+  if (frac % 10n === 0n) return `${sign}$${whole}.${frac / 10n}M`;
+  return `${sign}$${whole}.${frac.toString().padStart(2, "0")}M`;
+}
+
 /** A chain price in micro-dollars, shown with that market's price decimals. */
 export function formatPrice(micro: string, priceDecimals: number): string {
   const negative = micro.startsWith("-");

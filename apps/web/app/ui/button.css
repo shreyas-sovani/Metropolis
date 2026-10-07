@@ -17,11 +17,13 @@
   transition: background 200ms ease-out, color 200ms ease-out, border-color 200ms ease-out;
 }
 
-.ui-button-primary { background: var(--ink); color: var(--on-ink); }
+.ui-button-primary,
+.legacy a.ui-button-primary { background: var(--ink); color: var(--on-ink); }
 .ui-button-primary:hover { background: #2b2b28; color: var(--on-ink); text-decoration: none; }
 .ui-button-primary:active { background: #0e0e0d; }
 
-.ui-button-secondary {
+.ui-button-secondary,
+.legacy a.ui-button-secondary {
   background: var(--surface);
   border-color: var(--line-strong);
   color: var(--ink);
@@ -29,7 +31,8 @@
 .ui-button-secondary:hover { background: var(--well); color: var(--ink); text-decoration: none; }
 .ui-button-secondary:active { background: var(--line); }
 
-.ui-button-quiet {
+.ui-button-quiet,
+.legacy a.ui-button-quiet {
   background: transparent;
   color: var(--clay-ink);
   padding-inline: 8px;

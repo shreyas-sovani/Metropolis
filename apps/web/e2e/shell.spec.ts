@@ -91,7 +91,7 @@ test("shell screenshots", async ({ page }) => {
   await silenceApis(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "Where the book can break" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Don't get liquidated with money in your account." })).toBeVisible();
   await page.screenshot({ path: "e2e/artifacts/v3-shell-1440.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 800 });
   await page.screenshot({ path: "e2e/artifacts/v3-shell-390.png", fullPage: true });

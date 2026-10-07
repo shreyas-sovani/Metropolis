@@ -5,9 +5,20 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+.ui-trace-wide {
+  display: block;
+  width: 100%;
+  height: 28px;
+}
+.ui-trace-wide path { vector-effect: non-scaling-stroke; }
 .ui-trace-draw {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
   animation: ui-trace-draw 800ms ease-out forwards;
 }
 @keyframes ui-trace-draw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .ui-trace-draw {
+    stroke-dashoffset: 0;
+  }
+}

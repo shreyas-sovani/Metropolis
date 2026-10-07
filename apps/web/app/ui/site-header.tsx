@@ -9,10 +9,10 @@ import { LifelineTrace } from "./trace";
 import "./site-header.css";
 
 const LINKS = [
-  { href: "/radar", label: "Market risk" },
-  { href: "/check", label: "Check an address" },
-  { href: "/proof", label: "Proof" },
-  { href: "/developers", label: "Developers" },
+  { href: "/radar", label: "Market risk", prefetch: undefined },
+  { href: "/check", label: "Check an address", prefetch: false },
+  { href: "/proof", label: "Proof", prefetch: false },
+  { href: "/developers", label: "Developers", prefetch: false },
 ] as const;
 
 function current(href: string, pathname: string): "page" | undefined {
@@ -82,23 +82,23 @@ export function SiteHeader() {
         </button>
         <nav ref={panelRef} id="site-menu" className={open ? "site-nav is-open" : "site-nav"} aria-label="Primary">
           {LINKS.map((link) => (
-            <Link key={link.href} href={link.href} aria-current={current(link.href, pathname)}>
+            <Link key={link.href} href={link.href} prefetch={link.prefetch} aria-current={current(link.href, pathname)}>
               {link.label}
             </Link>
           ))}
-          <Link className="site-nav-extra" href="/tour">
+          <Link className="site-nav-extra" href="/tour" prefetch={false}>
             Judge tour
           </Link>
-          <Button className="site-nav-extra" href="/app" variant="primary">
+          <Button className="site-nav-extra" href="/app" variant="primary" prefetch={false}>
             Protect a position
           </Button>
         </nav>
         <div className="site-tools">
           <StatusPill />
-          <Link className="site-tour" href="/tour">
+          <Link className="site-tour" href="/tour" prefetch={false}>
             Judge tour
           </Link>
-          <Button className="site-cta" href="/app" variant="primary">
+          <Button className="site-cta" href="/app" variant="primary" prefetch={false}>
             Protect a position
           </Button>
         </div>

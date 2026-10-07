@@ -15,7 +15,7 @@ type Common = {
 type ButtonProps = Common &
   Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "className"> & { href?: undefined };
 
-type LinkProps = Common & { href: string };
+type LinkProps = Common & { href: string; prefetch?: boolean };
 
 function classes(variant: Variant, className?: string): string {
   return ["ui-button", `ui-button-${variant}`, className].filter(Boolean).join(" ");
@@ -39,7 +39,7 @@ export function Button(props: ButtonProps | LinkProps) {
   if ("href" in props && props.href) {
     if (busy) return <span className={className} aria-disabled="true">{content}</span>;
     return (
-      <Link href={props.href} className={className}>
+      <Link href={props.href} className={className} prefetch={props.prefetch}>
         {content}
       </Link>
     );

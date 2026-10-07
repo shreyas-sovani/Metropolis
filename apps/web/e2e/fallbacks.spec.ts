@@ -81,14 +81,14 @@ test("a degraded health check shows the banner", async ({ page }) => {
   await page.route("**/api/liquidations", (route) => route.fulfill({ json: { latest: [] } }));
   await page.route("**/api/markets", (route) => route.fulfill({ json: { markets: [] } }));
   await page.route("**/api/saves", (route) => route.fulfill({ json: { count: 0 } }));
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto("/radar", { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Lifeline degraded")).toBeVisible();
   await expect(page.getByText("No open positions on this chain yet.")).toBeVisible();
 });
 
 test("radar still loads when the primary RPC is dead", async ({ page }) => {
   test.setTimeout(90_000);
-  await page.goto("/?rpc=dead", { waitUntil: "domcontentloaded" });
+  await page.goto("/radar?rpc=dead", { waitUntil: "domcontentloaded" });
   await expect(page.getByTestId("open-interest")).toBeVisible({ timeout: 60_000 });
 });
 

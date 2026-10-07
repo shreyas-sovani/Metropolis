@@ -140,6 +140,13 @@ a:hover { text-decoration: underline; }
   min-height: 100%;
 }
 
+.legacy .ui-scope a:not(.ui-button) {
+  color: var(--clay-ink);
+  text-decoration: none;
+}
+
+.legacy .ui-scope a:not(.ui-button):hover { text-decoration: underline; }
+
 #content:focus,
 #content:focus-visible { outline: none; }
 
