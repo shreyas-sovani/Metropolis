@@ -34,6 +34,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 | V6 | `[x]` | `/check` and `/a/[address]` are the risk report. Liquidation prices are dollars. The testnet example is pool account `0xe3929EB4`. On production with the V7 deploy. |
 | V7 | `[x]` | `/app` onboarding is live. Three test-wallet runs, resume, fallbacks, and screenshots. Human guest `0x68927BE5` owns `0xC0385344`; top-up `0x81508908` at block 69204928 moved an ETH long from 4.6% to 9.0%, inside the 9% band. |
 | V8 | `[x]` | `/app` reloads into the dashboard. Live test adjusted the safety line, paused to 404, resumed, withdrew 25 AUSD, and a breach top-up showed up in Activity. "Saved to your email" kept `owner()` at `0x68927BE5`. |
+| V9 | `[x]` | `/proof`, twins, the mainnet replay chart, and contract-exact. Twin amounts are AUSD. Screenshots at 390 and 1440. |
 
 **V2 live checks are done.** Ops run [37722089588](https://github.com/shreyas-sovani/Metropolis/actions/runs/37722089588) is green: refill, `pool:register` (`registered 117 file 85 mandates 84`), the AUSD faucet, and `budget ok need=31.1400 sponsor=33.3862`. `/health` after that run: `degraded:false`, `low:false`, `poolAvailable` 55, `poolInBand` 11, `armed` 110, `lastBlock` 69147465, `claimsToday` 1.
 
