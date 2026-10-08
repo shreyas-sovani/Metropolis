@@ -471,8 +471,8 @@ async function openPair(args: {
     await revokeAllowlist(args.client, args.ownerWallet, args.owner, proxy);
   }
   const perpId = BigInt(args.pair.perpId);
-  let left = await positionOf(args.client, args.exchange, args.pair.protected.proxy, perpId);
-  let right = await positionOf(args.client, args.exchange, args.pair.unprotected.proxy, perpId);
+  const left = await positionOf(args.client, args.exchange, args.pair.protected.proxy, perpId);
+  const right = await positionOf(args.client, args.exchange, args.pair.unprotected.proxy, perpId);
   if (left && right && entriesMatch(left.pricePNS, right.pricePNS)) return true;
   if (left && right) {
     console.log(`${args.pair.id} entries ${left.pricePNS} ${right.pricePNS} differ; closing`);

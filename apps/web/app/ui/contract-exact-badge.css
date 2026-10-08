@@ -9,4 +9,10 @@
   text-decoration: none;
 }
 .ui-exact:hover { text-decoration: underline; }
-.legacy .ui-exact { color: var(--ok); }
+
+.est {
+  color: var(--muted);
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+}

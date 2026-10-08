@@ -4,7 +4,6 @@ import { delegatedAccountAbi } from "../src/abi/delegatedAccount.js";
 import { delegatedAccountFactoryAbi } from "../src/abi/delegatedAccountFactory.js";
 import { erc20Abi } from "../src/abi/erc20.js";
 import { exchangeAbi } from "../src/abi/exchange.js";
-import { faucetAbi } from "../src/abi/faucet.js";
 import { GAS_LIMITS } from "../src/config/gas.js";
 import { ORDER_OPEN_LONG, orderDesc } from "../src/orders/index.js";
 import {

@@ -17,9 +17,9 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
 4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 and U11 and U14 are done. V0, V1, V2, V3, V4, V5, V6, and V7 are done. The sponsor received 10 MON, `pnpm cli status` prints `budget ok`, `/health` is `low:false`, and ops run 37722089588 is green. D7 waits for V14.
 5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6, U11, and U14 are done.
-6. **Then read §7B (Productization) in full. It comes before D7.** It turns the prototype into the product: two user stories (a trader and a judge), one landing page, a persistent `/app` with onboarding and a dashboard, a judge tour, and an Anthropic-style design system. It also fixes the flow-breakers and wrong numbers found on production on 2026-10-07. V0, V1, V2, V3, V4, V5, and V6 are done. Production serves this shell at `https://lifeline-five-murex.vercel.app` (deployment `dpl_2bmd451cTK2dQnav2goxnwkS37qh`). The next product task is **V13**. V7, V8, V9, V10, V11, and V12 are `[x]`.
+6. **Then read §7B (Productization) in full. It comes before D7.** It turns the prototype into the product: two user stories (a trader and a judge), one landing page, a persistent `/app` with onboarding and a dashboard, a judge tour, and an Anthropic-style design system. It also fixes the flow-breakers and wrong numbers found on production on 2026-10-07. V0, V1, V2, V3, V4, V5, and V6 are done. Production serves this shell at `https://lifeline-five-murex.vercel.app` (deployment `dpl_2bmd451cTK2dQnav2goxnwkS37qh`). The next product task is **V14**. V7 through V13 are `[x]`.
 
-**Where the build stands (2026-10-08).** Phases 0–5, every U-task, and D1–D6 are `[x]`. The site is `https://lifeline-five-murex.vercel.app`. The Worker is `https://lifeline.lifeline-shreyas.workers.dev`, version `8fbaa719-7fe7-452d-b314-2950eaa43ccb`. V0, V1, V3, V4, V5, and V6 are done locally. The Durable Object quota has reset. `/health` is 200 with `degraded:false`, `low:false`, `armed` 100, `lastBlock` 69139671, `claimsToday` 1, `poolAvailable` 60, `poolInBand` 17. `pool:register --restore-twins` exited 0. Twin distances are numeric on all 14 legs. Ops run 37722089588 is green. `/health` is `low:false` (`poolInBand` 11, `poolAvailable` 55, `armed` 110). `pnpm cli status` prints `budget ok` with sponsor 33.3862 MON. Production serves V3–V7 at `https://lifeline-five-murex.vercel.app` (deployment `dpl_2bmd451cTK2dQnav2goxnwkS37qh`). V7 is `[x]`: guest `0x68927BE500A643BBDc3bAAac1372fDDD2ffa23d4` owns `0xC0385344A3641F3ba8fb7c5AdFB47a5bEeb7702A`, and top-up `0x81508908` moved distance 45765 → 89997 against a 9% safety line. V8 is `[x]`: "Saved to your email" left `owner()` of `0xC0385344` at `0x68927BE5`. V9 is `[x]`. V10 is `[x]`: `/developers` runs the risk example, copies the curl, and shows the 60-per-minute limit. V11 is `[x]`: the five-stop tour, reload at stop 2, and the evidence map. V12 is `[x]`: the copy sweep. Next is V13. V13, V14, D7, D8, R1, and R2 are not started.
+**Where the build stands (2026-10-08).** Phases 0–5, every U-task, and D1–D6 are `[x]`. The site is `https://lifeline-five-murex.vercel.app`. The Worker is `https://lifeline.lifeline-shreyas.workers.dev`, version `8fbaa719-7fe7-452d-b314-2950eaa43ccb`. V0, V1, V3, V4, V5, and V6 are done locally. The Durable Object quota has reset. `/health` is 200 with `degraded:false`, `low:false`, `armed` 100, `lastBlock` 69139671, `claimsToday` 1, `poolAvailable` 60, `poolInBand` 17. `pool:register --restore-twins` exited 0. Twin distances are numeric on all 14 legs. Ops run 37722089588 is green. `/health` is `low:false` (`poolInBand` 11, `poolAvailable` 55, `armed` 110). `pnpm cli status` prints `budget ok` with sponsor 33.3862 MON. Production serves V3–V7 at `https://lifeline-five-murex.vercel.app` (deployment `dpl_2bmd451cTK2dQnav2goxnwkS37qh`). V7 is `[x]`: guest `0x68927BE500A643BBDc3bAAac1372fDDD2ffa23d4` owns `0xC0385344A3641F3ba8fb7c5AdFB47a5bEeb7702A`, and top-up `0x81508908` moved distance 45765 → 89997 against a 9% safety line. V8 is `[x]`: "Saved to your email" left `owner()` of `0xC0385344` at `0x68927BE5`. V9 is `[x]`. V10 is `[x]`: `/developers` runs the risk example, copies the curl, and shows the 60-per-minute limit. V11 is `[x]`: the five-stop tour, reload at stop 2, and the evidence map. V12 is `[x]`: the copy sweep. V13 is `[x]`: redirects, the dev 404, and production `dpl_DSVKLCZWq3L3TqtDpZq1r62pVQke`. Next is V14. V14, D7, D8, R1, and R2 are not started.
 
 **Done**
 
@@ -71,7 +71,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 | 8b | V1 | Done | Liquidation numbers, 30-day window, dollar prices, Monadscan. Commit `edd5cd7`. |
 | 8c | V2 | Done | Ops run 37722089588 green. `budget ok`, `/health` `low:false`. |
 | 8d | V3 | Done | Design system and ivory shell. Local only; production is unchanged. Lighthouse accessibility 100. |
-| 8e | V13–V14 | Not started | Routing and journeys. V12 is `[x]`. |
+| 8e | V14 | Not started | Customer and judge journeys, then the D5 re-run. V13 is `[x]`. |
 | 9 | D7 | Human | Run both §7B.2 stories on a phone and a laptop. |
 | 10 | D8 | Human | Record the ≤ 3 minute judge tour and send the link. |
 | 11 | R1 | Agent | README, MIT license, clean `secrets:check`. |
@@ -2538,7 +2538,7 @@ See it on the testnet market map →
   - A unit test shows every `evaluate` reason code has a row in `messages.ts`.
 - **Evidence:** `pnpm --filter @lifeline/web exec vitest run test/v12.test.ts test/v3.test.ts test/ui.test.ts` passed. Every `SKIP_REASONS` value has a `userMessage` row, and those sentences miss the §7B.4.6 patterns. `WITHDRAW_NOTE` says "Lifeline's key". The old try page shows `REVOKED_LABELS`, not the function names. Playwright `e2e/copy.spec.ts` passed 21 tests: the product routes, `/app` idle plus `shot=owning|choosing|receipt|dashboard|withdraw`, demo mode after an empty pool, and the rate-limit row. `rg -n "toFixed\(|toLocaleString\(" apps/web/app` found nothing. Dollars, AUSD, percents, blocks, and relative time go through `lib/format.ts` (`formatAusd`, `timeAgo`).
 
-#### [ ] V13 Routing, cleanup, and docs
+#### [x] V13 Routing, cleanup, and docs
 - **Type:** AGENT · **Depends on:** V4–V12
 - **Why:** No broken links, no exposed test pages, no orphan pages (F16, F17).
 - **Do:**
@@ -2555,7 +2555,7 @@ See it on the testnet market map →
   - **Production `curl` checks:** `/dev/gate-privy` returns 404; `/lifeline` returns 308 to `/app`; `/judges` returns 308 to `/tour`.
   - **Build:** `pnpm -r build && pnpm -r test && pnpm lint` is green.
   - **Production:** the production deploy is done, and D1's Privy origin check is still clean (no origin error in the console on `/app`).
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/web build` passed. `pnpm lint` passed after unused imports were removed. Web, worker, and CLI unit tests passed. `packages/core` `test/live.test.ts` still fails two live checks: testnet account 816 no longer has an open perp 16, and the G1 allowlist simulation on that old proxy returned false. Those reads are the current chain, not this routing change. Playwright `e2e/links.spec.ts` passed locally in 2.8m and against `https://lifeline-five-murex.vercel.app`. Production `curl`: `/dev/gate-privy` and `/dev/ui` are 404; `/lifeline` is 308 to `/app`; `/judges` is 308 to `/tour`; `/?chain=10143` is 308 to `/radar?chain=10143`. Deployment `dpl_DSVKLCZWq3L3TqtDpZq1r62pVQke` is aliased to production. A headless load of `/app` logged no origin or frame-ancestors error.
 
 #### [ ] V14 Journey acceptance, then re-run D5
 - **Type:** AGENT, plus **HUMAN** (one real Privy run on production) · **Depends on:** V13
@@ -2583,7 +2583,7 @@ See it on the testnet market map →
 2. **V2, then V1.** V1 is done (`edd5cd7`). V2 is `[x]`. The quota reset, the sponsor received 10 MON, and ops run 37722089588 is green.
 3. **V3.** Done locally. Depends on V0 only. The human asked to continue work that does not depend on the Durable Object quota, so V3 landed while V2 is still `[!]`. It is not deployed. Production keeps the previous shell until V2's live checks pass and a later deploy.
 4. **V4, V5, V6, and V7** are done. `/` is the landing page, `/radar` is market risk, `/check` opens the risk report, and `/app` is onboarding. The guest top-up is `0x81508908`.
-5. **V7, then V8.** Both are `[x]`. **V9** is `[x]`: `/proof`, twins, replay, and methodology. **V10** is `[x]`: `/developers`. **V11** is `[x]`: the judge tour. **V12** is `[x]`: the copy sweep. Next is **V13**.
+5. **V7, then V8.** Both are `[x]`. **V9** is `[x]`: `/proof`, twins, replay, and methodology. **V10** is `[x]`: `/developers`. **V11** is `[x]`: the judge tour. **V12** is `[x]`: the copy sweep. **V13** is `[x]`: routing and the production deploy. Next is **V14**.
 6. **V9 and V10.** Both are `[x]`.
 7. **V11.** `[x]`.
 8. **V12, then V13.**
@@ -2785,3 +2785,5 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - V12 | dollars, AUSD, percents, blocks, and relative time format in `lib/format.ts` | pages were calling `toLocaleString` and `toFixed` on their own | `rg` on `apps/web/app` is empty; `formatAusd("152000000")` is `152`
 - V12 | the dashboard badge says "On" | the visible word armed is the internal flag | `dashboard.tsx`
 - V12 | the heartbeat says "positions" | the landing line is "Lifeline checked N positions" | `heartbeat.tsx`
+- V13 | `/dev/*` 404s from middleware, and the layouts are dynamic | a static build compiled the `NODE_ENV` check out of the page, so the HTML came back 200 | `middleware.ts`; `curl` of production `/dev/gate-privy` is 404
+- V13 | unused imports were removed so `pnpm lint` can pass | the root lint was already red on those names | `tick.ts`, `gate-4.ts`, `arm-trial.ts`, `twins-create.ts`, hypersync imports, `tx.test.ts`

@@ -101,32 +101,12 @@ a:hover { text-decoration: underline; }
 
 .legacy {
   flex: 1;
-  --ink: #12181f;
-  --panel: #1b242d;
-  --line: #31414d;
-  --text: #e7eef3;
-  --muted: #8ea3b0;
-  --amber: #e0a15a;
-  --danger: #e15d4c;
-  --ok: #7dbea5;
-  --display: "Iowan Old Style", Palatino, "Palatino Linotype", serif;
-  --body: "Avenir Next", "Segoe UI", sans-serif;
-  --data: ui-monospace, "SFMono-Regular", Menlo, monospace;
-  color-scheme: dark;
-  background: var(--ink);
-  color: var(--text);
-  font-family: var(--body);
-  background-image: linear-gradient(180deg, #182028 0%, var(--ink) 220px);
+  background: var(--paper);
+  color: var(--ink);
+  color-scheme: light;
 }
 
 .legacy a { color: inherit; text-decoration: none; }
-
-.legacy:has(> .ui-scope) {
-  background: var(--paper);
-  background-image: none;
-  color: #141413;
-  color-scheme: light;
-}
 
 .ui-scope {
   --ink: #141413;

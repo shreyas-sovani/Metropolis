@@ -13,7 +13,7 @@ import {
   readAccountByAddr,
   readPositionsForAccount,
 } from "@lifeline/core";
-import { getAddress, type Address, type Hex, type PublicClient } from "viem";
+import { getAddress, type Address, type PublicClient } from "viem";
 import type { PrivateKeyAccount } from "viem/accounts";
 import { loadRoles } from "../roles.js";
 import { testnetPublicClient, testnetWallet } from "../testnet.js";

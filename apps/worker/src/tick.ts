@@ -22,7 +22,6 @@ import {
   type PositionNode,
 } from "@lifeline/core";
 import {
-  createPublicClient,
   createWalletClient,
   getAddress,
   http,

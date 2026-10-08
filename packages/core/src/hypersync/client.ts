@@ -1,6 +1,6 @@
 import type { Address } from "viem";
 import type { HyperSyncLog } from "./decode.js";
-import { eventTopic0, type HyperSyncEventName } from "./topics.js";
+import { eventTopic0 } from "./topics.js";
 
 export interface HyperSyncFetch {
   (

@@ -4,16 +4,26 @@ Lifeline keeps Perpl positions from being liquidated while money sits idle next 
 
 ## Site
 
-Production is [lifeline-five-murex.vercel.app](https://lifeline-five-murex.vercel.app). V7 and V8 are done. `/app` is onboarding, then the dashboard.
+Production is [lifeline-five-murex.vercel.app](https://lifeline-five-murex.vercel.app).
 
 | Route | Page |
 |---|---|
 | `/` | Landing page, with the live mainnet strip |
 | `/radar` | Market risk |
+| `/app` | Practice-account onboarding, then the dashboard |
+| `/tour` | The 3-minute judge tour |
+| `/developers` | Risk API docs and a live example |
 | `/check` | Address check |
 | `/a/[address]` | Risk report. Liquidation prices are dollars. |
-| `/app` | Practice-account onboarding, then the dashboard |
 | `/proof` | Twins, the mainnet replay, contract-exact, and saves |
+
+`/lifeline` redirects to `/app`. `/judges` redirects to `/tour`.
+
+## User stories
+
+As a Perpl trader, I want my own idle AUSD to move into my position's margin when it gets close to liquidation, so I stop paying liquidation penalties while my money sits idle, and nobody, including Lifeline, can trade or withdraw my funds.
+
+As a judge, I want to verify in three minutes that Lifeline is real: real mainnet risk data, a protection I trigger myself on chain, and proof that Lifeline's key cannot take funds. Then I want to find the evidence for each bounty without hunting.
 
 ## Risk API
 
@@ -102,14 +112,14 @@ The mainnet addresses stay as they are. The web app reads them from the same con
 
 ## Bounty map
 
-The same map with the live links is at [/judges](https://lifeline-five-murex.vercel.app/judges).
+The same map with the live links is at [/tour/evidence](https://lifeline-five-murex.vercel.app/tour/evidence).
 
 | Bounty | Proof |
 |---|---|
-| Perpl API | [Risk response](https://lifeline-five-murex.vercel.app/api/v1/risk/0x77A89C51f106D6cD547542a3A83FE73cB4459135?chain=143) |
-| Perpl Analytics | [Radar](https://lifeline-five-murex.vercel.app/) and [methodology](https://lifeline-five-murex.vercel.app/methodology) |
+| Perpl API | [Developers](https://lifeline-five-murex.vercel.app/developers) |
+| Perpl Analytics | [Market risk](https://lifeline-five-murex.vercel.app/radar) |
 | Envio | [Liquidation history](https://lifeline-five-murex.vercel.app/api/liquidations) |
-| Privy | [Guest acceptOwnership](https://testnet.monadexplorer.com/tx/0xaa32f3a1aeace9c5582de8f31ec49499af4673fd6d89762de88cc50b10f73dac) |
-| Track 1 | [Top-up](https://testnet.monadexplorer.com/tx/0xf322eed96f2f1460cc6477b3037ce2a7cfd56d3a31198242712d236644099d85) |
+| Privy | [Protect a position](https://lifeline-five-murex.vercel.app/app) |
+| Track 1 | [Twins](https://lifeline-five-murex.vercel.app/twins) |
 
 A stored replay of a real mainnet Bitcoin liquidation is at [/replay](https://lifeline-five-murex.vercel.app/replay). The page reads `apps/web/data/mainnet-replay.json` and does not call an archive node.

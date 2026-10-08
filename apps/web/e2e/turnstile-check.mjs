@@ -1,3 +1,4 @@
+/* eslint-disable no-undef -- Playwright callbacks run in the browser; the script itself runs in Node. */
 import { chromium, webkit } from "@playwright/test";
 
 const engineName = process.argv[2] === "webkit" ? "webkit" : "chrome";

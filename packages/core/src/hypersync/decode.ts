@@ -1,5 +1,5 @@
 import { decodeEventLog, type Hex } from "viem";
-import { eventAbi, eventTopic0, type HyperSyncEventName } from "./topics.js";
+import { eventAbi, eventTopic0 } from "./topics.js";
 
 export interface HyperSyncLog {
   block_number: number;

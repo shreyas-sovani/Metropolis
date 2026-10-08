@@ -6,6 +6,18 @@ const e2eWalletFile = e2eWallet ? "./lib/e2e-wallet.ts" : "./lib/e2e-wallet-abse
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  async redirects() {
+    return [
+      { source: "/lifeline", destination: "/app", permanent: true },
+      { source: "/judges", destination: "/tour", permanent: true },
+      {
+        source: "/",
+        has: [{ type: "query", key: "chain", value: "10143" }],
+        destination: "/radar?chain=10143",
+        permanent: true,
+      },
+    ];
+  },
   turbopack: {
     resolveAlias: {
       "lifeline-e2e-wallet": e2eWalletFile,

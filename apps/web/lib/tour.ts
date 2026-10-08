@@ -1,5 +1,5 @@
 import replay from "../data/mainnet-replay.json";
-import { ACCEPT, TOPUP } from "./bounties";
+import { TOPUP } from "./bounties";
 import { MAINNET_ID, txUrl } from "./explorer";
 
 export const TOUR_KEY = "lifeline.tour";
