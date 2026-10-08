@@ -159,11 +159,11 @@ export async function poolRegister(root = workspaceRoot(), argv: readonly string
     console.error(`register failed ${response.status} ${body.error ?? ""}`.trim());
     return 1;
   }
-  if (body.registered !== entries.length) {
-    console.error(`register count registered=${body.registered} expected=${entries.length}`);
+  if (body.registered == null || body.registered < entries.length) {
+    console.error(`register count registered=${body.registered ?? "none"} file=${entries.length}`);
     return 1;
   }
-  console.log(`registered ${body.registered} mandates ${body.mandates ?? 0}`);
+  console.log(`registered ${body.registered} file ${entries.length} mandates ${body.mandates ?? 0}`);
   const owner = loadRoles(root).POOL_OWNER.address;
   for (const entry of entries) {
     const mandate = await fetch(`${base}/mandate/${entry.proxy}`);
@@ -213,8 +213,8 @@ export async function poolRegister(root = workspaceRoot(), argv: readonly string
       console.log(`${entry.proxy} ${entry.role} house-signed kind=${stored.kind}`);
       continue;
     }
-    const trigger = entry.role === "pool" ? 150 : 400;
-    const target = entry.role === "pool" ? 250 : 600;
+    const trigger = entry.role === "pool" || entry.role === "sandbox" ? 150 : 400;
+    const target = entry.role === "pool" || entry.role === "sandbox" ? 250 : 600;
     if (
       recovered !== owner ||
       getAddress(stored.owner) !== owner ||

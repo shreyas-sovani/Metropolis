@@ -560,19 +560,10 @@ export async function readLegStates(
     return out;
   };
   try {
-    const endpoint = urlsOf(env)[0];
-    if (!endpoint) return failed();
-    const base = CHAINS[TESTNET_ID];
-    const client = createPublicClient({
-      chain: {
-        ...base,
-        contracts: {
-          ...base.contracts,
-          multicall3: { address: ADDRESSES[TESTNET_ID].multicall3 },
-        },
-      },
-      transport: http(endpoint, { timeout: 8_000, retryCount: 0 }),
-    });
+    const urls = urlsOf(env);
+    if (urls.length === 0) return failed();
+    // The keeper already fails over across RPC_URLS_TESTNET. One dead first URL was marking every leg rpc.
+    const client = openChain(TESTNET_ID, { urls, timeout: 8_000 }).client;
     const armed = rows.map((row) => ({
       proxy: row.proxy,
       account_id: row.account_id,
@@ -593,7 +584,15 @@ export async function readLegStates(
         continue;
       }
       const view = toEvalPosition(position, market);
-      out.set(getAddress(row.proxy), { distanceE6: distanceOf(view), open: view.open, block: null });
+      if (!view.open) {
+        out.set(getAddress(row.proxy), { distanceE6: 0n, open: false, block: null });
+        continue;
+      }
+      try {
+        out.set(getAddress(row.proxy), { distanceE6: distanceOf(view), open: true, block: null });
+      } catch {
+        out.set(getAddress(row.proxy), { distanceE6: null, open: true, block: null, distanceError: "rpc" });
+      }
     }
     return out;
   } catch {
@@ -607,20 +606,10 @@ export async function readDistances(
 ): Promise<Map<string, bigint>> {
   const out = new Map<string, bigint>();
   if (rows.length === 0) return out;
-  const endpoint = urlsOf(env)[0];
-  if (!endpoint) return out;
-  // One aggregate3 HTTP call. The batched public client would emit one subrequest per position.
-  const base = CHAINS[TESTNET_ID];
-  const client = createPublicClient({
-    chain: {
-      ...base,
-      contracts: {
-        ...base.contracts,
-        multicall3: { address: ADDRESSES[TESTNET_ID].multicall3 },
-      },
-    },
-    transport: http(endpoint, { timeout: 8_000, retryCount: 0 }),
-  });
+  const urls = urlsOf(env);
+  if (urls.length === 0) return out;
+  // One aggregate3 HTTP call, failing over to the next testnet URL when the first one misses.
+  const client = openChain(TESTNET_ID, { urls, timeout: 8_000 }).client;
   const armed = rows.map((row) => ({
     proxy: row.proxy,
     account_id: row.account_id,
