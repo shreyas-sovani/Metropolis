@@ -68,7 +68,7 @@ export const BOUNTIES: readonly BountyProof[] = [
 
 export const JUDGE_PATH: readonly { label: string; href: string }[] = [
   { label: "Pre-filled mainnet lookup", href: LOOKUP },
-  { label: "Claim a testnet position", href: "/lifeline" },
+  { label: "Claim a testnet position", href: "/app" },
   { label: "Twin pairs", href: "/twins" },
   { label: "Methodology", href: "/methodology" },
 ];

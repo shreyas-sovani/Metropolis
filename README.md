@@ -4,7 +4,7 @@ Lifeline keeps Perpl positions from being liquidated while money sits idle next 
 
 ## Site
 
-Production is [lifeline-five-murex.vercel.app](https://lifeline-five-murex.vercel.app). It still serves the previous shell: `/` is the radar. The local build, not deployed, is the product through the V7 agent pass:
+Production is [lifeline-five-murex.vercel.app](https://lifeline-five-murex.vercel.app). It serves the product through the V7 agent pass. The real Privy guest run is still open.
 
 | Route | Page |
 |---|---|
