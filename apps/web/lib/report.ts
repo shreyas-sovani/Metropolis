@@ -1,5 +1,5 @@
 import { getAddress, isAddress } from "viem";
-import { MAINNET_PROTECTION, dryRunSentence, formatAusd } from "./account";
+import { dryRunSentence, formatAusd } from "./account";
 import { MAINNET_EXAMPLE, PRACTICE_ACCOUNT } from "./bounties";
 import { ADDRESS_ERROR } from "./landing";
 import { formatPrice, formatUsd } from "./format";
