@@ -1,0 +1,15 @@
+.replay-page { padding-block: 48px 96px; display: grid; gap: 24px; }
+.replay-page h1 { margin: 0; }
+.replay-sub { margin: 8px 0 0; max-width: 62ch; color: var(--ink-2); }
+.replay-chart { width: 100%; height: auto; }
+.replay-mark { fill: none; stroke: var(--ink); stroke-width: 2; }
+.replay-liq { stroke: var(--danger); stroke-width: 2; }
+.replay-trigger { stroke: var(--clay); stroke-width: 2; stroke-dasharray: 6 4; }
+.replay-act { stroke: var(--olive); stroke-width: 2; }
+.replay-end { fill: var(--danger); }
+.replay-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+.replay-page a { color: var(--clay-ink); }
+
+@media (max-width: 800px) {
+  .replay-stats { grid-template-columns: 1fr; }
+}

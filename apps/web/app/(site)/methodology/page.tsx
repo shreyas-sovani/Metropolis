@@ -1,23 +1,45 @@
-import summary from "../../../../../packages/core/test/fixtures/g4-fork-summary.json";
-import { ExactBadge } from "../../exact-badge";
 import { CALIBRATED } from "@lifeline/core";
+import summary from "../../../../../packages/core/test/fixtures/g4-fork-summary.json";
+import { Card } from "../../ui/card";
+import { Stat } from "../../ui/stat";
+import "./methodology.css";
+
+export const metadata = { title: "Contract-exact" };
 
 export default function MethodologyPage() {
   return (
-    <main className="stage">
-      <h1>Contract-exact</h1>
-      <ExactBadge calibrated={CALIBRATED} />
-      <p className="lede">
-        The liquidation price is the contract rule: raw pricePNS, premium subtracted, maintenance at lot 0, ceil for longs and floor for shorts.
-      </p>
-      <section className="panel" data-testid="fork-summary">
-        <h2>Latest gate:4 --fork</h2>
-        <p>
-          {summary.date} · {summary.positions} positions · {summary.markets} markets · {summary.shorts} shorts · premium {summary.withPremium} · residue {summary.withResidue} · exact match {summary.exactMatchPct}%
-        </p>
-        <p>Script: pnpm cli gate:4 --fork</p>
-        <p>Reproduce locally with a fork URL in the environment, then run that command. It starts anvil, checks the tick, and always kills the fork.</p>
-      </section>
-    </main>
+    <div className="ui-scope">
+      <main className="container method-page">
+        <header>
+          <h1>Contract-exact</h1>
+          <p className="method-sub body-lg">
+            Lifeline computes the liquidation price the same way Perpl's contract does, and rounds one tick toward safety.
+          </p>
+        </header>
+        <Card title="The formula">
+          <pre>
+            <code>{`entry = pricePNS / 10^priceDecimals
+liq   = entry + side * (maintenance - deposit - premium) / size
+tick  = ceil for longs, floor for shorts`}</code>
+          </pre>
+        </Card>
+        <Card title="The fork check">
+          <div className="method-stats" data-testid="fork-summary">
+            <Stat label="Positions" value={String(summary.positions)} />
+            <Stat label="Markets" value={String(summary.markets)} />
+            <Stat label="Shorts" value={String(summary.shorts)} />
+            <Stat label="With premium" value={String(summary.withPremium)} />
+            <Stat label="With residue" value={String(summary.withResidue)} />
+            <Stat label="Exact match" value={`${summary.exactMatchPct}%`} hint={summary.date} />
+          </div>
+          <p>{CALIBRATED ? "Calibrated against the contract." : "Not calibrated."}</p>
+        </Card>
+        <Card title="Reproduce it">
+          <pre>
+            <code>pnpm cli gate:4 --fork</code>
+          </pre>
+        </Card>
+      </main>
+    </div>
   );
 }

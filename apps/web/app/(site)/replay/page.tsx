@@ -1,6 +1,11 @@
 import replay from "../../../data/mainnet-replay.json";
-import { formatPct, formatUsd } from "../../../lib/format";
-import { MAINNET_ID, txUrl } from "../../../lib/explorer";
+import { formatAusd } from "../../../lib/account";
+import { MAINNET_ID, addressUrl, txUrl } from "../../../lib/explorer";
+import { formatPct } from "../../../lib/format";
+import { Card } from "../../ui/card";
+import { Stat } from "../../ui/stat";
+import { ReplayChart } from "./replay-chart";
+import "./replay.css";
 
 function price(pns: string): string {
   const whole = BigInt(pns) / 10n;
@@ -8,33 +13,47 @@ function price(pns: string): string {
   return `$${whole.toLocaleString("en-US")}.${tenth}`;
 }
 
+export const metadata = { title: "A real liquidation" };
+
 export default function ReplayPage() {
   const act = replay.wouldAct;
   return (
-    <main className="stage">
-      <h1>A real liquidation</h1>
-      <p className="lede">
-        Bitcoin long, account {replay.accountId}. Liquidated at block {replay.liquidationBlock.toLocaleString("en-US")}. This page is the stored replay, not a live archive call.
-      </p>
-      <section className="panel">
-        <h2>What the contract did</h2>
-        <p>
-          At the block before the liquidation, a fork of mainnet asked the exchange to liquidate this position. The price it emitted was {price(replay.forkLiqPricePNS)}. The event's price was {price(replay.eventLiqPricePNS)}. They are the same tick.
-        </p>
-        <p>
-          Mark at liquidation {price(replay.markAtLiquidationPNS)}. Deposit {formatUsd(replay.depositCNS)}. Idle AUSD beside it {formatUsd(replay.idleCNS)}.
-        </p>
-        <p>
-          <a href={txUrl(MAINNET_ID, replay.tx)}>Liquidation transaction</a>
-        </p>
-      </section>
-      <section className="panel">
-        <h2>What Lifeline would have done</h2>
-        <p>
-          Sampled {replay.samples.length} marks from block {replay.samples[0]?.block.toLocaleString("en-US")}. The first sample already inside the 4% trigger is block {act.block.toLocaleString("en-US")}, at {formatPct(act.distanceE6)} from liquidation. Lifeline would have added {formatUsd(act.amountCNS)} from the idle balance, the whole amount that was sitting there.
-        </p>
-        <p>Account {replay.account}.</p>
-      </section>
-    </main>
+    <div className="ui-scope">
+      <main className="container replay-page">
+        <header>
+          <h1>A real liquidation</h1>
+          <p className="replay-sub body-lg">A Bitcoin long liquidated on mainnet, with idle AUSD still in the account.</p>
+        </header>
+        <Card title="What happened">
+          <p>
+            Account {replay.accountId} was liquidated at block {replay.liquidationBlock.toLocaleString("en-US")}. The mark was {price(replay.markAtLiquidationPNS)}.
+          </p>
+          <p>
+            <a href={txUrl(MAINNET_ID, replay.tx)}>The liquidation transaction</a>
+            {" · "}
+            <a href={addressUrl(MAINNET_ID, replay.account)}>The account</a>
+          </p>
+        </Card>
+        <Card title="What the contract said">
+          <p>
+            A fork at the block before the liquidation asked the exchange to liquidate this position. It emitted {price(replay.forkLiqPricePNS)}. The event's price was {price(replay.eventLiqPricePNS)}. They are the same tick.
+          </p>
+        </Card>
+        <Card title="What Lifeline would have done">
+          <ReplayChart
+            samples={replay.samples}
+            liqPNS={replay.eventLiqPricePNS}
+            wouldActBlock={act.block}
+            liquidatedBlock={replay.liquidationBlock}
+          />
+          <p>Lifeline would have acted here, at block {act.block.toLocaleString("en-US")}, {formatPct(act.distanceE6)} from liquidation. The position was liquidated at the end of the chart.</p>
+          <div className="replay-stats">
+            <Stat label="Margin" value={`${formatAusd(replay.depositCNS)} AUSD`} />
+            <Stat label="Idle AUSD beside it" value={`${formatAusd(replay.idleCNS)} AUSD`} />
+            <Stat label="Lifeline would have added" value={`${formatAusd(act.amountCNS)} AUSD`} />
+          </div>
+        </Card>
+      </main>
+    </div>
   );
 }

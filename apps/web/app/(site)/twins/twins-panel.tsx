@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatPct } from "../../../lib/format";
-import { outcomeBadge, outcomeTone, txUrl } from "../../../lib/twins-view";
+import { formatAusd } from "../../../lib/account";
+import { distancePctLabel } from "../../../lib/protection";
+import { outcomeBadge } from "../../../lib/twins-view";
+import { txUrl } from "../../../lib/twins-view";
+import { Badge } from "../../ui/badge";
+import { Card } from "../../ui/card";
+import { DistanceGauge } from "../../ui/distance-gauge";
+import { Stat } from "../../ui/stat";
 
 interface TwinAction {
   txHash: string;
@@ -31,7 +37,6 @@ export function TwinsPanel() {
   const [pairs, setPairs] = useState<TwinPair[] | null>(null);
   const [saves, setSaves] = useState(0);
   const [error, setError] = useState("");
-
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -61,41 +66,71 @@ export function TwinsPanel() {
   if (!pairs) return <p>Reading twin pairs.</p>;
   if (pairs.length === 0) return <p>No twin pairs are registered yet.</p>;
 
+  const protectedAlive = pairs.filter((pair) => pair.protected?.outcome === "alive").length;
+  const unprotectedLiquidated = pairs.filter((pair) => pair.unprotected && pair.unprotected.outcome !== "alive").length;
+
   return (
     <div className="twin-list">
-      <p data-testid="saves">Saves {saves}</p>
+      <div className="twins-summary">
+        <Stat label="Pairs" value={String(pairs.length)} />
+        <Stat label="Protected alive" value={String(protectedAlive)} />
+        <Stat label="Unprotected liquidated" value={String(unprotectedLiquidated)} />
+        <Stat label="Saves" value={String(saves)} testId="saves" hint="Still open after the market crossed the old liquidation price." />
+      </div>
       {pairs.map((pair) => (
-        <article className="panel" key={pair.id} data-testid="twin-pair">
-          <h2>
-            {pair.market} {pair.side}
-          </h2>
-          <div className="twins">
-            <Leg title="Protected" role="protected" leg={pair.protected} />
-            <Leg title="Unprotected" role="unprotected" leg={pair.unprotected} />
-          </div>
-        </article>
+        <Card key={pair.id} title={`${pair.market} ${pair.side}`}>
+          <article data-testid="twin-pair">
+            <div className="twins-pair">
+              <Leg title="Protected" role="protected" leg={pair.protected} />
+              <Leg title="Unprotected" role="unprotected" leg={pair.unprotected} />
+            </div>
+          </article>
+        </Card>
       ))}
     </div>
   );
 }
 
+function added(actions: readonly TwinAction[]): string {
+  const total = actions.reduce((sum, action) => sum + BigInt(action.amountCNS || "0"), 0n);
+  return `${formatAusd(total.toString())} AUSD`;
+}
+
 function Leg({ title, role, leg }: { title: string; role: "protected" | "unprotected"; leg: TwinLeg | null }) {
-  if (!leg) return <div><h3>{title}</h3><p>This leg is not registered.</p></div>;
+  if (!leg) {
+    return (
+      <div className="twins-leg">
+        <h3>{title}</h3>
+        <p>This leg is not registered.</p>
+      </div>
+    );
+  }
   const badge = outcomeBadge(role, leg.outcome);
+  const distance = leg.distanceE6 ? Number(leg.distanceE6) / 10_000 : 0;
   return (
-    <div>
+    <div className="twins-leg">
       <h3>{title}</h3>
-      <p className={`badge ${outcomeTone(leg.outcome)}`} data-testid="outcome">
-        {badge}
+      <Badge tone={leg.outcome === "alive" ? "olive" : "danger"}>
+        <span data-testid="outcome">{badge}</span>
+      </Badge>
+      {leg.distanceError === "rpc" || !leg.distanceE6 ? (
+        <p>{leg.distanceError === "rpc" ? "Reading…" : "Distance unread"}</p>
+      ) : (
+        <>
+          <DistanceGauge distancePct={distance} actBelowPct={4} safetyPct={6} />
+          <p>{distancePctLabel(leg.distanceE6)} from liquidation</p>
+        </>
+      )}
+      <p>
+        {role === "protected"
+          ? `Lifeline added ${added(leg.actions)} across ${leg.actions.length} top-ups`
+          : `No Lifeline top-ups · ${leg.actions.length} recorded`}
       </p>
-      <p>Distance {leg.distanceError === "rpc" ? "Reading…" : leg.distanceE6 ? formatPct(leg.distanceE6) : "unread"} · mandate {leg.mandate}</p>
-      {leg.actions.length === 0 ? <p>No confirmed top-ups yet.</p> : null}
-      <ul className="risk-list">
+      <ul className="twins-actions">
         {leg.actions.map((action) => (
           <li key={action.txHash}>
             <a href={txUrl(action.txHash)} data-testid="twin-action" data-amount={action.amountCNS} data-account={leg.proxy}>
-              {action.amountCNS} CNS
-              {action.block ? ` · block ${action.block}` : ""}
+              {formatAusd(action.amountCNS)} AUSD{action.block ? ` · block ${action.block.toLocaleString("en-US")}` : ""}
             </a>
           </li>
         ))}

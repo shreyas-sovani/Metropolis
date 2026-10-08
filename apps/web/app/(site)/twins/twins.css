@@ -1,0 +1,13 @@
+.twins-page { padding-block: 48px 96px; display: grid; gap: 24px; }
+.twins-page h1 { margin: 0; }
+.twins-sub { margin: 8px 0 0; max-width: 66ch; color: var(--ink-2); }
+.twins-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.twins-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.twins-leg { display: grid; gap: 8px; }
+.twins-leg h3 { margin: 0; }
+.twins-actions { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.twins-page a { color: var(--clay-ink); }
+
+@media (max-width: 800px) {
+  .twins-summary, .twins-pair { grid-template-columns: 1fr; }
+}

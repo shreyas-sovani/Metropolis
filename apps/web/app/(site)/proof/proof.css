@@ -1,0 +1,12 @@
+.proof-page { padding-block: 48px 96px; display: grid; gap: 24px; }
+.proof-page h1 { margin: 0; }
+.proof-sub { margin: 8px 0 0; max-width: 62ch; color: var(--ink-2); }
+.proof-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.proof-grid .ui-card:last-child { grid-column: 1 / -1; }
+.proof-cant { margin: 0; padding-left: 1.2em; color: var(--ink-2); }
+.proof-page a { color: var(--clay-ink); }
+
+@media (max-width: 800px) {
+  .proof-grid { grid-template-columns: 1fr; }
+  .proof-grid .ui-card:last-child { grid-column: auto; }
+}

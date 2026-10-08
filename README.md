@@ -13,6 +13,7 @@ Production is [lifeline-five-murex.vercel.app](https://lifeline-five-murex.verce
 | `/check` | Address check |
 | `/a/[address]` | Risk report. Liquidation prices are dollars. |
 | `/app` | Practice-account onboarding, then the dashboard |
+| `/proof` | Twins, the mainnet replay, contract-exact, and saves |
 
 ## Risk API
 

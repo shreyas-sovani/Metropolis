@@ -1,0 +1,16 @@
+.method-page { padding-block: 48px 96px; display: grid; gap: 24px; }
+.method-page h1 { margin: 0; }
+.method-sub { margin: 8px 0 0; max-width: 66ch; color: var(--ink-2); }
+.method-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.method-page pre {
+  margin: 0;
+  padding: 16px;
+  overflow: auto;
+  background: var(--well);
+  border-radius: var(--radius-control);
+}
+.method-page code { font-family: var(--font-data), ui-monospace, monospace; font-size: 14px; }
+
+@media (max-width: 800px) {
+  .method-stats { grid-template-columns: 1fr 1fr; }
+}

@@ -13,6 +13,7 @@ export function SiteFooter() {
         </nav>
         <nav aria-label="Proof">
           <p className="micro">Proof</p>
+          <a href="/proof">Proof</a>
           <a href="/twins">Twins</a>
           <a href="/replay">A real liquidation</a>
           <a href="/methodology">Methodology</a>
