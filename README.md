@@ -4,7 +4,7 @@ Lifeline keeps Perpl positions from being liquidated while money sits idle next 
 
 ## Site
 
-Production is [lifeline-five-murex.vercel.app](https://lifeline-five-murex.vercel.app). It serves the product through the V7 agent pass. The real Privy guest run is still open.
+Production is [lifeline-five-murex.vercel.app](https://lifeline-five-murex.vercel.app). V7 is done: the guest run's top-up is `0x81508908`.
 
 | Route | Page |
 |---|---|
