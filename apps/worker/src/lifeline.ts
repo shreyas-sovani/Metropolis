@@ -3,15 +3,17 @@ import { type MandateMessage } from "@lifeline/core";
 import { getAddress, type Address, type Hex } from "viem";
 import { coreEvaluator } from "./adapter.js";
 import { clientError, countBySide, healthReport, needsAlarm, pausedFlag, WORKER_VERSION } from "./health.js";
-import { blankHot, HISTORY_LIMIT, HISTORY_MS, hotDue, hydrateHot } from "./hot.js";
+import { blankHot, claimsToday, HISTORY_LIMIT, HISTORY_MS, refreshHot } from "./hot.js";
 import { opsDue, readOps, type OpsSnapshot } from "./ops.js";
 import { parseRegistrations, signMandate } from "./house.js";
+import { pruneHistory } from "./prune.js";
 import { registerPool } from "./register.js";
 import { crudRoundTrip, migrate } from "./schema.js";
 import { armPosition, disarmPosition, mandateFromBody } from "./arm.js";
 import { clientIpFrom } from "./client-ip.js";
 import { claimPosition, readClaimant, readUser } from "./claim.js";
 import { meFor, storeAcceptTx } from "./me.js";
+import { savesRecorded } from "./saves.js";
 import { armBreach, noteGap, resetSoak, runKeeper, soakReport } from "./tick.js";
 import { recycleClaims } from "./recycle.js";
 import { sandboxArm } from "./sandbox.js";
@@ -26,6 +28,8 @@ function clientIp(request: Request, env: { ADMIN_SECRET?: string; PROXY_SECRET?:
 /** Stays at 2s. 43,200 alarm requests/day is inside the free Durable Object request cap. */
 const ALARM_MS = 2_000;
 const WINDOW_MS = 10 * 60 * 1000;
+/** Pages only show the counts. A new save replaces the body at once; the 7-day watched count may lag this long. */
+const SAVES_TTL_MS = 5 * 60 * 1000;
 
 export interface LifelineEnv {
   OPERATOR_PK: string;
@@ -49,6 +53,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
   private hot = blankHot();
   private degraded: string | null = null;
   private lastBlock: number | null = null;
+  private savesCache: { at: number; recorded: number; body: string } | null = null;
 
   constructor(ctx: DurableObjectState, env: LifelineEnv) {
     super(ctx, env);
@@ -69,8 +74,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
   }
 
   private ensureHot(now: number): void {
-    if (!hotDue(this.hot.loaded ? this.hot.at : null, now)) return;
-    hydrateHot(this.ctx.storage.sql, this.hot, now);
+    if (!refreshHot(this.ctx.storage.sql, this.hot, now)) return;
     if (!this.gap) this.gap = { startedAt: this.hot.startedAt, maxGapMs: this.hot.maxGapMs };
     if (this.knownError === undefined) this.knownError = this.hot.lastError;
   }
@@ -97,6 +101,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       const keeper = await runKeeper(this.ctx.storage.sql, this.env, started, this.hot);
       if (keeper.block != null) this.lastBlock = keeper.block;
       await recycleClaims(this.ctx.storage.sql, this.env, started, this.hot);
+      this.prune(started);
       this.rememberError(null);
     } catch (caught) {
       error = clientError(caught);
@@ -108,6 +113,15 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       } catch (caught) {
         this.degraded = this.degraded ?? clientError(caught);
       }
+    }
+  }
+
+  /** Housekeeping must not slow the keeper. A failed prune is retried next hour. */
+  private prune(now: number): void {
+    try {
+      pruneHistory(this.ctx.storage.sql, now, this.hot);
+    } catch (caught) {
+      console.log(`prune ${clientError(caught)}`);
     }
   }
 
@@ -141,6 +155,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     if (url.pathname === "/admin/breach" && request.method === "POST") return this.breach(request);
     if (url.pathname === "/admin/soak" && request.method === "GET") return this.soak(request);
     if (url.pathname === "/admin/soak/reset" && request.method === "POST") return this.soakReset(request);
+    if (url.pathname === "/admin/mandates" && request.method === "GET") return this.mandates(request);
     if (url.pathname === "/actions" && request.method === "GET") return this.actions(url);
     if (url.pathname === "/saves" && request.method === "GET") return this.saves();
     const mandatePath = /^\/mandate\/(0x[0-9a-fA-F]{40})$/.exec(url.pathname);
@@ -199,28 +214,30 @@ export class Lifeline extends DurableObject<LifelineEnv> {
   }
 
   private saves(): Response {
-    const rows = this.ctx.storage.sql
+    const now = Date.now();
+    const cached = this.savesCache;
+    if (cached && cached.recorded === savesRecorded() && now - cached.at < SAVES_TTL_MS) {
+      return new Response(cached.body, { headers: { "content-type": "application/json" } });
+    }
+    const body = JSON.stringify(this.readSaves(now));
+    this.savesCache = { at: now, recorded: savesRecorded(), body };
+    return new Response(body, { headers: { "content-type": "application/json" } });
+  }
+
+  private readSaves(now: number) {
+    // Only the count is returned, so it is read from the covering partial index and capped at HISTORY_LIMIT.
+    const watched = this.ctx.storage.sql
       .exec(
-        `SELECT tx_hash, block, amount_cns, liq_before, proxy FROM actions
-         WHERE status = 'confirmed' AND liq_before IS NOT NULL AND liq_before != ''
-           AND (created_at = 0 OR created_at >= ?)
-         ORDER BY id DESC LIMIT ?`,
-        Date.now() - HISTORY_MS,
+        `SELECT COUNT(*) AS n FROM (
+           SELECT 1 FROM actions
+           WHERE status = 'confirmed' AND liq_before IS NOT NULL AND liq_before != ''
+             AND tx_hash IS NOT NULL AND tx_hash != '' AND created_at >= ?
+           LIMIT ?
+         )`,
+        now - HISTORY_MS,
         HISTORY_LIMIT,
       )
-      .toArray() as { tx_hash?: string | null; block?: number | null; amount_cns?: string; liq_before?: string; proxy?: string }[];
-    const saves = rows.flatMap((row) => {
-      if (!row.tx_hash || !row.liq_before) return [];
-      return [
-        {
-          txHash: row.tx_hash,
-          block: row.block ?? null,
-          amountCNS: row.amount_cns ?? "0",
-          preLiq: row.liq_before,
-          proxy: row.proxy ?? "",
-        },
-      ];
-    });
+      .toArray()[0] as { n?: number } | undefined;
     const recorded = this.ctx.storage.sql
       .exec(
         "SELECT tx_hash, proxy, side, cross_block, added_cns FROM saves ORDER BY recorded_at DESC LIMIT ?",
@@ -235,9 +252,9 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       perp_id?: string;
     }[];
     const markets = new Map(this.hot.pools.map((row) => [row.proxy, row.market]));
-    return Response.json({
+    return {
       count: recorded.length,
-      watched: saves.length,
+      watched: Number(watched?.n ?? 0),
       saves: recorded.flatMap((row) => {
         if (!row.tx_hash || !row.proxy) return [];
         return [
@@ -251,7 +268,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
           },
         ];
       }),
-    });
+    };
   }
 
   private admin(request: Request): boolean {
@@ -318,23 +335,12 @@ export class Lifeline extends DurableObject<LifelineEnv> {
   }
 
   private async twins(): Promise<Response> {
-    const rows = this.ctx.storage.sql
-      .exec(
-        `SELECT pool.proxy, pool.account_id, pool.market, pool.side, pool.role, pool.pair_id, pool.perp_id, mandates.kind, mandates.active
-         FROM pool LEFT JOIN mandates ON mandates.proxy = pool.proxy
-         WHERE pool.pair_id != '' LIMIT ${HISTORY_LIMIT}`,
-      )
-      .toArray() as {
-      proxy?: string;
-      account_id?: string;
-      market?: string;
-      side?: string;
-      role?: string;
-      pair_id?: string;
-      perp_id?: string;
-      kind?: string;
-      active?: number;
-    }[];
+    this.ensureHot(Date.now());
+    const mandates = new Map(this.hot.mandates.map((row) => [row.proxy, row]));
+    const rows = this.hot.pools
+      .filter((row) => row.pair_id !== "")
+      .slice(0, HISTORY_LIMIT)
+      .map((row) => ({ ...row, kind: mandates.get(row.proxy)?.kind, active: mandates.get(row.proxy)?.active }));
     const legs: TwinLegRow[] = [];
     const readable: { proxy: string; account_id: string; perp_id: string }[] = [];
     for (const row of rows) {
@@ -489,6 +495,25 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     return signMandate(key, message);
   }
 
+  /** Every active mandate in the `/mandate/:proxy` shape, so ops verifies the pool in one request instead of one per account. */
+  private mandates(request: Request): Response {
+    if (!this.admin(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
+    this.ensureHot(Date.now());
+    return Response.json({
+      mandates: this.hot.mandates
+        .filter((row) => row.active === 1)
+        .map((row) => ({
+          proxy: row.proxy,
+          owner: row.owner,
+          kind: row.kind,
+          active: true,
+          budgetUsedCNS: row.budget_used_cns,
+          typedData: JSON.parse(row.typed_data) as unknown,
+          sig: row.sig,
+        })),
+    });
+  }
+
   private mandate(proxyParam: string): Response {
     let proxy: Address;
     try {
@@ -553,7 +578,6 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     const last = ticks[ticks.length - 1] ?? null;
     const available = this.hot.pools.filter((row) => row.status === "available");
     const ops = this.ops;
-    const claimsToday = this.hot.claimsToday;
     const armed = this.hot.armed.length;
     return healthReport({
       lastAlarmAt: last,
@@ -567,7 +591,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       poolBySide: countBySide(available.map((row) => row.side)),
       armed,
       lastBlock: this.lastBlock,
-      claimsToday,
+      claimsToday: claimsToday(this.hot, now),
     });
   }
 
@@ -576,7 +600,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     if (user instanceof Response) return user;
     try {
       this.ensureHot(Date.now());
-      return await meFor(this.ctx.storage.sql, this.env, user.userId, Date.now());
+      return await meFor(this.ctx.storage.sql, this.env, user.userId, Date.now(), undefined, this.hot);
     } catch (error) {
       return Response.json({ error: clientError(error) }, { status: 500 });
     }

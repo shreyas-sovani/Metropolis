@@ -880,8 +880,8 @@ export function soakReport(sql: Sql, now = Date.now()) {
     .exec(
       `SELECT status, reason, COUNT(*) AS n FROM (
          SELECT status, reason FROM actions
-         WHERE created_at = 0 OR created_at >= ?
-         ORDER BY id DESC
+         WHERE created_at >= ?
+         ORDER BY created_at DESC, id DESC
          LIMIT ?
        ) AS bounded
        GROUP BY status, reason`,
@@ -896,8 +896,8 @@ export function soakReport(sql: Sql, now = Date.now()) {
     .exec(
       `SELECT proxy, perp_id, amount_cns, tx_hash, block, dist_before, dist_after, status, reason
        FROM actions
-       WHERE created_at = 0 OR created_at >= ?
-       ORDER BY id DESC
+       WHERE created_at >= ?
+       ORDER BY created_at DESC, id DESC
        LIMIT ?`,
       since,
       HISTORY_LIMIT,

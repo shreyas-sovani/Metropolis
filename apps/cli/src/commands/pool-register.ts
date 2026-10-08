@@ -115,6 +115,33 @@ interface StoredMandate {
   };
 }
 
+/**
+ * Reads every stored mandate in one admin request. Each `/mandate/:proxy` call is a Durable Object request
+ * against the same daily cap as the keeper alarm, and the pool is re-checked every ops run.
+ * Falls back to per-account reads on a worker without `/admin/mandates`.
+ */
+export async function mandateLookup(
+  base: string,
+  secret: string,
+  fetcher: typeof fetch = fetch,
+): Promise<(proxy: Address) => Promise<Response>> {
+  const single = (proxy: Address) => fetcher(`${base}/mandate/${proxy}`);
+  let response: Response;
+  try {
+    response = await fetcher(`${base}/admin/mandates`, { headers: { "x-admin-secret": secret } });
+  } catch {
+    return single;
+  }
+  if (!response.ok) return single;
+  const body = (await response.json()) as { mandates?: (StoredMandate & { proxy?: string })[] };
+  const byProxy = new Map<string, StoredMandate>();
+  for (const row of body.mandates ?? []) if (row.proxy) byProxy.set(getAddress(row.proxy), row);
+  return async (proxy) => {
+    const stored = byProxy.get(getAddress(proxy));
+    return stored ? Response.json(stored) : Response.json({ error: "not found" }, { status: 404 });
+  };
+}
+
 export async function poolRegister(root = workspaceRoot(), argv: readonly string[] = []): Promise<number> {
   const secret = adminSecret(root);
   if (!secret) {
@@ -128,6 +155,7 @@ export async function poolRegister(root = workspaceRoot(), argv: readonly string
   );
   const client = testnetPublicClient();
   const poolOwner = loadRoles(root).POOL_OWNER.address;
+  const before = argv.includes("--restore-twins") ? await mandateLookup(base, secret) : null;
   const entries = [];
   for (const entry of planned) {
     const accountId = await accountIdOf(client, entry.proxy);
@@ -140,8 +168,8 @@ export async function poolRegister(root = workspaceRoot(), argv: readonly string
       getAddress(owner) === poolOwner &&
       getAddress(pending) === "0x0000000000000000000000000000000000000000";
     let replaceMandate = false;
-    if (argv.includes("--restore-twins") && entry.role === "twin-protected") {
-      const existing = await fetch(`${base}/mandate/${entry.proxy}`);
+    if (before && entry.role === "twin-protected") {
+      const existing = await before(entry.proxy);
       if (existing.ok) {
         const stored = (await existing.json()) as { kind?: string };
         replaceMandate = stored.kind === "user";
@@ -165,8 +193,9 @@ export async function poolRegister(root = workspaceRoot(), argv: readonly string
   }
   console.log(`registered ${body.registered} file ${entries.length} mandates ${body.mandates ?? 0}`);
   const owner = loadRoles(root).POOL_OWNER.address;
+  const lookup = await mandateLookup(base, secret);
   for (const entry of entries) {
-    const mandate = await fetch(`${base}/mandate/${entry.proxy}`);
+    const mandate = await lookup(entry.proxy);
     if (entry.role === "twin-unprotected") {
       if (mandate.status !== 404) {
         console.error(`${entry.proxy} unprotected status=${mandate.status}`);

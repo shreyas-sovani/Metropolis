@@ -32,6 +32,9 @@ export async function registerPool(
   for (const entry of entries) {
     if (seen.has(entry.proxy)) throw new Error(`duplicate proxy ${entry.proxy}`);
     seen.add(entry.proxy);
+    const reopen = entry.reopen ? 1 : 0;
+    // Ops re-registers the whole pool every run. The WHERE skips rows that would not change, which
+    // otherwise rewrite the row and its role and status index entries against the rows_written cap.
     sql.exec(
       `INSERT INTO pool (proxy, account_id, perp_id, side, leverage, status, created_at, market, role, pair_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -43,7 +46,15 @@ export async function registerPool(
          market = excluded.market,
          role = excluded.role,
          pair_id = excluded.pair_id,
-         status = CASE WHEN pool.status = 'claimed' AND ? = 0 THEN pool.status ELSE excluded.status END`,
+         status = CASE WHEN pool.status = 'claimed' AND ? = 0 THEN pool.status ELSE excluded.status END
+       WHERE pool.account_id IS NOT excluded.account_id
+          OR pool.perp_id IS NOT excluded.perp_id
+          OR pool.side IS NOT excluded.side
+          OR pool.leverage IS NOT excluded.leverage
+          OR pool.market IS NOT excluded.market
+          OR pool.role IS NOT excluded.role
+          OR pool.pair_id IS NOT excluded.pair_id
+          OR pool.status IS NOT (CASE WHEN pool.status = 'claimed' AND ? = 0 THEN pool.status ELSE excluded.status END)`,
       entry.proxy,
       entry.accountId,
       entry.perpId,
@@ -54,7 +65,8 @@ export async function registerPool(
       entry.market,
       entry.role,
       entry.pairId,
-      entry.reopen ? 1 : 0,
+      reopen,
+      reopen,
     );
     upsertPool(
       hot,

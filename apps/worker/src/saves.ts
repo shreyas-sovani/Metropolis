@@ -1,4 +1,5 @@
 import { markCrossed } from "@lifeline/core";
+import { HISTORY_MS } from "./hot.js";
 import type { Sql } from "./schema.js";
 
 /**
@@ -38,21 +39,30 @@ export interface MarkView {
 
 const CACHE_MS = 60_000;
 let watchedCache: { at: number; rows: WatchedAction[] } | null = null;
+let recorded = 0;
 
 export function resetWatchedCache(): void {
   watchedCache = null;
 }
 
-function loadWatched(sql: Sql): WatchedAction[] {
+/** Bumps on every save insert, so a cached /saves body knows it is stale. */
+export function savesRecorded(): number {
+  return recorded;
+}
+
+/** Reads at most a week of watched actions through idx_actions_watched_at, never the whole table. */
+function loadWatched(sql: Sql, now: number): WatchedAction[] {
   const rows = sql
     .exec(
       `SELECT a.tx_hash, a.proxy, a.perp_id, a.liq_before, a.amount_cns, p.side, p.market, p.account_id
        FROM actions a
-       JOIN pool p ON p.proxy = a.proxy
+       CROSS JOIN pool p ON p.proxy = a.proxy
        WHERE a.status = 'confirmed' AND a.liq_before IS NOT NULL AND a.liq_before != ''
          AND a.tx_hash IS NOT NULL AND a.tx_hash != '' AND a.tx_hash != 'inflight'
+         AND a.created_at >= ?
          AND NOT EXISTS (SELECT 1 FROM saves s WHERE s.tx_hash = a.tx_hash)
        LIMIT 40`,
+      now - HISTORY_MS,
     )
     .toArray() as {
     tx_hash?: string;
@@ -90,7 +100,7 @@ export function missingWatched(views: ReadonlyMap<string, MarkView>): WatchedAct
 /** Compare marks already read this tick. The watched-action query runs at most once a minute. */
 export function noteSaves(sql: Sql, views: ReadonlyMap<string, MarkView>, now: number): number {
   if (!watchedCache || now - watchedCache.at >= CACHE_MS) {
-    watchedCache = { at: now, rows: loadWatched(sql) };
+    watchedCache = { at: now, rows: loadWatched(sql, now) };
   }
   let inserted = 0;
   const left: WatchedAction[] = [];
@@ -126,6 +136,7 @@ export function noteSaves(sql: Sql, views: ReadonlyMap<string, MarkView>, now: n
       now,
     );
     inserted += 1;
+    recorded += 1;
   }
   watchedCache = { at: watchedCache.at, rows: left };
   return inserted;

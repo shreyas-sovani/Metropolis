@@ -1,5 +1,6 @@
 import { TESTNET_ID, delegatedAccountAbi, openChain } from "@lifeline/core";
 import { getAddress, type Address } from "viem";
+import { acceptCached, type HotState } from "./hot.js";
 import type { LifelineEnv } from "./lifeline.js";
 import type { Sql } from "./schema.js";
 
@@ -24,7 +25,7 @@ export function acceptedStamp(
 }
 
 /** Writes `accepted_at` once, when the on-chain owner is the claim owner. */
-export function stampAccepted(sql: Sql, proxy: string, onchainOwner: string, now: number): void {
+export function stampAccepted(sql: Sql, proxy: string, onchainOwner: string, now: number, hot?: HotState | null): void {
   const row = sql.exec("SELECT owner, accepted_at FROM claims WHERE proxy = ?", proxy).toArray()[0] as
     | { owner?: string; accepted_at?: number | null }
     | undefined;
@@ -32,6 +33,7 @@ export function stampAccepted(sql: Sql, proxy: string, onchainOwner: string, now
   const stamp = acceptedStamp(row.accepted_at == null ? null : Number(row.accepted_at), row.owner, onchainOwner, now);
   if (stamp == null) return;
   sql.exec("UPDATE claims SET accepted_at = ? WHERE proxy = ? AND accepted_at IS NULL", stamp, proxy);
+  acceptCached(hot, proxy);
 }
 
 export function mePayload(input: {
@@ -113,6 +115,7 @@ export async function meFor(
   userId: string,
   now: number,
   readOwners: (env: LifelineEnv, proxy: Address) => Promise<OwnerRead | null> = defaultOwners,
+  hot?: HotState | null,
 ): Promise<Response> {
   const claim = sql
     .exec(
@@ -145,7 +148,7 @@ export async function meFor(
   } catch {
     owners = null;
   }
-  if (owners) stampAccepted(sql, claim.proxy, owners.owner, now);
+  if (owners) stampAccepted(sql, claim.proxy, owners.owner, now, hot);
   const refreshed = sql.exec("SELECT accepted_at FROM claims WHERE proxy = ?", claim.proxy).toArray()[0] as
     | { accepted_at?: number | null }
     | undefined;

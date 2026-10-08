@@ -172,6 +172,37 @@ const STEPS: { version: number; apply: (sql: Sql) => void }[] = [
       );
     },
   },
+  {
+    version: 11,
+    apply(sql) {
+      // Rows from before v9 carry created_at = 0. The dashboard already dates them at the claim's acceptance (else the claim),
+      // so they take that time, or now when no claim exists. Every history window can then be a plain range seek.
+      sql.exec(
+        `UPDATE actions SET created_at = COALESCE(
+           (SELECT COALESCE(claims.accepted_at, claims.claimed_at) FROM claims WHERE claims.proxy = actions.proxy), ?)
+         WHERE created_at = 0`,
+        Date.now(),
+      );
+      // status has three values, but the planner preferred this index over proxy and the partial indexes,
+      // so each per-account lookup read every confirmed action.
+      sql.exec("DROP INDEX IF EXISTS idx_actions_status");
+      // Keyed on proxy with no proxy in the query, so the watched scan read the whole index.
+      sql.exec("DROP INDEX IF EXISTS idx_actions_watched");
+      sql.exec("CREATE INDEX IF NOT EXISTS idx_actions_pending ON actions(id) WHERE status = 'pending'");
+      sql.exec(
+        "CREATE INDEX IF NOT EXISTS idx_actions_last_block ON actions(proxy, perp_id) WHERE status = 'confirmed' AND block IS NOT NULL",
+      );
+      sql.exec(
+        `CREATE INDEX IF NOT EXISTS idx_actions_watched_at ON actions(created_at)
+         WHERE status = 'confirmed' AND liq_before IS NOT NULL AND liq_before != '' AND tx_hash IS NOT NULL AND tx_hash != ''`,
+      );
+      sql.exec("CREATE INDEX IF NOT EXISTS idx_actions_created ON actions(created_at)");
+      sql.exec("CREATE INDEX IF NOT EXISTS idx_claims_claimed ON claims(claimed_at)");
+      sql.exec("CREATE INDEX IF NOT EXISTS idx_saves_recorded ON saves(recorded_at)");
+      sql.exec("CREATE INDEX IF NOT EXISTS idx_sandbox_hits_at ON sandbox_hits(at)");
+      addColumn(sql, "keeper_stats", "pruned_at", "pruned_at INTEGER");
+    },
+  },
 ];
 
 export function migrate(sql: Sql): number[] {

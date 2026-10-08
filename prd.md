@@ -207,7 +207,7 @@ After a claim is accepted, `/app` is the place to come back to. It shows:
 
 - live position health;
 - Lifeline's status and heartbeat;
-- the activity list, including top-ups made while the trader was away;
+- the activity list for the last 30 days, including top-ups made while the trader was away;
 - adjust, pause, and resume;
 - withdraw of idle AUSD;
 - keep the account;
@@ -351,12 +351,14 @@ Historical event replay is not a gate. It misses premium settlement and residue,
 **Self-healing:**
 
 - `/health` re-arms a stale alarm.
-- Vercel's `/api/radar` pings `/health` (fire-and-forget) on cache refresh.
+- Vercel's `/api/radar` pings `/health` (fire-and-forget) on cache refresh, at most once a minute.
 - A free UptimeRobot monitor pings `/health` every 5 minutes.
 
 **Canary.** Every 10 minutes, `eth_call` simulates `increasePositionCollateral(1)` from the operator on a canary account. A revert alerts the team and sets the UI banner to "Lifeline degraded."
 
 **Kill switch.** The `LIFELINE_PAUSED` secret disables all sends. Reads still work.
+
+**Storage budget.** The free plan allows 5,000,000 rows read, 100,000 rows written (each `setAlarm` is one), and 100,000 requests a day. Ticks read from memory. In-flight actions reload every minute and the pool roster every 15 minutes. Every recurring query is an index seek. Actions are kept for 30 days and sandbox hits for 7. Claims and saves are kept.
 
 ### 5.6 Envio (HyperSync)
 
@@ -369,7 +371,7 @@ Historical event replay is not a gate. It misses premium settlement and residue,
 
 ### 5.7 APIs
 
-**Vercel routes.** All are read-only, use `Cache-Control: s-maxage` (2 s for radar, 60 s for history), and have upstream RPC fallbacks: rpc.monad.xyz → Monad infra RPC → Alchemy free.
+**Vercel routes.** All are read-only, use `Cache-Control: s-maxage` (2 s for radar, 60 s for history), and have upstream RPC fallbacks: rpc.monad.xyz → Monad infra RPC → Alchemy free. Routes that call the Worker also cache in memory, because each miss is a Durable Object request: `/api/ops-health` 10 s, `/api/actions` 5 s per account, `/api/saves` 30 s, `/api/twins` 10 s.
 
 | Route | Returns |
 |---|---|
@@ -387,8 +389,9 @@ Historical event replay is not a gate. It misses premium settlement and residue,
 | `POST /disarm` | Deactivate a mandate |
 | `GET /mandate/:proxy` | The stored mandate |
 | `GET /twins` | Twin pairs and their status |
-| `GET /health` | Last alarm time, last error |
+| `GET /health` | Last alarm time, last error (cached 5 s at the Worker while the alarm ticks) |
 | `POST /admin/pool` | Register provisioned positions (admin secret) |
+| `GET /admin/mandates` | Every active mandate, for the ops check (admin secret) |
 
 ### 5.8 What is onchain vs. offchain
 

@@ -132,13 +132,16 @@ describe("hot cache", () => {
       .map((row) => String(row.name));
     expect(names).toEqual(
       expect.arrayContaining([
-        "idx_actions_status",
+        "idx_actions_pending",
         "idx_actions_confirmed_open",
+        "idx_actions_last_block",
         "idx_pool_role",
         "idx_pool_status",
         "idx_claims_unaccepted",
       ]),
     );
+    expect(names).not.toContain("idx_actions_status");
+    expect(names).not.toContain("idx_actions_watched");
     const openIndex = String(
       sql.exec("SELECT sql FROM sqlite_master WHERE name = 'idx_actions_confirmed_open'").toArray()[0]?.sql,
     );
@@ -436,6 +439,9 @@ describe("hot cache", () => {
       `INSERT INTO actions (proxy, perp_id, amount_cns, tx_hash, block, dist_before, dist_after, status, reason, created_at)
        VALUES ('legacy', '16', '1', '0xlegacy', 1, NULL, NULL, 'confirmed', '', 0)`,
     );
+    // Legacy rows enter the window through the v11 backfill, not an OR created_at = 0 in the query.
+    sql.exec("DELETE FROM schema_migrations WHERE version = 11");
+    migrate(sql);
     sql.exec(
       `INSERT INTO actions (proxy, perp_id, amount_cns, tx_hash, block, dist_before, dist_after, status, reason, created_at)
        VALUES ('new', '16', '1', '0xnew', 1, NULL, NULL, 'confirmed', '', ?)`,

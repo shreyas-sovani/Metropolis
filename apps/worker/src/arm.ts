@@ -109,7 +109,7 @@ export async function armPosition(
   const client = openChain(TESTNET_ID, { urls, timeout: 8_000 }).client;
   const owner = await client.readContract({ address: message.account, abi: delegatedAccountAbi, functionName: "owner" });
   if (getAddress(owner) !== signer) return Response.json({ error: "forbidden" }, { status: 403 });
-  stampAccepted(sql, message.account, getAddress(owner), startedMs);
+  stampAccepted(sql, message.account, getAddress(owner), startedMs, hot);
 
   const state = await readAccountState(env, { proxy: message.account, account_id: pool.account_id, perp_id: pool.perp_id });
   const paused = env.LIFELINE_PAUSED === "true" || env.LIFELINE_PAUSED === "1";
@@ -226,7 +226,7 @@ export async function armPosition(
       ? contractDistanceE6(afterQuote.position, afterQuote.market, after.position.markPNS)
       : decision.distBefore;
   if (after) {
-    sql.exec("UPDATE actions SET dist_after = ? WHERE tx_hash = ?", distAfter.toString(), hash);
+    sql.exec("UPDATE actions SET dist_after = ? WHERE proxy = ? AND tx_hash = ?", distAfter.toString(), message.account, hash);
     noteDistanceHash(hot, hash);
     sql.exec("UPDATE mandates SET budget_used_cns = ? WHERE proxy = ?", decision.amountCNS.toString(), message.account);
     setBudget(hot, message.account, decision.amountCNS.toString());
@@ -259,7 +259,7 @@ export async function disarmPosition(
   const client = openChain(TESTNET_ID, { urls, timeout: 8_000 }).client;
   const owner = await client.readContract({ address: proxy, abi: delegatedAccountAbi, functionName: "owner" });
   if (getAddress(owner) !== signer) return Response.json({ error: "forbidden" }, { status: 403 });
-  stampAccepted(sql, proxy, getAddress(owner), Date.now());
+  stampAccepted(sql, proxy, getAddress(owner), Date.now(), hot);
   const cached = hot?.loaded ? hot.mandates.find((item) => item.proxy === proxy) : undefined;
   const active = hot?.loaded
     ? cached?.active ?? null

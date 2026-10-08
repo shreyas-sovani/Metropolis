@@ -48,7 +48,15 @@ curl -fsS https://lifeline.lifeline-shreyas.workers.dev/health
 
 `budget ok` means the sponsor still covers the 31.1400 MON judging budget. A `LOW:` line means a floor was missed. `degraded:false` and `ticksLast10m` near 300 means the keeper alarm is healthy. `poolAvailable` is the claimable inventory. `armed`, `lastBlock`, and `claimsToday` are on `/health`. `low:true` means the sponsor is under 3 MON, the operator is under 1 MON, fewer than 10 accounts are available, or fewer than 5 are in the demo band. After the 10 MON top-up on 2026-10-08, `status` printed `budget ok` and ops run 37722089588 was green.
 
-`/health` returns 503 `{"status":"error","degraded":"..."}` when Durable Object storage rejects the call, including the free-tier rows-read cap. The keeper is down until a later `/health` succeeds. That request retries the schema migration and sets the alarm. The alarm stays at 2 seconds. Keeper ticks read from memory and refresh SQLite at most once a minute.
+`/health` returns 503 `{"status":"error","degraded":"..."}` when Durable Object storage rejects the call, including the free-tier rows-read cap. The keeper is down until a later `/health` succeeds. That request retries the schema migration and sets the alarm. The alarm stays at 2 seconds.
+
+Keeper ticks read from memory. In-flight actions reload from SQLite every minute and the pool roster every 15 minutes, so the keeper reads about 150,000 rows a day against the free 5,000,000. The Worker caches `/health` for 5 seconds, but only while the last tick is under 10 seconds old, so a stalled alarm still gets re-armed. To bypass the cache:
+
+```bash
+curl -fsS -H "x-admin-secret: $ADMIN_SECRET" "https://lifeline.lifeline-shreyas.workers.dev/health?fresh=1"
+```
+
+Every hour the keeper deletes up to 100 settled actions older than 30 days and up to 100 sandbox hits older than 7 days. Pending actions, claims, and saves are kept.
 
 ### Refill the pool
 

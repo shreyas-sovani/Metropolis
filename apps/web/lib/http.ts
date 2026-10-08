@@ -18,7 +18,13 @@ export function workerOrigin(): string {
   ).replace(/\/$/, "");
 }
 
-export function pingHealth(): void {
+/** The radar refreshes every 2s. A keepalive once a minute is enough to re-arm a stalled alarm. */
+const PING_MS = 60_000;
+let pingedAt: number | null = null;
+
+export function pingHealth(now = Date.now()): void {
+  if (pingedAt !== null && now - pingedAt < PING_MS) return;
+  pingedAt = now;
   const url = process.env.WORKER_HEALTH_URL || `${workerOrigin()}/health`;
   void fetch(url).catch(() => undefined);
 }
