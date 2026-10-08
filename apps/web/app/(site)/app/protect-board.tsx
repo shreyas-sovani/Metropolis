@@ -137,6 +137,9 @@ export function ProtectBoard({ client }: { client: TryClient }) {
             </Disclosure>
           </Card>
         ) : null}
+        {flow.acceptTx && flow.phase === "choosing" ? (
+          <TxLink hash={flow.acceptTx} chainId={TESTNET_ID} linkLabel="Ownership transaction" />
+        ) : null}
         {flow.phase === "owning" ? (
           <Card title="This account is held for you">
             <div>

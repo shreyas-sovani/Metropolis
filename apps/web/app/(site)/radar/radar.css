@@ -142,9 +142,10 @@
 .band-2 span { top: 22px; }
 .band-1 span { top: 38px; }
 
-.band-5 { width: 33.333%; opacity: 0.45; }
-.band-2 { width: 13.333%; opacity: 0.75; }
-.band-1 { width: 6.666%; opacity: 1; }
+.radar-band { background: transparent; }
+.band-5 { width: 33.333%; background: color-mix(in srgb, var(--well) 45%, var(--surface)); }
+.band-2 { width: 13.333%; background: color-mix(in srgb, var(--well) 75%, var(--surface)); }
+.band-1 { width: 6.666%; background: var(--well); }
 
 .radar-mark,
 .radar-shock {

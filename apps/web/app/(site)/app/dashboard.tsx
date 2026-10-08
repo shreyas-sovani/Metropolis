@@ -7,6 +7,7 @@ import { formatAusd } from "../../../lib/account";
 import { readAppEvents, readSavedTerms, writeAppEvent } from "../../../lib/app-log";
 import { activityRows, daysLeft, heartbeatLine, type ActivityAction, type ActivityClaim } from "../../../lib/activity";
 import { addressUrl } from "../../../lib/explorer";
+import { WITHDRAW_NOTE } from "../../../lib/copy";
 import { formatMon, formatPrice } from "../../../lib/format";
 import { userMessage } from "../../../lib/messages";
 import { clampLines, expiryFromDays, oneDecimal } from "../../../lib/protection";
@@ -447,7 +448,7 @@ export function Dashboard({ client, session }: { client: TryClient; session: Try
                   Withdraw idle AUSD
                 </Button>
               )}
-              <p>Only you can do this.</p>
+              <p>{WITHDRAW_NOTE}</p>
             </div>
           </Card>
           <Card>

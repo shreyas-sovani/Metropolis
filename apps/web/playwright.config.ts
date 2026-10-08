@@ -22,8 +22,13 @@ export default defineConfig({
     : {
         command: "pnpm dev",
         url: baseURL,
-        reuseExistingServer: true,
+        reuseExistingServer: !process.env.E2E_WALLET,
         timeout: 120_000,
-        env: { NEXT_PUBLIC_PRIVY_APP_ID: publicAppId() },
+        env: {
+          NEXT_PUBLIC_PRIVY_APP_ID: publicAppId(),
+          ...(process.env.E2E_WALLET
+            ? { E2E_WALLET: process.env.E2E_WALLET, NEXT_PUBLIC_E2E_WALLET: process.env.E2E_WALLET }
+            : {}),
+        },
       },
 });
