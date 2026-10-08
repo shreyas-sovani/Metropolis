@@ -1,0 +1,38 @@
+.dev-page { padding-block: 48px 96px; display: grid; gap: 32px; }
+.dev-page h1, .dev-page h2 { margin: 0; }
+.dev-sub { margin: 8px 0 0; max-width: 66ch; color: var(--ink-2); }
+.dev-section { display: grid; gap: 16px; }
+.dev-section p { margin: 0; max-width: 66ch; color: var(--ink-2); }
+.dev-page code { font-family: var(--font-data), ui-monospace, monospace; font-size: 14px; }
+.dev-page pre {
+  margin: 0;
+  padding: 16px;
+  overflow: auto;
+  background: var(--well);
+  border-radius: var(--radius-control);
+}
+.dev-table-wrap { overflow-x: auto; }
+.dev-table { width: 100%; border-collapse: collapse; }
+.dev-table th, .dev-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.dev-table th {
+  font-family: var(--font-display), "Poppins", sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--muted);
+}
+.dev-table td { color: var(--ink-2); }
+.dev-run { display: grid; gap: 16px; }
+.dev-run-row { display: grid; grid-template-columns: 1fr 180px auto; gap: 12px; align-items: end; }
+.dev-curl { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.dev-meta { margin: 0; color: var(--muted); font-family: var(--font-data), ui-monospace, monospace; font-size: 14px; }
+.dev-limit { margin: 0; color: var(--danger-ink); }
+
+@media (max-width: 800px) {
+  .dev-run-row { grid-template-columns: 1fr; }
+  .dev-curl { flex-direction: column; }
+}
