@@ -263,6 +263,11 @@ export async function handleE2E(request: Request): Promise<Response> {
       );
       return Response.json({ distanceE6: distanceE6.toString() });
     }
+    if (body.op === "breach") {
+      if (!body.proxy) return Response.json({ error: "breach" }, { status: 400 });
+      const headers = await authHeaders(body.userId || "e2e-breach", body.nonce || `${Date.now()}`);
+      return worker("/admin/breach", headers, { proxy: getAddress(body.proxy) });
+    }
     if (body.op === "balance") {
       const { account, public: client } = clients();
       const ausd = ADDRESSES[TESTNET_ID].ausd;

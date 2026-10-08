@@ -1,0 +1,17 @@
+.dash-page { padding-block: 48px 96px; display: grid; gap: 24px; }
+.dash-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.dash-page h1 { margin: 0; }
+.dash-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+.dash-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.dash-card { display: grid; gap: 12px; }
+.dash-card h2 { margin: 0; font-size: 18px; }
+.dash-meta { margin: 0; color: var(--ink-2); }
+.dash-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.dash-money { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.dash-money .ui-field { flex: 1; min-width: 140px; }
+.dash-keep { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.dash-map { margin: 0; }
+
+@media (max-width: 800px) {
+  .dash-head, .dash-grid, .dash-split { display: grid; grid-template-columns: 1fr; }
+}

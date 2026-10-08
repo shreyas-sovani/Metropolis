@@ -11,6 +11,7 @@ export interface TimelineRow {
   at: number;
   hash?: string;
   chainId?: number;
+  linkLabel?: string;
   icon?: ReactNode;
 }
 
@@ -41,7 +42,7 @@ export function Timeline({ rows }: { rows: readonly TimelineRow[] }) {
             <p>{row.sentence}</p>
             <div className="ui-timeline-meta">
               <When at={row.at} />
-              {row.hash ? <TxLink hash={row.hash} chainId={row.chainId ?? 10143} /> : null}
+              {row.hash ? <TxLink hash={row.hash} chainId={row.chainId ?? 10143} linkLabel={row.linkLabel ?? "Explorer"} /> : null}
             </div>
           </div>
         </li>

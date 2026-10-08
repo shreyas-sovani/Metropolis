@@ -57,6 +57,17 @@ export function formatPct(distanceE6: string): string {
   return `${value.toFixed(2)}%`;
 }
 
+/** Testnet MON from wei, to at most two decimals. */
+export function formatMon(wei: string): string {
+  const value = BigInt(wei || "0");
+  const hundredths = (value + 5n * 10n ** 15n) / 10n ** 16n;
+  const whole = hundredths / 100n;
+  const frac = hundredths % 100n;
+  if (frac === 0n) return `${whole.toLocaleString("en-US")} MON`;
+  if (frac % 10n === 0n) return `${whole.toLocaleString("en-US")}.${frac / 10n} MON`;
+  return `${whole.toLocaleString("en-US")}.${frac.toString().padStart(2, "0")} MON`;
+}
+
 export function formatBlock(block: number | string): string {
   const value = typeof block === "number" ? block : Number(block);
   return `block ${value.toLocaleString("en-US")}`;

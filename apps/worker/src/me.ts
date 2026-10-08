@@ -47,6 +47,7 @@ export function mePayload(input: {
     acceptedAt: number | null;
     transferTx: string | null;
     dripTx: string | null;
+    acceptTx: string | null;
     ownerOnchain: string | null;
     pendingOwnerOnchain: string | null;
   };
@@ -115,7 +116,7 @@ export async function meFor(
 ): Promise<Response> {
   const claim = sql
     .exec(
-      `SELECT claims.proxy, claims.owner, claims.claimed_at, claims.accepted_at, claims.transfer_tx, claims.drip_tx,
+      `SELECT claims.proxy, claims.owner, claims.claimed_at, claims.accepted_at, claims.transfer_tx, claims.drip_tx, claims.accept_tx,
               pool.perp_id, pool.account_id, pool.market, pool.side, pool.leverage
        FROM claims JOIN pool ON pool.proxy = claims.proxy
        WHERE claims.privy_user_id = ?`,
@@ -129,6 +130,7 @@ export async function meFor(
         accepted_at?: number | null;
         transfer_tx?: string | null;
         drip_tx?: string | null;
+        accept_tx?: string | null;
         perp_id?: string;
         account_id?: string;
         market?: string;
@@ -178,6 +180,7 @@ export async function meFor(
         acceptedAt: refreshed?.accepted_at == null ? null : Number(refreshed.accepted_at),
         transferTx: claim.transfer_tx ?? null,
         dripTx: claim.drip_tx ?? null,
+        acceptTx: claim.accept_tx ?? null,
         ownerOnchain: owners?.owner ?? null,
         pendingOwnerOnchain: owners?.pendingOwner ?? null,
       },

@@ -163,7 +163,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
     const proxy = getAddress(account);
     const rows = this.ctx.storage.sql
       .exec(
-        "SELECT tx_hash, block, amount_cns, perp_id, status, dist_before, dist_after, reason FROM actions WHERE proxy = ? ORDER BY id",
+        "SELECT tx_hash, block, amount_cns, perp_id, status, dist_before, dist_after, reason, created_at FROM actions WHERE proxy = ? ORDER BY id",
         proxy,
       )
       .toArray() as {
@@ -175,6 +175,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
       dist_before?: string | null;
       dist_after?: string | null;
       reason?: string | null;
+      created_at?: number | null;
     }[];
     return Response.json({
       account: proxy,
@@ -190,6 +191,7 @@ export class Lifeline extends DurableObject<LifelineEnv> {
             distBefore: row.dist_before ?? null,
             distAfter: row.dist_after ?? null,
             reason: row.reason ?? "",
+            createdAt: row.created_at == null ? null : Number(row.created_at),
           },
         ];
       }),

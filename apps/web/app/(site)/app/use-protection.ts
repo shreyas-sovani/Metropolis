@@ -27,6 +27,7 @@ import {
   type ClaimBody,
   type ClaimPosition,
 } from "../../../lib/try-flow";
+import { writeAppEvent } from "../../../lib/app-log";
 import type { TryClient, TrySession } from "../lifeline/e2e-client";
 
 const SESSION_KEY = "lifeline.practice";
@@ -49,6 +50,7 @@ function shotState(): ShotState | null {
   const shot = new URLSearchParams(window.location.search).get("shot");
   if (shot === "owning") return { phase: "owning", receipt: null, acceptTx: "" };
   if (shot === "choosing") return { phase: "choosing", receipt: null, acceptTx: "" };
+  if (shot === "dashboard" || shot === "withdraw") return { phase: "protected", receipt: null, acceptTx: "" };
   if (shot === "receipt") {
     return {
       phase: "protected",
@@ -457,6 +459,14 @@ export function useProtection(client: TryClient) {
     }
     setReceipt(armed.body);
     setPhase("protected");
+    writeAppEvent(session.userId, {
+      kind: "signed",
+      at: Date.now(),
+      targetBps: message.targetBps,
+      triggerBps: message.triggerBps,
+      budgetCNS: message.budgetCNS.toString(),
+      maxPerActionCNS: message.maxPerActionCNS.toString(),
+    });
   }
 
   async function signDemo() {
@@ -497,6 +507,14 @@ export function useProtection(client: TryClient) {
       setError(userMessage(result.body.error ?? "pause").sentence);
       return;
     }
+    writeAppEvent(session.userId, {
+      kind: "paused",
+      at: Date.now(),
+      targetBps: lines.targetBps,
+      triggerBps: lines.triggerBps,
+      budgetCNS: ausdToMicro(budgetInput, budgetFromFree(BigInt(live?.freeCNS ?? "0"))).toString(),
+      maxPerActionCNS: ausdToMicro(capInput, CAP).toString(),
+    });
     setNotice("Paused. Lifeline won't add margin until you resume.");
   }
 
@@ -527,6 +545,7 @@ export function useProtection(client: TryClient) {
   return {
     ready,
     phase,
+    session,
     claim,
     live,
     safety,

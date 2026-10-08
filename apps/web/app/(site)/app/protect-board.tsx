@@ -15,6 +15,7 @@ import { TxLink } from "../../ui/tx-link";
 import { TurnstileBox } from "../lifeline/turnstile-box";
 import type { TryClient } from "../lifeline/e2e-client";
 import { distancePctLabel, stepStates } from "../../../lib/protection";
+import { Dashboard } from "./dashboard";
 import { useProtection } from "./use-protection";
 import "./protect.css";
 
@@ -27,6 +28,9 @@ const STEPS = [
 
 export function ProtectBoard({ client }: { client: TryClient }) {
   const flow = useProtection(client);
+  if (flow.phase === "protected" && !flow.receipt && flow.session) {
+    return <Dashboard client={client} session={flow.session} />;
+  }
   const states = stepStates(flow.phase);
   const showLine = flow.phase === "choosing" || flow.phase === "signing" || flow.phase === "demo";
   const primary =

@@ -4,7 +4,7 @@ Lifeline keeps Perpl positions from being liquidated while money sits idle next 
 
 ## Site
 
-Production is [lifeline-five-murex.vercel.app](https://lifeline-five-murex.vercel.app). V7 is done: the guest run's top-up is `0x81508908`.
+Production is [lifeline-five-murex.vercel.app](https://lifeline-five-murex.vercel.app). V7 is done. `/app` is onboarding, then the dashboard after a reload.
 
 | Route | Page |
 |---|---|
@@ -12,7 +12,7 @@ Production is [lifeline-five-murex.vercel.app](https://lifeline-five-murex.verce
 | `/radar` | Market risk |
 | `/check` | Address check |
 | `/a/[address]` | Risk report. Liquidation prices are dollars. |
-| `/app` | Practice-account onboarding. The dashboard is V8. |
+| `/app` | Practice-account onboarding, then the dashboard |
 
 ## Risk API
 
