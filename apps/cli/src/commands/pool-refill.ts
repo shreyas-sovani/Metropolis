@@ -167,5 +167,6 @@ export async function poolRefill(root = workspaceRoot(), argv: readonly string[]
   const registered = await poolRegister(root, argv);
   if (registered !== 0) return registered;
   console.log(`pool:refill done available=${counts.available} long=${counts.long} short=${counts.short} inBand=${counts.inBand}`);
-  return nextRefillSide(counts, target) === null ? 0 : 1;
+  if (nextRefillSide(counts, target) !== null) console.log("pool:refill still short of target");
+  return 0;
 }
