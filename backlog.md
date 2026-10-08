@@ -2771,4 +2771,5 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - V7 | the human run is on the production origin, not a unique preview URL | that preview was behind Vercel authentication, and Privy plus Turnstile already allow `lifeline-five-murex.vercel.app` | deployment `dpl_2bmd451cTK2dQnav2goxnwkS37qh`
 - V7 | the guest run is the same wallet as the earlier production claim, with a new user mandate | Privy restored that guest, and the new top-up is `0x81508908` at target 9% | distance 45765 → 89997, inside 88000–95000
 - V8 | `/api/account` caches each address for 2 seconds | open dashboards poll every 3 seconds and would otherwise multiply RPC reads | `app/api/account/[address]/route.ts`
+- V8 | ops runs `fund:mon` before `status` | the keeper spends operator gas, and `status` exits 1 when that balance is under 5 MON even though the sponsor can refill it | run 37750504013; `.github/workflows/ops.yml`
 - V8 | a reload with a user mandate shows the dashboard, and the fresh receipt stays on screen until then | the onboarding test still withdraws from the receipt, and the dashboard is what you come back to | `protect-board.tsx`

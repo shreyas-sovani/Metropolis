@@ -47,6 +47,7 @@ jobs:
       - run: pnpm cli pool:refill --target 30 --per-side 12 --in-band 10 --max-new 4
       - run: pnpm cli pool:register
       - run: pnpm cli faucet:ausd
+      - run: pnpm cli fund:mon
       - run: pnpm cli status
       - uses: actions/cache/save@v4
         if: always()
