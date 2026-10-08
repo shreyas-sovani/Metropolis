@@ -17,9 +17,9 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
 4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 and U11 and U14 are done. V0, V1, V2, V3, V4, V5, V6, and V7 are done. The sponsor received 10 MON, `pnpm cli status` prints `budget ok`, `/health` is `low:false`, and ops run 37722089588 is green. D7 waits for V14.
 5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6, U11, and U14 are done.
-6. **Then read §7B (Productization) in full. It comes before D7.** It turns the prototype into the product: two user stories (a trader and a judge), one landing page, a persistent `/app` with onboarding and a dashboard, a judge tour, and an Anthropic-style design system. It also fixes the flow-breakers and wrong numbers found on production on 2026-10-07. V0, V1, V2, V3, V4, V5, and V6 are done. Production serves this shell at `https://lifeline-five-murex.vercel.app` (deployment `dpl_2bmd451cTK2dQnav2goxnwkS37qh`). The next product task is **V11**. V7, V8, V9, and V10 are `[x]`.
+6. **Then read §7B (Productization) in full. It comes before D7.** It turns the prototype into the product: two user stories (a trader and a judge), one landing page, a persistent `/app` with onboarding and a dashboard, a judge tour, and an Anthropic-style design system. It also fixes the flow-breakers and wrong numbers found on production on 2026-10-07. V0, V1, V2, V3, V4, V5, and V6 are done. Production serves this shell at `https://lifeline-five-murex.vercel.app` (deployment `dpl_2bmd451cTK2dQnav2goxnwkS37qh`). The next product task is **V12**. V7, V8, V9, V10, and V11 are `[x]`.
 
-**Where the build stands (2026-10-08).** Phases 0–5, every U-task, and D1–D6 are `[x]`. The site is `https://lifeline-five-murex.vercel.app`. The Worker is `https://lifeline.lifeline-shreyas.workers.dev`, version `8fbaa719-7fe7-452d-b314-2950eaa43ccb`. V0, V1, V3, V4, V5, and V6 are done locally. The Durable Object quota has reset. `/health` is 200 with `degraded:false`, `low:false`, `armed` 100, `lastBlock` 69139671, `claimsToday` 1, `poolAvailable` 60, `poolInBand` 17. `pool:register --restore-twins` exited 0. Twin distances are numeric on all 14 legs. Ops run 37722089588 is green. `/health` is `low:false` (`poolInBand` 11, `poolAvailable` 55, `armed` 110). `pnpm cli status` prints `budget ok` with sponsor 33.3862 MON. Production serves V3–V7 at `https://lifeline-five-murex.vercel.app` (deployment `dpl_2bmd451cTK2dQnav2goxnwkS37qh`). V7 is `[x]`: guest `0x68927BE500A643BBDc3bAAac1372fDDD2ffa23d4` owns `0xC0385344A3641F3ba8fb7c5AdFB47a5bEeb7702A`, and top-up `0x81508908` moved distance 45765 → 89997 against a 9% safety line. V8 is `[x]`: "Saved to your email" left `owner()` of `0xC0385344` at `0x68927BE5`. V9 is `[x]`. V10 is `[x]`: `/developers` runs the risk example, copies the curl, and shows the 60-per-minute limit. Next is V11. V11–V14, D7, D8, R1, and R2 are not started.
+**Where the build stands (2026-10-08).** Phases 0–5, every U-task, and D1–D6 are `[x]`. The site is `https://lifeline-five-murex.vercel.app`. The Worker is `https://lifeline.lifeline-shreyas.workers.dev`, version `8fbaa719-7fe7-452d-b314-2950eaa43ccb`. V0, V1, V3, V4, V5, and V6 are done locally. The Durable Object quota has reset. `/health` is 200 with `degraded:false`, `low:false`, `armed` 100, `lastBlock` 69139671, `claimsToday` 1, `poolAvailable` 60, `poolInBand` 17. `pool:register --restore-twins` exited 0. Twin distances are numeric on all 14 legs. Ops run 37722089588 is green. `/health` is `low:false` (`poolInBand` 11, `poolAvailable` 55, `armed` 110). `pnpm cli status` prints `budget ok` with sponsor 33.3862 MON. Production serves V3–V7 at `https://lifeline-five-murex.vercel.app` (deployment `dpl_2bmd451cTK2dQnav2goxnwkS37qh`). V7 is `[x]`: guest `0x68927BE500A643BBDc3bAAac1372fDDD2ffa23d4` owns `0xC0385344A3641F3ba8fb7c5AdFB47a5bEeb7702A`, and top-up `0x81508908` moved distance 45765 → 89997 against a 9% safety line. V8 is `[x]`: "Saved to your email" left `owner()` of `0xC0385344` at `0x68927BE5`. V9 is `[x]`. V10 is `[x]`: `/developers` runs the risk example, copies the curl, and shows the 60-per-minute limit. V11 is `[x]`: the five-stop tour, reload at stop 2, and the evidence map. Next is V12. V12–V14, D7, D8, R1, and R2 are not started.
 
 **Done**
 
@@ -36,6 +36,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 | V8 | `[x]` | `/app` reloads into the dashboard. Live test adjusted the safety line, paused to 404, resumed, withdrew 25 AUSD, and a breach top-up showed up in Activity. "Saved to your email" kept `owner()` at `0x68927BE5`. |
 | V9 | `[x]` | `/proof`, twins, the mainnet replay chart, and contract-exact. Twin amounts are AUSD. Screenshots at 390 and 1440. |
 | V10 | `[x]` | `/developers` documents the risk API from `lib/api-docs.ts`, runs the example, and copies the curl. A 61st call in a minute shows the limit. Screenshot at 1440. |
+| V11 | `[x]` | `/tour` and `/tour/evidence`. The rail walks five stops, survives a reload, and Exit hides it. Screenshots of each stop at 390. |
 
 **V2 live checks are done.** Ops run [37722089588](https://github.com/shreyas-sovani/Metropolis/actions/runs/37722089588) is green: refill, `pool:register` (`registered 117 file 85 mandates 84`), the AUSD faucet, and `budget ok need=31.1400 sponsor=33.3862`. `/health` after that run: `degraded:false`, `low:false`, `poolAvailable` 55, `poolInBand` 11, `armed` 110, `lastBlock` 69147465, `claimsToday` 1.
 
@@ -70,7 +71,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 | 8b | V1 | Done | Liquidation numbers, 30-day window, dollar prices, Monadscan. Commit `edd5cd7`. |
 | 8c | V2 | Done | Ops run 37722089588 green. `budget ok`, `/health` `low:false`. |
 | 8d | V3 | Done | Design system and ivory shell. Local only; production is unchanged. Lighthouse accessibility 100. |
-| 8e | V11–V14 | Not started | Judge tour and journeys. V10 is `[x]`. |
+| 8e | V12–V14 | Not started | Copy sweep, routing, and journeys. V11 is `[x]`. |
 | 9 | D7 | Human | Run both §7B.2 stories on a phone and a laptop. |
 | 10 | D8 | Human | Record the ≤ 3 minute judge tour and send the link. |
 | 11 | R1 | Agent | README, MIT license, clean `secrets:check`. |
@@ -2496,7 +2497,7 @@ See it on the testnet market map →
   - **Screenshot:** `v10-developers-1440.png`.
 - **Evidence:** `pnpm --filter @lifeline/web exec vitest run test/v10.test.ts` passed 4 tests. Every documented field name appears in the risk route, the account route, the liquidation history types, or the worker health report. The 61st `allowRequest` inside one minute is rejected, and `runPanel` shows "Too many calls from this network. The limit is 60 a minute. Wait a minute and run it again." Playwright `e2e/v10-developers.spec.ts` passed 3 tests. Copy placed the curl for `0x77A89C51…?chain=143` on the clipboard. A mocked 429 showed that sentence in the panel. The live Run returned 200, and its `liquidationPricePNS` matched `GET /api/account/0x77A89C51f106D6cD547542a3A83FE73cB4459135?chain=143`. Screenshot: `apps/web/e2e/artifacts/v10-developers-1440.png`.
 
-#### [ ] V11 Judge tour and evidence
+#### [x] V11 Judge tour and evidence
 - **Type:** AGENT · **Depends on:** V4–V10
 - **Why:** Bounty judges skim. A guided path with one proof per claim raises the odds on every bounty. This makes U11 a product feature.
 - **Do:**
@@ -2517,7 +2518,7 @@ See it on the testnet market map →
     - Exit tour hides the rail.
   - **Links:** the `test/bounties.test.ts` link check passes.
   - **Screenshots:** each stop at 390 px.
-- **Evidence:**
+- **Evidence:** `pnpm --filter @lifeline/web exec vitest run test/v11.test.ts test/v3.test.ts` passed. `JUDGE_PATH` is the five stop hrefs. Playwright `e2e/tour.spec.ts` passed in 2.6m: Start the tour, Next through all five stops, a reload on stop 2 resumed at stop 2, and Exit tour hid the rail. Stop 3 showed "Protect a position" and the stop panel. The dev server had the Privy app id, not `E2E_WALLET=test`; the test-wallet claim remains the V7 spec. Key numbers on the mocked reads were 608 positions, 577 liquidations, 100% exact match, 4 top-ups, and 1 practice account claimed today. The browser made zero requests to `perpl.xyz`. Screenshots: `apps/web/e2e/artifacts/v11-stop1-390.png` through `v11-stop5-390.png`. The repository is private, so bounty cards show a mono path. `test/bounties.test.ts` still fetches production, so `/developers` and `/tour/evidence` pass that check only after this commit is deployed.
 
 #### [ ] V12 Copy, terminology, and number sweep
 - **Type:** AGENT · **Depends on:** V4–V11
@@ -2582,9 +2583,9 @@ See it on the testnet market map →
 2. **V2, then V1.** V1 is done (`edd5cd7`). V2 is `[x]`. The quota reset, the sponsor received 10 MON, and ops run 37722089588 is green.
 3. **V3.** Done locally. Depends on V0 only. The human asked to continue work that does not depend on the Durable Object quota, so V3 landed while V2 is still `[!]`. It is not deployed. Production keeps the previous shell until V2's live checks pass and a later deploy.
 4. **V4, V5, V6, and V7** are done. `/` is the landing page, `/radar` is market risk, `/check` opens the risk report, and `/app` is onboarding. The guest top-up is `0x81508908`.
-5. **V7, then V8.** Both are `[x]`. **V9** is `[x]`: `/proof`, twins, replay, and methodology. **V10** is `[x]`: `/developers`. Next is **V11**.
-6. **V9 and V10.** V10 is `[x]`.
-7. **V11.**
+5. **V7, then V8.** Both are `[x]`. **V9** is `[x]`: `/proof`, twins, replay, and methodology. **V10** is `[x]`: `/developers`. **V11** is `[x]`: the judge tour. Next is **V12**.
+6. **V9 and V10.** Both are `[x]`.
+7. **V11.** `[x]`.
 8. **V12, then V13.**
 9. **V14**, which re-runs D5.
 10. Then **D7** (human rehearsal of both stories), **D8** (a video of the judge tour), **R1**, and **R2**.
@@ -2777,3 +2778,7 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - V8 | a reload with a user mandate shows the dashboard, and the fresh receipt stays on screen until then | the onboarding test still withdraws from the receipt, and the dashboard is what you come back to | `protect-board.tsx`
 - V9 | twin amounts render as AUSD and the raw amount stays on `data-amount` | the old line printed CNS in the sentence | `twins-panel.tsx`
 - V10 | the Run panel's limit sentence is plain text, and the JSON body stays inside `pre` | a 429 body is `{error:"rate"}`, which the copy sweep ignores only inside code | `runPanel`; `e2e/v10-developers.spec.ts`
+- V11 | bounty code paths stay as file paths | the GitHub repository is private, so a blob link would 404 | `gh repo view` `isPrivate: true`
+- V11 | "Top-ups made" is `/saves` `watched` | that count is the confirmed top-ups the keeper is still watching; `claimsToday` is forwarded on `/api/ops-health` | `apps/web/app/api/saves/route.ts`; `opsHealthFromWorker`
+- V11 | stop 3's check link is the stored top-up `0xf322eed9` | the receipt hash does not exist until that judge finishes the step | `lib/tour.ts`
+- V11 | Next and Back load the stop with a full page navigation | a client-side transition updated the rail and then stayed on `/replay` when the next stop was `/app` | `TourHost`; `e2e/tour.spec.ts`

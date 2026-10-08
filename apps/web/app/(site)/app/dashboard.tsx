@@ -11,6 +11,7 @@ import { formatMon, formatPrice } from "../../../lib/format";
 import { clampLines, expiryFromDays, oneDecimal } from "../../../lib/protection";
 import { leverageLabel } from "../../../lib/try-flow";
 import { Badge } from "../../ui/badge";
+import { TourStop } from "../../ui/tour-state";
 import { Button } from "../../ui/button";
 import { Card } from "../../ui/card";
 import { DistanceGauge } from "../../ui/distance-gauge";
@@ -339,6 +340,7 @@ export function Dashboard({ client, session }: { client: TryClient; session: Try
   return (
     <div className="ui-scope">
       <main className="container dash-page" data-testid="dashboard" data-account={proxy}>
+        <TourStop page="app" />
         <header className="dash-head">
           <h1>Your protection</h1>
           <Badge tone={paused ? "clay" : "olive"}>{paused ? "Paused" : "Armed"}</Badge>

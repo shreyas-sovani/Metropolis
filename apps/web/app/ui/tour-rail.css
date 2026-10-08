@@ -1,6 +1,6 @@
 .ui-tour {
   position: sticky;
-  top: 0;
+  top: 72px;
   z-index: 15;
   display: flex;
   align-items: center;

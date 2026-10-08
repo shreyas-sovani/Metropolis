@@ -1,3 +1,4 @@
+import { TourStop } from "../../ui/tour-state";
 import { TwinsPanel } from "./twins-panel";
 import "./twins.css";
 
@@ -7,6 +8,7 @@ export default function TwinsPage() {
   return (
     <div className="ui-scope">
       <main className="container twins-page">
+        <TourStop page="twins" />
         <header>
           <h1>Twins</h1>
           <p className="twins-sub body-lg">

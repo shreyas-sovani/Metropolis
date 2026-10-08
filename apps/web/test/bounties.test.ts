@@ -16,8 +16,22 @@ describe("judge proofs", () => {
   it("every bounty and judge-path link answers", async () => {
     const practice = proofUrl(PRACTICE_LOOKUP);
     expect(practice).toContain(PRACTICE_ACCOUNT);
-    const urls = [...BOUNTIES.map((bounty) => proofUrl(bounty.proof)), ...JUDGE_PATH.map((step) => proofUrl(step.href)), practice];
-    expect(new Set(urls).size).toBe(urls.length);
+    expect(BOUNTIES.find((bounty) => bounty.name === "Perpl Analytics")?.proof).toBe("/radar");
+    expect(BOUNTIES.find((bounty) => bounty.name === "Perpl API")?.proof).toBe("/developers");
+    expect(BOUNTIES.find((bounty) => bounty.name === "Privy")?.proof).toBe("/app");
+    expect(BOUNTIES.find((bounty) => bounty.name === "Privy")?.also?.href).toContain("/tx/0x");
+    expect(BOUNTIES.find((bounty) => bounty.name === "Track 1")?.proof).toBe("/twins");
+    expect(BOUNTIES.find((bounty) => bounty.name === "Track 1")?.also?.href).toContain("/tx/0x");
+    expect(BOUNTIES.find((bounty) => bounty.name === "Envio")?.proof).toBe("/api/liquidations");
+    expect(BOUNTIES.find((bounty) => bounty.name === "Envio")?.also?.href).toBe("/radar");
+    expect(JUDGE_PATH.map((step) => step.href)).toEqual(["/radar", "/replay", "/app", "/twins", "/tour/evidence"]);
+    const urls = [
+      ...new Set([
+        ...BOUNTIES.flatMap((bounty) => [bounty.proof, bounty.also?.href].filter((href): href is string => Boolean(href))),
+        ...JUDGE_PATH.map((step) => step.href),
+        PRACTICE_LOOKUP,
+      ].map((href) => proofUrl(href))),
+    ];
     for (const url of urls) {
       if (url.includes("/tx/0x")) {
         expect(await txExists(url), url).toBe(true);

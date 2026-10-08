@@ -6,6 +6,7 @@ export interface OpsHealth {
   lastBlock: number | null;
   armed: number;
   poolAvailable: number;
+  claimsToday: number;
   degraded: boolean;
   paused: boolean;
   rpc: boolean;
@@ -18,6 +19,7 @@ export function unreachableOps(): OpsHealth {
     lastBlock: null,
     armed: 0,
     poolAvailable: 0,
+    claimsToday: 0,
     degraded: false,
     paused: false,
     rpc: true,
@@ -44,6 +46,7 @@ export function opsHealthFromWorker(body: unknown): OpsHealth {
     lastBlock: numberOrNull(row.lastBlock),
     armed: numberOr(row.armed, 0),
     poolAvailable: numberOr(row.poolAvailable, 0),
+    claimsToday: numberOr(row.claimsToday, 0),
     degraded,
     paused,
     rpc: false,
@@ -65,6 +68,7 @@ export function normalizeOpsHealth(body: unknown): OpsHealth {
       lastBlock: numberOrNull(row.lastBlock),
       armed: numberOr(row.armed, 0),
       poolAvailable: numberOr(row.poolAvailable, 0),
+      claimsToday: numberOr(row.claimsToday, 0),
     };
   }
   return opsHealthFromWorker(body);

@@ -163,6 +163,7 @@ describe("V3 ops health", () => {
       lastBlock: 9,
       armed: 4,
       poolAvailable: 12,
+      claimsToday: 0,
       degraded: false,
       paused: false,
       rpc: false,

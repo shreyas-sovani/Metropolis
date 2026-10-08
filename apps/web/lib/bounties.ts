@@ -8,10 +8,13 @@ export const PRACTICE_ACCOUNT = "0xe3929EB4561f70A2Eb1Bc78957CCd0A87dABB362";
 
 export const PRACTICE_LOOKUP = `/a/${PRACTICE_ACCOUNT}?chain=10143`;
 
-const RISK = `/api/v1/risk/${MAINNET_EXAMPLE}?chain=143`;
-const LOOKUP = `/a/${MAINNET_EXAMPLE}?chain=143`;
-const TOPUP = "https://testnet.monadexplorer.com/tx/0xf322eed96f2f1460cc6477b3037ce2a7cfd56d3a31198242712d236644099d85";
-const ACCEPT = "https://testnet.monadexplorer.com/tx/0xaa32f3a1aeace9c5582de8f31ec49499af4673fd6d89762de88cc50b10f73dac";
+export const TOPUP = "https://testnet.monadexplorer.com/tx/0xf322eed96f2f1460cc6477b3037ce2a7cfd56d3a31198242712d236644099d85";
+export const ACCEPT = "https://testnet.monadexplorer.com/tx/0xaa32f3a1aeace9c5582de8f31ec49499af4673fd6d89762de88cc50b10f73dac";
+
+export interface BountyLink {
+  href: string;
+  label: string;
+}
 
 export interface BountyProof {
   name: string;
@@ -20,6 +23,7 @@ export interface BountyProof {
   code: string;
   proof: string;
   proofLabel: string;
+  also?: BountyLink;
 }
 
 /** Live proofs for the prize map. Relative proofs are on the production site. */
@@ -29,16 +33,16 @@ export const BOUNTIES: readonly BountyProof[] = [
     requirement: "A public risk number an integrator can call.",
     how: "The risk route returns the contract-exact liquidation price, distance, idle balance, dry run, and forfeit.",
     code: "apps/web/app/api/v1/risk/[address]/route.ts",
-    proof: RISK,
-    proofLabel: "Live risk response",
+    proof: "/developers",
+    proofLabel: "Risk API",
   },
   {
     name: "Perpl Analytics",
     requirement: "Show where the book can break, with the contract's own liquidation price.",
-    how: "The radar is built from onchain positions. The Contract-exact badge is on when calibration matches the fork.",
-    code: "apps/web/app/(shell)/radar-board.tsx",
-    proof: "/",
-    proofLabel: "Open the radar",
+    how: "The market map is built from onchain positions. The Contract-exact badge is on when calibration matches the fork.",
+    code: "apps/web/app/(site)/radar/radar-board.tsx",
+    proof: "/radar",
+    proofLabel: "Open the market map",
   },
   {
     name: "Envio",
@@ -47,30 +51,34 @@ export const BOUNTIES: readonly BountyProof[] = [
     code: "apps/web/lib/history-store.ts",
     proof: "/api/liquidations",
     proofLabel: "Liquidation history",
+    also: { href: "/radar", label: "The tape on the market map" },
   },
   {
     name: "Privy",
-    requirement: "A guest wallet that can accept a position and sign a mandate.",
-    how: "Protect a position creates a Privy guest, accepts ownership in one transaction, and signs the EIP-712 mandate.",
+    requirement: "A wallet in the browser that can take ownership and sign a safety line.",
+    how: "Protect a position creates a wallet in this browser, takes ownership in one transaction, and signs the safety line.",
     code: "apps/web/app/(site)/app/protect-app.tsx",
-    proof: ACCEPT,
-    proofLabel: "Guest acceptOwnership",
+    proof: "/app",
+    proofLabel: "Protect a position",
+    also: { href: ACCEPT, label: "Ownership transaction" },
   },
   {
     name: "Track 1",
     requirement: "A position was kept off liquidation by its own idle collateral.",
-    how: "The keeper topped up a claimed testnet position, then the owner withdrew and disarmed.",
+    how: "Lifeline added idle AUSD to a claimed testnet position. The owner could still withdraw.",
     code: "apps/worker/src/tick.ts",
-    proof: TOPUP,
-    proofLabel: "Top-up transaction",
+    proof: "/twins",
+    proofLabel: "Twin pairs",
+    also: { href: TOPUP, label: "Top-up transaction" },
   },
 ];
 
 export const JUDGE_PATH: readonly { label: string; href: string }[] = [
-  { label: "Pre-filled mainnet lookup", href: LOOKUP },
-  { label: "Claim a testnet position", href: "/app" },
-  { label: "Twin pairs", href: "/twins" },
-  { label: "Methodology", href: "/methodology" },
+  { label: "Live market risk", href: "/radar" },
+  { label: "A real liquidation", href: "/replay" },
+  { label: "Protect a position", href: "/app" },
+  { label: "Try to break it", href: "/twins" },
+  { label: "Evidence", href: "/tour/evidence" },
 ];
 
 export function proofUrl(proof: string): string {

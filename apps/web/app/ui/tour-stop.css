@@ -1,0 +1,4 @@
+.tour-stop { margin-bottom: 8px; }
+.tour-stop .ui-card p + p { margin-top: 8px; }
+.tour-k { color: var(--ink); font-family: var(--font-display), "Poppins", sans-serif; font-weight: 500; }
+.tour-stop a { color: var(--clay-ink); }

@@ -68,6 +68,10 @@ export function formatMon(wei: string): string {
   return `${whole.toLocaleString("en-US")}.${frac.toString().padStart(2, "0")} MON`;
 }
 
+export function formatCount(value: number): string {
+  return Math.trunc(value).toLocaleString("en-US");
+}
+
 export function formatBlock(block: number | string): string {
   const value = typeof block === "number" ? block : Number(block);
   return `block ${value.toLocaleString("en-US")}`;

@@ -15,6 +15,7 @@ import { TxLink } from "../../ui/tx-link";
 import { TurnstileBox } from "../lifeline/turnstile-box";
 import type { TryClient } from "../lifeline/e2e-client";
 import { distancePctLabel, stepStates } from "../../../lib/protection";
+import { TourStop } from "../../ui/tour-state";
 import { Dashboard } from "./dashboard";
 import { useProtection } from "./use-protection";
 import "./protect.css";
@@ -45,6 +46,7 @@ export function ProtectBoard({ client }: { client: TryClient }) {
   return (
     <div className="ui-scope">
       <main className="container protect-page">
+        <TourStop page="app" />
         <header className="protect-head">
           <div>
             <h1>Protect a position</h1>

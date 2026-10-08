@@ -6,6 +6,7 @@ import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
 import { StatusBanner } from "./status-banner";
 import { ToastProvider } from "./toast";
+import { TourHost } from "./tour-state";
 
 export function SiteChrome({ children }: { children: ReactNode }) {
   return (
@@ -17,7 +18,9 @@ export function SiteChrome({ children }: { children: ReactNode }) {
           </a>
           <SiteHeader />
           <StatusBanner />
-          <div id="tour-rail" />
+          <div id="tour-rail">
+            <TourHost />
+          </div>
           <div className="legacy" id="content" tabIndex={-1}>
             {children}
           </div>

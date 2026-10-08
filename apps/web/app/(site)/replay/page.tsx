@@ -3,6 +3,7 @@ import { formatAusd } from "../../../lib/account";
 import { MAINNET_ID, addressUrl, txUrl } from "../../../lib/explorer";
 import { formatPct } from "../../../lib/format";
 import { Card } from "../../ui/card";
+import { TourStop } from "../../ui/tour-state";
 import { Stat } from "../../ui/stat";
 import { ReplayChart } from "./replay-chart";
 import "./replay.css";
@@ -20,6 +21,7 @@ export default function ReplayPage() {
   return (
     <div className="ui-scope">
       <main className="container replay-page">
+        <TourStop page="replay" />
         <header>
           <h1>A real liquidation</h1>
           <p className="replay-sub body-lg">A Bitcoin long liquidated on mainnet, with idle AUSD still in the account.</p>

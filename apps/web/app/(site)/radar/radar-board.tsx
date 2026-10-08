@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ContractExactBadge } from "../../ui/contract-exact-badge";
+import { TourStop } from "../../ui/tour-state";
 import { Skeleton } from "../../ui/skeleton";
 import { Stat } from "../../ui/stat";
 import { MAINNET_ID, blockUrl, txUrl } from "../../../lib/explorer";
@@ -209,6 +210,7 @@ export function RadarBoard() {
   return (
     <div className="ui-scope">
       <div className="container radar-page">
+        <TourStop page="radar" />
         <header className="radar-head">
           <div>
             <h1>Market risk</h1>

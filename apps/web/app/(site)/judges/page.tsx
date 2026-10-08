@@ -25,6 +25,12 @@ export default function JudgesPage() {
           </p>
           <p>
             <a href={proofUrl(bounty.proof)}>{bounty.proofLabel}</a>
+            {bounty.also ? (
+              <>
+                {" · "}
+                <a href={proofUrl(bounty.also.href)}>{bounty.also.label}</a>
+              </>
+            ) : null}
           </p>
         </section>
       ))}
