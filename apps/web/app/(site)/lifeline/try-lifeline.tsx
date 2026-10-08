@@ -75,12 +75,14 @@ function subject(token: string): string {
 
 function PrivyTry({ children }: { children: (client: TryClient) => ReactNode }) {
   const { createGuestAccount } = useGuestAccounts();
-  const { authenticated, getAccessToken, login, sendTransaction, signMessage, signTypedData } = usePrivy();
+  const { authenticated, ready, getAccessToken, login, sendTransaction, signMessage, signTypedData } = usePrivy();
   const { wallets } = useWallets();
   const walletsRef = useRef(wallets);
   walletsRef.current = wallets;
   const authRef = useRef(authenticated);
+  const readyRef = useRef(ready);
   authRef.current = authenticated;
+  readyRef.current = ready;
 
   const client: TryClient = {
     async prepare() {
@@ -145,7 +147,7 @@ function PrivyTry({ children }: { children: (client: TryClient) => ReactNode }) 
       await login();
     },
     async me() {
-      const token = await getAccessToken();
+      const token = await restoredToken(getAccessToken, readyRef, authRef);
       if (!token) return { claim: null, mandate: null };
       const response = await fetch("/api/lifeline/me", { headers: { authorization: `Bearer ${token}` } });
       if (!response.ok) return { claim: null, mandate: null };
@@ -161,6 +163,21 @@ function PrivyTry({ children }: { children: (client: TryClient) => ReactNode }) 
 
 function matchWallet(wallets: ConnectedWallet[], address: string): ConnectedWallet | undefined {
   return wallets.find((item) => item.address.toLowerCase() === address.toLowerCase()) ?? wallets[0];
+}
+
+/** Privy restores a guest after the first paint. Wait until that settles before deciding there is no session. */
+async function restoredToken(
+  getAccessToken: () => Promise<string | null>,
+  readyRef: { current: boolean },
+  authRef: { current: boolean },
+): Promise<string | null> {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const token = await getAccessToken();
+    if (token) return token;
+    if (readyRef.current && !authRef.current) return null;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return getAccessToken();
 }
 
 async function waitForWallet(walletsRef: { current: ConnectedWallet[] }) {

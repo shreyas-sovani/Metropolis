@@ -51,8 +51,8 @@ export const BOUNTIES: readonly BountyProof[] = [
   {
     name: "Privy",
     requirement: "A guest wallet that can accept a position and sign a mandate.",
-    how: "Try Lifeline creates a Privy guest, accepts ownership in one transaction, and signs the EIP-712 mandate.",
-    code: "apps/web/app/(shell)/lifeline/try-lifeline.tsx",
+    how: "Protect a position creates a Privy guest, accepts ownership in one transaction, and signs the EIP-712 mandate.",
+    code: "apps/web/app/(site)/app/protect-app.tsx",
     proof: ACCEPT,
     proofLabel: "Guest acceptOwnership",
   },
