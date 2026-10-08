@@ -1,6 +1,7 @@
 "use client";
 
 import type { KeyboardEvent } from "react";
+import { formatPercent } from "../../lib/format";
 import "./percent-slider.css";
 
 export function PercentSlider({
@@ -32,7 +33,7 @@ export function PercentSlider({
     const next = Math.min(max, Math.max(min, value + direction * step * 2));
     onChange(next);
   }
-  const shown = Number.isInteger(value) ? `${value}%` : `${value.toFixed(1)}%`;
+  const shown = formatPercent(value);
   return (
     <div className="ui-slider">
       <div className="ui-slider-top">

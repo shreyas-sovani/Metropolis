@@ -1,7 +1,7 @@
 import replay from "../../../data/mainnet-replay.json";
 import { formatAusd } from "../../../lib/account";
 import { MAINNET_ID, addressUrl, txUrl } from "../../../lib/explorer";
-import { formatPct } from "../../../lib/format";
+import { formatGrouped, formatPct, formatPrice } from "../../../lib/format";
 import { Card } from "../../ui/card";
 import { TourStop } from "../../ui/tour-state";
 import { Stat } from "../../ui/stat";
@@ -9,9 +9,7 @@ import { ReplayChart } from "./replay-chart";
 import "./replay.css";
 
 function price(pns: string): string {
-  const whole = BigInt(pns) / 10n;
-  const tenth = BigInt(pns) % 10n;
-  return `$${whole.toLocaleString("en-US")}.${tenth}`;
+  return formatPrice((BigInt(pns) * 100_000n).toString(), 1);
 }
 
 export const metadata = { title: "A real liquidation" };
@@ -28,7 +26,7 @@ export default function ReplayPage() {
         </header>
         <Card title="What happened">
           <p>
-            Account {replay.accountId} was liquidated at block {replay.liquidationBlock.toLocaleString("en-US")}. The mark was {price(replay.markAtLiquidationPNS)}.
+            Account {replay.accountId} was liquidated at block {formatGrouped(replay.liquidationBlock)}. The mark was {price(replay.markAtLiquidationPNS)}.
           </p>
           <p>
             <a href={txUrl(MAINNET_ID, replay.tx)}>The liquidation transaction</a>
@@ -48,7 +46,7 @@ export default function ReplayPage() {
             wouldActBlock={act.block}
             liquidatedBlock={replay.liquidationBlock}
           />
-          <p>Lifeline would have acted here, at block {act.block.toLocaleString("en-US")}, {formatPct(act.distanceE6)} from liquidation. The position was liquidated at the end of the chart.</p>
+          <p>Lifeline would have acted here, at block {formatGrouped(act.block)}, {formatPct(act.distanceE6)} from liquidation. The position was liquidated at the end of the chart.</p>
           <div className="replay-stats">
             <Stat label="Margin" value={`${formatAusd(replay.depositCNS)} AUSD`} />
             <Stat label="Idle AUSD beside it" value={`${formatAusd(replay.idleCNS)} AUSD`} />

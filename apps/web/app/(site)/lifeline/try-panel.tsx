@@ -4,16 +4,15 @@ import { CALIBRATED, acceptOwnershipTx, armDefaults, buildMandate, testNowTerms,
 import { useEffect, useRef, useState } from "react";
 import { getAddress, type Address } from "viem";
 import { ExactBadge } from "../../exact-badge";
-import { PENDING_OWNER, REVOKED_SELECTORS, TRADEOFF, WITHDRAW_AUSD, WITHDRAW_NOTE } from "../../../lib/copy";
-import { formatUsd } from "../../../lib/format";
+import { REVOKED_LABELS, TRADEOFF, WITHDRAW_AUSD, WITHDRAW_NOTE } from "../../../lib/copy";
+import { userMessage } from "../../../lib/messages";
+import { formatBlock, formatDistanceOne, formatUsd } from "../../../lib/format";
 import {
   armSentence,
   budgetFromFree,
   expiryInSevenDays,
   formatAusdWhole,
-  ownerTxsBeforeReceipt,
   positionCard,
-  receiptLine,
   sandboxProxy,
   useSandbox,
   type ArmBody,
@@ -79,13 +78,13 @@ export function TryPanel({ client }: { client: TryClient }) {
     setError("");
     const response = await fetch("/api/lifeline/sandbox-accounts");
     if (!response.ok) {
-      setError("Sandbox has no house position right now.");
+      setError(userMessage("empty").sentence);
       return;
     }
     const body = (await response.json()) as { accounts?: { proxy: string; distanceE6?: string | null }[] };
     const proxy = sandboxProxy(body.accounts ?? []);
     if (!proxy) {
-      setError("Sandbox has no house position right now.");
+      setError(userMessage("empty").sentence);
       return;
     }
     setSandboxAccount(proxy);
@@ -124,7 +123,7 @@ export function TryPanel({ client }: { client: TryClient }) {
     }
     if (!claimed.body.proxy || !claimed.body.perpId || !claimed.body.position) {
       const reason = claimed.body.error ? claimed.body.error.slice(0, 140) : "The claim did not return a position.";
-      setError(claimed.body.error === "claimed" ? "This wallet already claimed a position." : reason);
+      setError(claimed.body.error === "claimed" ? userMessage("claimed").sentence : userMessage(reason).sentence);
       setPhase("idle");
       return;
     }
@@ -148,7 +147,7 @@ export function TryPanel({ client }: { client: TryClient }) {
       applyDistance(position.distanceE6);
       setPhase("arm");
     } catch {
-      setError(PENDING_OWNER);
+      setError(userMessage("ownership").sentence);
     }
   }
 
@@ -181,7 +180,11 @@ export function TryPanel({ client }: { client: TryClient }) {
       nonce: message.nonce.toString(),
     });
     if (!armed.body.txHash) {
-      setError(armed.body.skipped ? `Armed, and no top-up was required (${armed.body.reason ?? "skip"}).` : (armed.body.error ?? "The arm did not confirm."));
+      setError(
+        armed.body.skipped
+          ? userMessage(armed.body.reason ?? "skip").sentence
+          : userMessage(armed.body.error ?? "reverted").sentence,
+      );
       if (armed.body.skipped) setReceipt(armed.body);
       return;
     }
@@ -204,7 +207,7 @@ export function TryPanel({ client }: { client: TryClient }) {
     });
     const body = (await response.json()) as ArmBody;
     if (!response.ok || !body.txHash) {
-      setError(body.error ?? "Sandbox arm did not confirm.");
+      setError(userMessage(body.error ?? "reverted").sentence);
       return;
     }
     setReceipt(body);
@@ -219,7 +222,7 @@ export function TryPanel({ client }: { client: TryClient }) {
       const sent = await client.send(session, built.to, built.data, built.gas.toString());
       setNote(`Withdrew 50 AUSD. ${sent.hash}`);
     } catch {
-      setError("The withdraw did not confirm. The idle balance may be under 50 AUSD.");
+      setError(userMessage("withdraw").sentence);
     }
   }
 
@@ -228,10 +231,10 @@ export function TryPanel({ client }: { client: TryClient }) {
     setError("");
     const result = await client.disarm(session, claim.proxy, `${Date.now()}`);
     if (!result.body.active && result.status !== 200) {
-      setError(result.body.error ?? "Disarm did not confirm.");
+      setError(userMessage(result.body.error ?? "pause").sentence);
       return;
     }
-    setNote("Disarmed. Lifeline will not top this position up.");
+    setNote("Paused. Lifeline won't add margin until you resume.");
   }
 
   const card = live ?? claim?.position;
@@ -250,12 +253,11 @@ export function TryPanel({ client }: { client: TryClient }) {
       ) : null}
       {phase === "sandbox" ? (
         <section className="panel" data-testid="sandbox">
-          <h2>Sandbox</h2>
-          <p>Privy or the pool is unavailable. This house position stays with the house, and the same arm flow runs with the house signer.</p>
-          {sandboxAccount ? <p className="card-line">{sandboxAccount}</p> : null}
+          <h2>Demo mode</h2>
+          <p>You're using a shared house account, so you can see protection work without a wallet. Nothing here belongs to you.</p>
           <ArmFields trigger={trigger} target={target} sentence={sentence} onTrigger={setTrigger} onTarget={setTarget} />
           <button type="button" onClick={() => void armSandbox()}>
-            Arm in sandbox
+            Sign and turn on protection
           </button>
         </section>
       ) : null}
@@ -266,27 +268,26 @@ export function TryPanel({ client }: { client: TryClient }) {
       ) : null}
       {phase === "accept" && claim?.proxy ? (
         <section className="panel">
-          <h2>Accept ownership</h2>
-          <p>One transaction. Gas {acceptOwnershipTx(getAddress(claim.proxy)).gas.toString()}. The nonce is the wallet&apos;s pending count. The wallet prompt stays off.</p>
+          <h2>Take ownership</h2>
+          <p>One transaction. After this, only you can withdraw.</p>
           <button type="button" onClick={() => void accept()}>
-            Accept ownership
+            Take ownership
           </button>
         </section>
       ) : null}
       {phase === "arm" ? (
         <section className="panel">
-          <h2>Arm</h2>
-          <p data-testid="owner-txs">Wallet transactions before the receipt: {ownerTxsBeforeReceipt(Boolean(acceptTx))}</p>
+          <h2>Safety line</h2>
           {acceptTx ? (
             <p>
-              Accepted in nonce {acceptTx.nonce}. <a href={txUrl(acceptTx.hash)}>Acceptance transaction</a>
+              <a href={txUrl(acceptTx.hash)}>Ownership transaction</a>
             </p>
           ) : null}
           <ArmFields trigger={trigger} target={target} sentence={sentence} onTrigger={setTrigger} onTarget={setTarget} />
-          <p>Per-action cap 150 AUSD. Total budget {live?.freeCNS ? formatAusdWhole((BigInt(live.freeCNS) / 2n).toString()) : "half of free balance"}. Market: this position. Expiry: 7 days.</p>
+          <p>Per top-up limit 150 AUSD. Budget {live?.freeCNS ? formatAusdWhole((BigInt(live.freeCNS) / 2n).toString()) : "half of your idle AUSD"}. This position. Lasts 7 days.</p>
           <div className="row">
             <button type="button" onClick={() => void arm(false)}>
-              Arm Lifeline
+              Sign and turn on protection
             </button>
             <button type="button" onClick={() => void arm(true)}>
               Test Lifeline now
@@ -302,17 +303,20 @@ export function TryPanel({ client }: { client: TryClient }) {
           data-perp={claim?.perpId ?? ""}
           data-target={armedTarget}
           data-dist={receipt.distAfter ?? ""}
+          data-owner-txs={acceptTx ? "1" : "0"}
+          data-elapsed-ms={elapsed}
           aria-live="polite"
         >
           <h2>Receipt</h2>
           <ExactBadge calibrated={CALIBRATED} />
           <Marker beforeE6={receipt.distBefore ?? "0"} afterE6={receipt.distAfter ?? receipt.distBefore ?? "0"} />
-          <p>{receiptLine(receipt)}</p>
+          <p>
+            Distance {receipt.distBefore ? formatDistanceOne(receipt.distBefore) : "unknown"} → {receipt.distAfter ? formatDistanceOne(receipt.distAfter) : "unknown"}.
+            {receipt.block ? ` Confirmed in ${formatBlock(receipt.block)}.` : ""}
+          </p>
           <p>
             Liquidation {receipt.liqBefore ? formatUsd(receipt.liqBefore) : "unknown"} → {receipt.liqAfter ? formatUsd(receipt.liqAfter) : "unknown"}. Added {receipt.addedCNS ? formatAusdWhole(receipt.addedCNS) : "0 AUSD"}.
           </p>
-          <p data-testid="owner-txs">Wallet transactions before the receipt: {ownerTxsBeforeReceipt(Boolean(acceptTx))}</p>
-          <p data-testid="elapsed">{elapsed} ms from the first click</p>
           {receipt.txHash ? (
             <p>
               <a href={txUrl(receipt.txHash)}>Top-up on the explorer</a>
@@ -322,15 +326,15 @@ export function TryPanel({ client }: { client: TryClient }) {
             <>
               <p className="warn">{WITHDRAW_NOTE}</p>
               <p>
-                Revoked selectors: {REVOKED_SELECTORS.join(", ")}.{" "}
-                <a href={addressUrl(proxy)}>Revoked permissions on this account</a>
+                What Lifeline can&apos;t do: {REVOKED_LABELS.join(", ")}.{" "}
+                <a href={addressUrl(proxy)}>Checked on chain</a>
               </p>
               <div className="row">
                 <button type="button" onClick={() => void withdraw()}>
                   Withdraw 50 AUSD
                 </button>
                 <button type="button" onClick={() => void disarm()}>
-                  Disarm
+                  Pause protection
                 </button>
                 <button type="button" onClick={() => void client.keep().then(() => setNote("This account stays with you."))}>
                   Keep this account
@@ -344,7 +348,7 @@ export function TryPanel({ client }: { client: TryClient }) {
       {note ? <p data-testid="flow-note">{note}</p> : null}
       {phase === "accept" || phase === "arm" ? (
         <p>
-          <a href="/?chain=10143">This position is on the testnet radar</a> under the house mandate until you arm.
+          <a href="/radar?chain=10143">This position is on the testnet market map</a> until you turn protection on.
         </p>
       ) : null}
     </div>
@@ -369,12 +373,12 @@ function ArmFields({
       <p data-testid="arm-sentence">{sentence}</p>
       <p className="warn">{TRADEOFF}</p>
       <label>
-        Trigger distance (bps)
-        <input aria-label="Trigger distance basis points" value={trigger} onChange={(event) => onTrigger(Number(event.target.value))} />
+        Act-below line
+        <input aria-label="Act-below line" value={trigger} onChange={(event) => onTrigger(Number(event.target.value))} />
       </label>
       <label>
-        Target distance (bps)
-        <input aria-label="Target distance basis points" value={target} onChange={(event) => onTarget(Number(event.target.value))} />
+        Safety line
+        <input aria-label="Safety line" value={target} onChange={(event) => onTarget(Number(event.target.value))} />
       </label>
     </div>
   );

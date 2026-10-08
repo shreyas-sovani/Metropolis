@@ -1,6 +1,9 @@
 import { armDefaults, armExplanation, testNowTerms, type ArmTerms } from "@lifeline/core";
 import { getAddress, type Address } from "viem";
 import { TRADEOFF } from "./copy";
+import { formatAusdWhole, formatDistanceOne, formatLeverage } from "./format";
+
+export { formatAusdWhole };
 
 export interface ClaimPosition {
   market: string;
@@ -33,23 +36,13 @@ export interface ArmBody {
   error?: string;
 }
 
-/** Leverage is stored in hundredths (1500 = 15×). */
 function distanceLabel(distanceE6: string): string {
-  const pct = Number(distanceE6) / 10_000;
-  return `${(Math.round(pct * 10) / 10).toFixed(1)}%`;
+  return formatDistanceOne(distanceE6);
 }
 
+/** Leverage is stored in hundredths (1500 = 15×). */
 export function leverageLabel(raw: string): string {
-  const value = Number(raw);
-  if (!Number.isFinite(value) || value <= 0) return raw;
-  const times = value >= 100 ? value / 100 : value;
-  const text = Number.isInteger(times) ? String(times) : times.toFixed(1);
-  return `${text}×`;
-}
-
-export function formatAusdWhole(cns: string): string {
-  const whole = BigInt(cns || "0") / 1_000_000n;
-  return `${whole.toLocaleString("en-US")} AUSD`;
+  return formatLeverage(raw);
 }
 
 export function positionCard(input: ClaimPosition & { freeCNS?: string }): string {

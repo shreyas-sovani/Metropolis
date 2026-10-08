@@ -1,7 +1,7 @@
 "use client";
 
 import { TESTNET_ID } from "@lifeline/core";
-import { formatBlock, formatPrice, shortenHex } from "../../../lib/format";
+import { formatBlock, formatPctOne, formatPrice, shortenHex } from "../../../lib/format";
 import { formatAusdWhole } from "../../../lib/try-flow";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
@@ -97,7 +97,7 @@ export function ProtectBoard({ client }: { client: TryClient }) {
               step={0.5}
               onChange={flow.changeSafety}
             />
-            <p className="protect-note">Lifeline steps in below {flow.actBelow.toFixed(1)}%.</p>
+            <p className="protect-note">Lifeline steps in below {formatPctOne(flow.actBelow)}.</p>
             <DistanceGauge
               distancePct={flow.live ? Number(flow.live.distanceE6) / 10_000 : 0}
               actBelowPct={flow.lines.triggerBps / 100}

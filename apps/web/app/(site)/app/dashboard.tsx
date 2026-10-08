@@ -8,6 +8,7 @@ import { readAppEvents, readSavedTerms, writeAppEvent } from "../../../lib/app-l
 import { activityRows, daysLeft, heartbeatLine, type ActivityAction, type ActivityClaim } from "../../../lib/activity";
 import { addressUrl } from "../../../lib/explorer";
 import { formatMon, formatPrice } from "../../../lib/format";
+import { userMessage } from "../../../lib/messages";
 import { clampLines, expiryFromDays, oneDecimal } from "../../../lib/protection";
 import { leverageLabel } from "../../../lib/try-flow";
 import { Badge } from "../../ui/badge";
@@ -301,7 +302,7 @@ export function Dashboard({ client, session }: { client: TryClient; session: Try
     }
     const amount = BigInt(Math.round(whole * 1_000_000));
     if (amount > BigInt(idle || "0")) {
-      setError("You can withdraw up to your idle AUSD.");
+      setError(userMessage("withdraw").sentence);
       return;
     }
     setBusy("withdraw");
@@ -311,7 +312,7 @@ export function Dashboard({ client, session }: { client: TryClient; session: Try
       await client.send(session, built.to, built.data, built.gas.toString());
     } catch {
       setBusy("");
-      setError("Withdrawal didn't go through. You can withdraw up to your idle AUSD.");
+      setError(`${userMessage("withdraw").title}. ${userMessage("withdraw").sentence}`);
       return;
     }
     setBusy("");
@@ -343,7 +344,7 @@ export function Dashboard({ client, session }: { client: TryClient; session: Try
         <TourStop page="app" />
         <header className="dash-head">
           <h1>Your protection</h1>
-          <Badge tone={paused ? "clay" : "olive"}>{paused ? "Paused" : "Armed"}</Badge>
+          <Badge tone={paused ? "clay" : "olive"}>{paused ? "Paused" : "On"}</Badge>
         </header>
         <div className="dash-grid">
           <Card>

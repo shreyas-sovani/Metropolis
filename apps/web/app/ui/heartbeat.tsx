@@ -30,10 +30,10 @@ export function Heartbeat({
   if (at !== null && now !== null) {
     const ago = formatAgo(at, now);
     const where = block === null ? "" : ` · ${formatBlock(block)}`;
-    text = `Lifeline checked ${count} armed ${noun} ${ago}${where}`;
+    text = `Lifeline checked ${count} ${noun} ${ago}${where}`;
   } else if (at !== null) {
     const where = block === null ? "" : ` · ${formatBlock(block)}`;
-    text = `Lifeline checked ${count} armed ${noun}${where}`;
+    text = `Lifeline checked ${count} ${noun}${where}`;
   }
   return (
     <p className="ui-heartbeat">

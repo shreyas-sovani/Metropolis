@@ -2,7 +2,7 @@
 
 import { bucketHit, crashLine } from "../../../lib/crash-line";
 import { axisFraction, axisTicks, barFraction, bucketLeft, bucketSentence, BUCKET_SLOTS } from "../../../lib/radar-view";
-import { formatUsd } from "../../../lib/format";
+import { formatCoord, formatUsd } from "../../../lib/format";
 import { PercentSlider } from "../../ui/percent-slider";
 import type { CompactPosition } from "../../../../../packages/core/src/radar/schema";
 
@@ -123,7 +123,7 @@ function Spark({ points }: { points: number[] }) {
     .map((point, index) => {
       const x = (index / (points.length - 1)) * 120;
       const y = 24 - ((point - min) / span) * 20;
-      return `${index === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+      return `${index === 0 ? "M" : "L"}${formatCoord(x)} ${formatCoord(y)}`;
     })
     .join(" ");
   return (

@@ -78,7 +78,7 @@ export function formatBlock(block: number | string): string {
 }
 
 /** Relative time: `12 s ago`, `3 min ago`. */
-export function formatAgo(thenMs: number, nowMs = Date.now()): string {
+export function timeAgo(thenMs: number, nowMs = Date.now()): string {
   const sec = Math.max(0, Math.floor((nowMs - thenMs) / 1000));
   if (sec < 60) return `${sec} s ago`;
   const min = Math.floor(sec / 60);
@@ -86,6 +86,65 @@ export function formatAgo(thenMs: number, nowMs = Date.now()): string {
   const hr = Math.floor(min / 60);
   if (hr < 48) return `${hr} h ago`;
   return `${Math.floor(hr / 24)} d ago`;
+}
+
+export const formatAgo = timeAgo;
+
+/** AUSD amounts. At most two decimals, trailing zeros dropped. */
+export function formatAusd(micro: string): string {
+  const negative = micro.startsWith("-");
+  const digits = (negative ? micro.slice(1) : micro).replace(/\D/g, "") || "0";
+  const whole = digits.length > 6 ? digits.slice(0, -6) : "0";
+  const frac = digits.padStart(6, "0").slice(-6, -2);
+  const trimmed = frac.replace(/0+$/, "");
+  const text = trimmed.length > 0 ? `${whole}.${trimmed}` : whole;
+  return `${negative ? "-" : ""}${text}`;
+}
+
+/** Whole AUSD, with the unit, for position cards. */
+export function formatAusdWhole(micro: string): string {
+  const whole = BigInt(micro || "0") / 1_000_000n;
+  return `${whole.toLocaleString("en-US")} AUSD`;
+}
+
+/** One decimal for a percentage already expressed in percent, such as `4.5`. */
+export function formatPctOne(value: number): string {
+  if (!Number.isFinite(value)) return "0.0%";
+  return `${value.toFixed(1)}%`;
+}
+
+/** One decimal from a contract distance (`10000` is 1%). */
+export function formatDistanceOne(distanceE6: string): string {
+  return formatPctOne(Number(distanceE6) / 10_000);
+}
+
+/** Slider labels: whole numbers stay whole. */
+export function formatPercent(value: number): string {
+  if (!Number.isFinite(value)) return "0%";
+  if (Number.isInteger(value)) return `${value}%`;
+  return formatPctOne(value);
+}
+
+/** Leverage stored in hundredths (`1500` is `15×`) or already as a multiple. */
+export function formatLeverage(raw: string): string {
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) return raw;
+  const times = value >= 100 ? value / 100 : value;
+  return `${Number.isInteger(times) ? String(times) : times.toFixed(1)}×`;
+}
+
+export function formatGrouped(value: number | string | bigint): string {
+  const digits = typeof value === "bigint" ? value : BigInt(String(value).replace(/[^\d-]/g, "") || "0");
+  return digits.toLocaleString("en-US");
+}
+
+export function formatDateTime(ms: number): string {
+  return new Date(ms).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+}
+
+/** SVG path coordinates. Not a displayed amount. */
+export function formatCoord(value: number): string {
+  return value.toFixed(1);
 }
 
 export function shortenHex(value: string): string {

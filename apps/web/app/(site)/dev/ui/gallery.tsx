@@ -70,7 +70,7 @@ export function Gallery() {
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", marginTop: 16 }}>
             <Badge>Mainnet · read-only</Badge>
             <Badge tone="clay">Paused</Badge>
-            <Badge tone="olive">Armed</Badge>
+            <Badge tone="olive">On</Badge>
             <Badge tone="blue">Testnet</Badge>
             <Badge tone="danger">Demo mode</Badge>
             <ContractExactBadge calibrated />

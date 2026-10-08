@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SKIP_REASONS } from "@lifeline/core";
 import { describe, expect, it } from "vitest";
+import { forbiddenHit } from "../lib/forbidden";
 import { formatAgo, formatBlock, shortenHex } from "../lib/format";
 import { MESSAGE_CODES, userMessage } from "../lib/messages";
 import { normalizeOpsHealth, opsHealthFromWorker, unreachableOps } from "../lib/ops-health";
@@ -103,27 +104,6 @@ describe("V3 contrast", () => {
 });
 
 describe("V3 messages", () => {
-  const forbidden = [
-    /\bCNS\b/,
-    /\bPNS\b/,
-    /\bLNS\b/,
-    /\bbps\b/i,
-    /\w+E6\b/,
-    /\bnonce\b/i,
-    /selector/i,
-    /\bproxy\b/i,
-    /DelegatedAccount/,
-    /acceptOwnership/,
-    /increasePositionCollateral/,
-    /\boperator\b/i,
-    /\bsandbox\b/i,
-    /\bkeeper\b/i,
-    /Durable Object/,
-    /\bundefined\b/,
-    /\bNaN\b/,
-    /\bnull\b/,
-  ];
-
   it("maps every evaluate reason and the claim rows", () => {
     for (const reason of SKIP_REASONS) expect(MESSAGE_CODES).toContain(reason);
     expect(userMessage("claimed").title).toBe("You already have a practice account");
@@ -150,7 +130,7 @@ describe("V3 messages", () => {
     for (const code of MESSAGE_CODES) {
       const message = userMessage(code, { distancePct: "3.2%", actBelowPct: "4.5%" });
       const visible = `${message.title} ${message.sentence} ${message.action ?? ""}`;
-      for (const pattern of forbidden) expect(visible).not.toMatch(pattern);
+      expect(forbiddenHit(visible)).toBeNull();
     }
   });
 });

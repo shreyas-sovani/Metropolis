@@ -1,6 +1,5 @@
 import { desiredDepositMicro, liquidationPriceMicro, MANDATE_MAX_TARGET_BPS } from "@lifeline/core";
-import { formatPrice } from "./format";
-import { formatAusdWhole } from "./try-flow";
+import { formatAusdWhole, formatDistanceOne, formatPctOne, formatPrice } from "./format";
 
 /** Verbatim safety-line copy from backlog §7B.5. */
 export function safetyCopy(distancePct: string, safetyPct: string, actBelowPct: string): string {
@@ -16,12 +15,11 @@ export function outsideLineCopy(): string {
 }
 
 export function oneDecimal(bps: number): string {
-  return `${(bps / 100).toFixed(1)}%`;
+  return formatPctOne(bps / 100);
 }
 
 export function distancePctLabel(distanceE6: string): string {
-  const value = Number(distanceE6) / 10_000;
-  return `${value.toFixed(1)}%`;
+  return formatDistanceOne(distanceE6);
 }
 
 /** Safety line is the target. The act-below line sits 2 percentage points under it. */

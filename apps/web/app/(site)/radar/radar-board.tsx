@@ -6,7 +6,7 @@ import { TourStop } from "../../ui/tour-state";
 import { Skeleton } from "../../ui/skeleton";
 import { Stat } from "../../ui/stat";
 import { MAINNET_ID, blockUrl, txUrl } from "../../../lib/explorer";
-import { formatAgo, formatPct, formatUsd, formatUsdCompact } from "../../../lib/format";
+import { formatGrouped, formatPct, formatUsd, formatUsdCompact, timeAgo } from "../../../lib/format";
 import { LIQUIDATIONS_MS, MARKETS_MS, RADAR_MS, SAVES_MS, pollDue } from "../../../lib/poll";
 import {
   blockAgo,
@@ -219,8 +219,8 @@ export function RadarBoard() {
               <ContractExactBadge calibrated={data?.calibrated !== false} />
               {data ? (
                 <p className="radar-asof small">
-                  block <span data-testid="block">{Number(data.blockNumber).toLocaleString("en-US")}</span>
-                  {fetchedAt ? ` · ${formatAgo(fetchedAt, now)}` : null}
+                  block <span data-testid="block">{formatGrouped(data.blockNumber)}</span>
+                  {fetchedAt ? ` · ${timeAgo(fetchedAt, now)}` : null}
                 </p>
               ) : null}
             </div>
@@ -370,12 +370,12 @@ export function RadarBoard() {
               </div>
               {rows.length > PAGE ? (
                 <button type="button" className="radar-more" onClick={() => setShowAll(true)}>
-                  Show all.
+                  Show all
                 </button>
               ) : null}
             </section>
             <section>
-              <h2>Recent liquidations (mainnet).</h2>
+              <h2>Recent liquidations</h2>
               {tape.length === 0 ? <p className="radar-note">None in the last 30 days.</p> : null}
               <ul className="radar-tape">
                 {tape.slice(-8).map((row) => (

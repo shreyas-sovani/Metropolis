@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatAusd } from "../../../lib/account";
+import { formatAusd, formatGrouped } from "../../../lib/format";
 import { distancePctLabel } from "../../../lib/protection";
 import { outcomeBadge } from "../../../lib/twins-view";
 import { txUrl } from "../../../lib/twins-view";
@@ -130,7 +130,7 @@ function Leg({ title, role, leg }: { title: string; role: "protected" | "unprote
         {leg.actions.map((action) => (
           <li key={action.txHash}>
             <a href={txUrl(action.txHash)} data-testid="twin-action" data-amount={action.amountCNS} data-account={leg.proxy}>
-              {formatAusd(action.amountCNS)} AUSD{action.block ? ` · block ${action.block.toLocaleString("en-US")}` : ""}
+              {formatAusd(action.amountCNS)} AUSD{action.block ? ` · block ${formatGrouped(action.block)}` : ""}
             </a>
           </li>
         ))}

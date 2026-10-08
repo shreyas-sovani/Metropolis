@@ -12,6 +12,9 @@ import {
   type MandateMessage,
 } from "@lifeline/core";
 import type { Address } from "viem";
+import { formatAusd, formatDistanceOne } from "./format";
+
+export { formatAusd };
 
 export function dryRunMandate(account: Address, perpId: bigint, nowSec: bigint): MandateMessage {
   return {
@@ -109,16 +112,6 @@ export function riskOf(position: EvalPosition): { distanceE6: string; liquidatio
 
 export const MAINNET_PROTECTION = "Protection on mainnet: coming via API-key mode.";
 
-export function formatAusd(cns: string): string {
-  const negative = cns.startsWith("-");
-  const digits = (negative ? cns.slice(1) : cns).replace(/\D/g, "") || "0";
-  const whole = digits.length > 6 ? digits.slice(0, -6) : "0";
-  const frac = digits.padStart(6, "0").slice(-6, -2);
-  const trimmed = frac.replace(/0+$/, "");
-  const text = trimmed.length > 0 ? `${whole}.${trimmed}` : whole;
-  return `${negative ? "-" : ""}${text}`;
-}
-
 /** PRD §F3. A top-up names the AUSD added and the distance moving to the 6% target. */
 export function dryRunSentence(input: {
   symbol: string;
@@ -127,11 +120,11 @@ export function dryRunSentence(input: {
   dryRun: { action: string; amountCNS?: string };
   mainnet: boolean;
 }): string {
-  const before = (Number(input.distanceE6) / 10_000).toFixed(1);
+  const before = formatDistanceOne(input.distanceE6);
   const body =
     input.dryRun.action === "topUp" && input.dryRun.amountCNS
-      ? `Lifeline would add ${formatAusd(input.dryRun.amountCNS)} AUSD from your idle balance to your ${input.symbol} ${input.side} → distance ${before}% → 6.0%.`
-      : `Lifeline would not add collateral to your ${input.symbol} ${input.side}. Distance is ${before}%.`;
+      ? `Lifeline would add ${formatAusd(input.dryRun.amountCNS)} AUSD from your idle balance to your ${input.symbol} ${input.side} → distance ${before} → 6.0%.`
+      : `Lifeline would not add collateral to your ${input.symbol} ${input.side}. Distance is ${before}.`;
   return input.mainnet ? `${body} ${MAINNET_PROTECTION}` : body;
 }
 

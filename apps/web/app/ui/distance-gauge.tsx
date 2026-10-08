@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import { formatPctOne } from "../../lib/format";
 import "./distance-gauge.css";
 
 function oneDecimal(value: number): string {
-  return `${value.toFixed(1)}%`;
+  return formatPctOne(value);
 }
 
 export function gaugeText(distancePct: number, actBelowPct: number, safetyPct: number): string {

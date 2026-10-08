@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calibrationMark } from "../lib/badge";
+import { REVOKED_LABELS, REVOKED_SELECTORS, WITHDRAW_NOTE } from "../lib/copy";
+import { forbiddenHit } from "../lib/forbidden";
 import { marketName, sparkFromCandles } from "../lib/markets";
 import { allowRequest } from "../lib/rate";
 
@@ -15,6 +17,16 @@ describe("perpl markets", () => {
     expect(marketName({ market_id: 1, config: { name: "Bitcoin" } })).toEqual({ perpId: 1, name: "Bitcoin" });
     expect(marketName({ id: 2 })).toBeNull();
     expect(sparkFromCandles({ d: [{ c: 3 }, { c: 4 }, {}] })).toEqual([3, 4]);
+  });
+});
+
+describe("plain-language copy", () => {
+  it("talks about Lifeline's key, not the internal names", () => {
+    expect(WITHDRAW_NOTE).toContain("Lifeline's key");
+    expect(forbiddenHit(WITHDRAW_NOTE)).toBeNull();
+    expect(REVOKED_SELECTORS).toContain("execOrder");
+    expect(forbiddenHit(REVOKED_LABELS.join(" "))).toBeNull();
+    expect(REVOKED_LABELS.join(" ")).not.toMatch(/execOrder|selector/i);
   });
 });
 

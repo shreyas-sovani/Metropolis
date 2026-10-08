@@ -1,4 +1,4 @@
-import { formatAusd } from "./account";
+import { formatAusd, formatBlock, formatPctOne, timeAgo } from "./format";
 import { distancePctLabel } from "./protection";
 
 export interface ActivityAction {
@@ -37,7 +37,7 @@ function noteCopy(note: ActivityNote): { title: string; sentence: string } {
   if (note.kind === "paused") return { title: "You paused protection", sentence: "Lifeline won't add margin until you resume." };
   if (note.kind === "resumed") return { title: "You resumed protection", sentence: "Lifeline will add margin again when the position falls inside the line." };
   if (note.kind === "adjusted") {
-    const line = note.targetBps == null ? "" : ` The safety line is ${(note.targetBps / 100).toFixed(1)}%.`;
+    const line = note.targetBps == null ? "" : ` The safety line is ${formatPctOne(note.targetBps / 100)}.`;
     return { title: "You adjusted the safety line", sentence: `A new signature replaced the previous one.${line}` };
   }
   return { title: "You turned on protection", sentence: "Signed. This did not send a transaction." };
@@ -94,8 +94,6 @@ export function daysLeft(expirySec: string, nowSec: number): string {
 
 export function heartbeatLine(lastAlarmAt: number | null, lastBlock: number | null, nowMs: number): string {
   if (lastAlarmAt == null) return "Lifeline has not reported a check yet.";
-  const sec = Math.max(0, Math.floor((nowMs - lastAlarmAt) / 1000));
-  const ago = sec < 60 ? `${sec} s ago` : `${Math.floor(sec / 60)} min ago`;
-  const block = lastBlock == null ? "" : ` · block ${lastBlock.toLocaleString("en-US")}`;
-  return `Checked ${ago}${block}`;
+  const block = lastBlock == null ? "" : ` · ${formatBlock(lastBlock)}`;
+  return `Checked ${timeAgo(lastAlarmAt, nowMs)}${block}`;
 }
