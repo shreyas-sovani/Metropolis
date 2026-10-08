@@ -4,7 +4,7 @@ Lifeline keeps Perpl positions from being liquidated while money sits idle next 
 
 ## Site
 
-Production is [lifeline-five-murex.vercel.app](https://lifeline-five-murex.vercel.app). V7 is done. `/app` is onboarding, then the dashboard after a reload.
+Production is [lifeline-five-murex.vercel.app](https://lifeline-five-murex.vercel.app). V7 and V8 are done. `/app` is onboarding, then the dashboard.
 
 | Route | Page |
 |---|---|
