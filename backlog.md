@@ -17,9 +17,9 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 3. Scan the Decision log (§9) and every task marked `[~]` or `[!]` to recover state from earlier sessions.
 4. Continue with the first eligible task (§1.1). Phase 0, gates G5, G8, G6, G1, G7, G3, G2, and G4, Phase 2 (C1–C8), Phase 3 (P1–P3), W1–W9, U2, U1, U15, U3, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6 and U11 and U14 are done. V0, V1, V2, V3, V4, V5, and V6 are done. The sponsor received 10 MON, `pnpm cli status` prints `budget ok`, `/health` is `low:false`, and ops run 37722089588 is green. D7 waits for V14.
 5. **Read §7A (Planner review) before taking the next task.** It solves G4: `liquidationPricePNS` matches the contract to the tick on the fork fixtures, and `CALIBRATED=true`. It also adds corrections and upgrades aimed at the cash prizes, and it sets the order to interleave them with the remaining tasks. U2, U1, U15, W7, U3, W8, W9, U4, U5, U7, A1–A10, U6, U8, U9, U10, U12, U13, and U16 are done. D1–D6, U11, and U14 are done.
-6. **Then read §7B (Productization) in full. It comes before D7.** It turns the prototype into the product: two user stories (a trader and a judge), one landing page, a persistent `/app` with onboarding and a dashboard, a judge tour, and an Anthropic-style design system. It also fixes the flow-breakers and wrong numbers found on production on 2026-10-07. V0, V1, V2, V3, V4, V5, and V6 are done. V3, V4, V5, and V6 are local only and are not deployed, so production still serves the previous shell. The next product task is **V7**.
+6. **Then read §7B (Productization) in full. It comes before D7.** It turns the prototype into the product: two user stories (a trader and a judge), one landing page, a persistent `/app` with onboarding and a dashboard, a judge tour, and an Anthropic-style design system. It also fixes the flow-breakers and wrong numbers found on production on 2026-10-07. V0, V1, V2, V3, V4, V5, and V6 are done. V3, V4, V5, and V6 are local only and are not deployed, so production still serves the previous shell. The next product task is **V8**. V7's agent pass is done locally. Its human Privy run stays open and is batched with V8.
 
-**Where the build stands (2026-10-08).** Phases 0–5, every U-task, and D1–D6 are `[x]`. The site is `https://lifeline-five-murex.vercel.app`. The Worker is `https://lifeline.lifeline-shreyas.workers.dev`, version `8fbaa719-7fe7-452d-b314-2950eaa43ccb`. V0, V1, V3, V4, V5, and V6 are done locally. The Durable Object quota has reset. `/health` is 200 with `degraded:false`, `low:false`, `armed` 100, `lastBlock` 69139671, `claimsToday` 1, `poolAvailable` 60, `poolInBand` 17. `pool:register --restore-twins` exited 0. Twin distances are numeric on all 14 legs. Ops run 37722089588 is green. `/health` is `low:false` (`poolInBand` 11, `poolAvailable` 55, `armed` 110). `pnpm cli status` prints `budget ok` with sponsor 33.3862 MON. V3–V6 are not deployed. V7 is in progress locally. V8–V14, D7, D8, R1, and R2 are not started.
+**Where the build stands (2026-10-08).** Phases 0–5, every U-task, and D1–D6 are `[x]`. The site is `https://lifeline-five-murex.vercel.app`. The Worker is `https://lifeline.lifeline-shreyas.workers.dev`, version `8fbaa719-7fe7-452d-b314-2950eaa43ccb`. V0, V1, V3, V4, V5, and V6 are done locally. The Durable Object quota has reset. `/health` is 200 with `degraded:false`, `low:false`, `armed` 100, `lastBlock` 69139671, `claimsToday` 1, `poolAvailable` 60, `poolInBand` 17. `pool:register --restore-twins` exited 0. Twin distances are numeric on all 14 legs. Ops run 37722089588 is green. `/health` is `low:false` (`poolInBand` 11, `poolAvailable` 55, `armed` 110). `pnpm cli status` prints `budget ok` with sponsor 33.3862 MON. V3–V7 are not deployed. V7's agent pass is done locally, and its human Privy run stays open until V8. V8–V14, D7, D8, R1, and R2 are not started.
 
 **Done**
 
@@ -44,7 +44,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 3. `pnpm cli pool:register`, then `pnpm cli pool:register --restore-twins`.
 4. `curl` `/health` until it is `degraded:false`. Confirm `armed`, `lastBlock`, `claimsToday`, and whether `low` is false. If the in-band target cannot be met without a large refill, stop and ask.
 5. `gh workflow run ops.yml` and wait for one green run with `pool:register` exiting 0.
-6. V2 is `[x]`. V3, V4, V5, and V6 are `[x]` locally. Continue at **V7**.
+6. V2 is `[x]`. V3, V4, V5, and V6 are `[x]` locally. V7's agent pass is done locally. Continue at **V8**, and batch V7's human Privy run with V8's human step.
 
 **Recovered accounts (already verified, waiting on register).** Twenty proxies from those three failed runs: pool owner, pending owner zero, six operator selectors revoked, one open BTC position (perp 16). Appended to local `cli-state/pool.json` (85 accounts). Left out, no open position: `0x240dBDd7`, `0x8d33670A`, `0xB2337bbE`, `0x1DF440A0`. Marked `role: "sandbox"` instead of minting new ones: `0x9d5c146f` (short) and `0x0d603487` (long).
 
@@ -66,7 +66,7 @@ If this backlog and the PRD disagree, the PRD wins. Log the conflict in the Deci
 | 8b | V1 | Done | Liquidation numbers, 30-day window, dollar prices, Monadscan. Commit `edd5cd7`. |
 | 8c | V2 | Done | Ops run 37722089588 green. `budget ok`, `/health` `low:false`. |
 | 8d | V3 | Done | Design system and ivory shell. Local only; production is unchanged. Lighthouse accessibility 100. |
-| 8e | V7–V14 | Not started | `/app`, proof, developers, judge tour, and journeys. V4, V5, and V6 are `[x]` locally. V7 waits on V2. |
+| 8e | V8–V14 | Not started | Dashboard, proof, developers, judge tour, and journeys. V7's agent pass is done locally. The human Privy run is batched with V8. |
 | 9 | D7 | Human | Run both §7B.2 stories on a phone and a laptop. |
 | 10 | D8 | Human | Record the ≤ 3 minute judge tour and send the link. |
 | 11 | R1 | Agent | README, MIT license, clean `secrets:check`. |
@@ -2418,7 +2418,7 @@ See it on the testnet market map →
   - **Demo isolation:** Demo mode never uses a twin's account; assert that the account is in the sandbox list.
   - **Human run** (the U6 rule): one real Privy guest run on the production preview at 390 px, verified on chain (owner, top-up, receipt). Prompt with the §1.3 template, batched with V8's human step.
   - **Screenshots:** every step at 390 and 1440 px (`v7-step1-…` through `v7-receipt-…`).
-- **Evidence:** Local only, not `[x]`. `/app` is the onboarding page: practice account, take ownership, safety line, receipt. `pnpm --filter @lifeline/web exec vitest run test/v7.test.ts` passed 2 tests. Playwright `e2e/fallbacks.spec.ts` demo tests passed on `/app`: a blocked Privy call and an empty pool both reach Demo mode and a receipt (`Distance 2.7% → 6.0%`). The three live `E2E_WALLET=test` runs, resume reloads, screenshots, and the human Privy run are not done.
+- **Evidence:** Local only, not `[x]`. The human Privy guest run stays open and is batched with V8. `pnpm --filter @lifeline/web exec vitest run test/v7.test.ts` passed 4 tests: the safety-line templates, the stepper, the C5 clamp (target at most 2000 bps, act-below strictly under it, expiry at most 30 days), and a `desiredDepositMicro` preview sentence. Playwright `e2e/fallbacks.spec.ts` passed. A blocked Privy call and an empty pool both reach Demo mode and a receipt (`Distance 2.7% → 6.0%`). The demo arm posts the sandbox account, not the twin. A 429 shows "Too many new accounts from this network" and "Use demo mode". A Turnstile 403 shows "Please confirm you're human." and the next token retries into Take ownership. `e2e/try-lifeline.spec.ts` with `E2E_WALLET=test` against `http://127.0.0.1:3010` passed 3 serial runs in 27.3s, 9.6s, and 9.1s. Each run reached the receipt within 60s of the first click, with `data-owner-txs="1"`, a chain read of `distAfter` inside the W7 band, a 50 AUSD withdraw, and Pause protection leaving `GET /mandate/:proxy` at 404. No forbidden term was visible in `main`. A fourth test in that spec reloaded after the claim onto Take ownership for the same account, then reloaded after ownership onto Sign and turn on protection. Screenshots: `apps/web/e2e/artifacts/v7-step1-390.png`, `v7-step1-1440.png`, `v7-step2-390.png`, `v7-step2-1440.png`, `v7-step3-390.png`, `v7-step3-1440.png`, `v7-receipt-390.png`, and `v7-receipt-1440.png`.
 
 #### [ ] V8 `/app` dashboard
 - **Type:** AGENT, plus **HUMAN** (enable Privy email login) · **Depends on:** V7
@@ -2577,7 +2577,7 @@ See it on the testnet market map →
 1. **V0.** Done (`9705f73`).
 2. **V2, then V1.** V1 is done (`edd5cd7`). V2 is `[x]`. The quota reset, the sponsor received 10 MON, and ops run 37722089588 is green.
 3. **V3.** Done locally. Depends on V0 only. The human asked to continue work that does not depend on the Durable Object quota, so V3 landed while V2 is still `[!]`. It is not deployed. Production keeps the previous shell until V2's live checks pass and a later deploy.
-4. **V4, V5, and V6** are done locally. `/` is the landing page, `/radar` is market risk, and `/check` opens the risk report. **V7** waits on V2.
+4. **V4, V5, and V6** are done locally. `/` is the landing page, `/radar` is market risk, and `/check` opens the risk report. **V7**'s agent pass is done locally. The human Privy run is still open.
 5. **V7, then V8.** Batch their human steps (the real Privy run and the Privy email setting) into one prompt.
 6. **V9 and V10.**
 7. **V11.**
@@ -2763,3 +2763,6 @@ Append one line per decision, in order: `<task-id> | decision | why | evidence`.
 - V4 | reduced motion sets `animation` and `transition` to `none` | a 0.01 ms duration still leaves a finished animation in `document.getAnimations()` | `app/styles/motion.css`; landing Playwright length 0
 - V4 | the wallet library loads only on `/lifeline`, `/app`, and `/dev` | on `/` it added the iframe, third-party cookies, and about 580 KiB of script, and Lighthouse best practices fell below 90 | `app/providers.tsx`; mobile Lighthouse on `localhost:3000` performance 95, accessibility 100, best practices 100
 - V4 | links to routes that are not built yet use `prefetch={false}` | Next prefetched `/app` and `/tour`, both 404, and Lighthouse counted those as console errors | `site-header.tsx`; landing buttons
+- V7 | a house mandate stays on the ownership or safety-line step | the house line is active before the user signs, so `kind === "user"` is what means protected | `use-protection.ts`
+- V7 | the test wallet sends the token `e2e` when the widget has not answered | the server skips Turnstile for that wallet, and a real session still refuses an empty token | `NEXT_PUBLIC_E2E_WALLET`
+- V7 | pause says "Paused. Lifeline won't add margin until you resume." | the visible word disarm is forbidden | `protect-board.tsx`

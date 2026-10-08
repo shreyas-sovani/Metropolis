@@ -28,13 +28,13 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
-export function TxLink({ hash, chainId }: { hash: string; chainId: number }) {
+export function TxLink({ hash, chainId, linkLabel = "Explorer" }: { hash: string; chainId: number; linkLabel?: string }) {
   return (
     <span className="ui-chip">
       <span className="ui-chip-value">{shortenHex(hash)}</span>
       <CopyButton value={hash} />
       <a href={txUrl(chainId, hash)} target="_blank" rel="noopener noreferrer">
-        Explorer
+        {linkLabel}
       </a>
     </span>
   );

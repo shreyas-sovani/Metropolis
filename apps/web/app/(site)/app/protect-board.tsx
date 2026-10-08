@@ -1,14 +1,17 @@
 "use client";
 
-import { formatBlock } from "../../../lib/format";
+import { TESTNET_ID } from "@lifeline/core";
+import { formatBlock, formatPrice, shortenHex } from "../../../lib/format";
 import { formatAusdWhole } from "../../../lib/try-flow";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import { Card } from "../../ui/card";
 import { Disclosure } from "../../ui/disclosure";
 import { DistanceGauge } from "../../ui/distance-gauge";
+import { Field } from "../../ui/field";
 import { PercentSlider } from "../../ui/percent-slider";
 import { Stepper } from "../../ui/stepper";
+import { TxLink } from "../../ui/tx-link";
 import { TurnstileBox } from "../lifeline/turnstile-box";
 import type { TryClient } from "../lifeline/e2e-client";
 import { distancePctLabel, stepStates } from "../../../lib/protection";
@@ -25,10 +28,11 @@ const STEPS = [
 export function ProtectBoard({ client }: { client: TryClient }) {
   const flow = useProtection(client);
   const states = stepStates(flow.phase);
+  const showLine = flow.phase === "choosing" || flow.phase === "signing" || flow.phase === "demo";
   const primary =
     flow.phase === "owning"
       ? "Take ownership"
-      :     flow.phase === "choosing" || flow.phase === "signing" || flow.phase === "demo"
+      : flow.phase === "choosing" || flow.phase === "signing" || flow.phase === "demo"
         ? "Sign and turn on protection"
         : flow.phase === "protected"
           ? "Go to your dashboard"
@@ -53,7 +57,20 @@ export function ProtectBoard({ client }: { client: TryClient }) {
             state: states[index] ?? "upcoming",
           }))}
         />
-        <TurnstileBox onToken={flow.setToken} />
+        {flow.phase === "idle" || flow.phase === "preparing" || flow.phase === "claiming" || flow.phase === "error" ? (
+          <Card>
+            <p>Creates a wallet in this browser. No email, no extension. Testnet only.</p>
+            <TurnstileBox onToken={flow.setToken} force={flow.needsHuman} onWidget={(widget) => flow.setTurnstileReset(widget.reset)} />
+          </Card>
+        ) : (
+          <TurnstileBox onToken={flow.setToken} force={flow.needsHuman} onWidget={(widget) => flow.setTurnstileReset(widget.reset)} />
+        )}
+        {flow.wallet || flow.claim ? (
+          <div className="protect-checks" data-account={flow.claim?.proxy ?? ""}>
+            {flow.wallet ? <p>Wallet {shortenHex(flow.wallet)}</p> : null}
+            {flow.claim ? <p>Practice account reserved</p> : null}
+          </div>
+        ) : null}
         {flow.phase === "demo" ? (
           <Card title="Demo mode">
             <div data-testid="sandbox">
@@ -63,23 +80,63 @@ export function ProtectBoard({ client }: { client: TryClient }) {
           </Card>
         ) : null}
         {flow.positionLine ? <p data-testid="position-card">{flow.positionLine}</p> : null}
-        {flow.phase === "choosing" || flow.phase === "signing" ? (
+        {showLine ? (
           <Card title="Safety line">
-            <PercentSlider id="safety-line" label="Keep my position at least this far from liquidation" value={flow.safety} min={2} max={15} step={0.5} onChange={flow.setSafety} />
-            <p className="protect-note">Lifeline steps in below {((flow.lines.triggerBps) / 100).toFixed(1)}%.</p>
-            <DistanceGauge distancePct={flow.live ? Number(flow.live.distanceE6) / 10_000 : 0} actBelowPct={flow.lines.triggerBps / 100} safetyPct={flow.safety} />
+            <PercentSlider
+              id="safety-line"
+              label="Keep my position at least this far from liquidation"
+              value={flow.safety}
+              min={1}
+              max={20}
+              step={0.5}
+              onChange={flow.changeSafety}
+            />
+            <p className="protect-note">Lifeline steps in below {flow.actBelow.toFixed(1)}%.</p>
+            <DistanceGauge
+              distancePct={flow.live ? Number(flow.live.distanceE6) / 10_000 : 0}
+              actBelowPct={flow.lines.triggerBps / 100}
+              safetyPct={flow.safety}
+            />
+            {flow.preview ? <p>{flow.preview}</p> : null}
             <p>{flow.copy}</p>
             <Disclosure title="Advanced">
-              <p>Per top-up limit 150 AUSD. Budget {flow.live?.freeCNS ? formatAusdWhole((BigInt(flow.live.freeCNS) / 2n).toString()) : "half your idle AUSD"}. Lasts 7 days.</p>
-              <Button variant="quiet" onClick={() => void flow.sign(true)}>
-                Test Lifeline now
-              </Button>
+              <div className="protect-advanced">
+                <Field label="Act-below line" htmlFor="act-below">
+                  <input
+                    id="act-below"
+                    className="ui-input"
+                    type="number"
+                    min={0.5}
+                    max={19.5}
+                    step={0.5}
+                    value={flow.actBelow}
+                    onChange={(event) => flow.changeAct(Number(event.target.value))}
+                  />
+                </Field>
+                <Field label="Budget" htmlFor="budget">
+                  <input id="budget" className="ui-input" type="number" min={1} step={1} value={flow.budgetInput} onChange={(event) => flow.setBudgetInput(event.target.value)} />
+                </Field>
+                <Field label="Per top-up limit" htmlFor="cap">
+                  <input id="cap" className="ui-input" type="number" min={1} step={1} value={flow.capInput} onChange={(event) => flow.setCapInput(event.target.value)} />
+                </Field>
+                <Field label="Lasts (days)" htmlFor="days">
+                  <input id="days" className="ui-input" type="number" min={1} max={30} step={1} value={flow.daysInput} onChange={(event) => flow.setDaysInput(event.target.value)} />
+                </Field>
+                {flow.phase === "demo" ? null : (
+                  <Button variant="quiet" onClick={() => void flow.sign(true)}>
+                    Test Lifeline now
+                  </Button>
+                )}
+              </div>
             </Disclosure>
           </Card>
         ) : null}
         {flow.phase === "owning" ? (
           <Card title="This account is held for you">
-            <p>Taking ownership makes your wallet its owner. After this, only you can withdraw from it. Until you set your own line, a house safety line keeps it from liquidation.</p>
+            <div>
+              <p>Taking ownership makes your wallet its owner. After this, only you can withdraw from it. Until you set your own line, a house safety line keeps it from liquidation.</p>
+              <p className="protect-note">One transaction, paid with testnet MON we sent to your wallet.</p>
+            </div>
           </Card>
         ) : null}
         {flow.phase === "protected" && flow.receipt ? (
@@ -96,18 +153,34 @@ export function ProtectBoard({ client }: { client: TryClient }) {
             <h3>Lifeline protected your position.</h3>
             <DistanceGauge
               distancePct={Number(flow.receipt.distAfter ?? flow.receipt.distBefore ?? "0") / 10_000}
+              fromPct={flow.receipt.distBefore ? Number(flow.receipt.distBefore) / 10_000 : undefined}
               actBelowPct={flow.lines.triggerBps / 100}
               safetyPct={flow.safety}
             />
             <p>
               Distance {flow.receipt.distBefore ? distancePctLabel(flow.receipt.distBefore) : "—"} → {flow.receipt.distAfter ? distancePctLabel(flow.receipt.distAfter) : "—"}.
             </p>
+            {flow.receipt.liqBefore && flow.receipt.liqAfter ? (
+              <p>
+                Liquidation price {formatPrice(flow.receipt.liqBefore, flow.live?.priceDecimals ?? 1)} → {formatPrice(flow.receipt.liqAfter, flow.live?.priceDecimals ?? 1)}.
+              </p>
+            ) : null}
             <p>Added {flow.receipt.addedCNS ? formatAusdWhole(flow.receipt.addedCNS) : "0 AUSD"} from your idle balance.</p>
             {flow.receipt.block ? <p>Confirmed in {formatBlock(flow.receipt.block)}.</p> : null}
+            {flow.receipt.txHash ? <TxLink hash={flow.receipt.txHash} chainId={TESTNET_ID} linkLabel="View the top-up" /> : null}
           </article>
         ) : null}
-        {flow.error ? <p className="ui-field-error" role="alert">{flow.error}</p> : null}
-        {flow.notice ? <p>{flow.notice}</p> : null}
+        {flow.error ? (
+          <p className="ui-field-error" role="alert">
+            {flow.error}
+          </p>
+        ) : null}
+        {flow.offerDemo ? (
+          <Button variant="secondary" onClick={flow.useDemo}>
+            Use demo mode
+          </Button>
+        ) : null}
+        {flow.notice ? <p data-testid="flow-note">{flow.notice}</p> : null}
         {flow.phase !== "protected" ? (
           <Button
             variant="primary"
@@ -126,9 +199,19 @@ export function ProtectBoard({ client }: { client: TryClient }) {
           </Button>
         ) : (
           <div className="protect-actions">
-            <Button href="/app" variant="primary">Go to your dashboard</Button>
-            <Button variant="secondary" onClick={() => void flow.withdraw()}>Withdraw 50 AUSD</Button>
-            <Button variant="quiet" onClick={() => void flow.disarm()}>Pause protection</Button>
+            <Button href="/app" variant="primary">
+              Go to your dashboard
+            </Button>
+            {flow.wallet ? (
+              <Button variant="secondary" onClick={() => void flow.withdraw()}>
+                Withdraw 50 AUSD
+              </Button>
+            ) : null}
+            {flow.wallet ? (
+              <Button variant="quiet" onClick={() => void flow.pause()}>
+                Pause protection
+              </Button>
+            ) : null}
           </div>
         )}
       </main>

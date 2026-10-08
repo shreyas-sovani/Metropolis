@@ -17,7 +17,17 @@ export interface TryClient {
   arm(session: TrySession, mandate: Record<string, string | number | string[]>): Promise<{ status: number; body: ArmBody }>;
   disarm(session: TrySession, proxy: string, nonce: string): Promise<{ status: number; body: { active?: boolean; error?: string } }>;
   keep(): Promise<void>;
-  me(session: TrySession): Promise<{ claim: { proxy?: string; ownerOnchain?: string } | null; mandate: { active?: boolean; kind?: string } | null }>;
+  me(session: TrySession): Promise<{
+    claim: {
+      proxy?: string;
+      perpId?: string;
+      market?: string;
+      side?: string;
+      leverage?: string;
+      ownerOnchain?: string;
+    } | null;
+    mandate: { active?: boolean; kind?: string } | null;
+  }>;
   accepted(session: TrySession, txHash: string): Promise<void>;
 }
 

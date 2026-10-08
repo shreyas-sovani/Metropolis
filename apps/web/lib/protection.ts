@@ -1,3 +1,7 @@
+import { desiredDepositMicro, liquidationPriceMicro, MANDATE_MAX_TARGET_BPS } from "@lifeline/core";
+import { formatPrice } from "./format";
+import { formatAusdWhole } from "./try-flow";
+
 /** Verbatim safety-line copy from backlog §7B.5. */
 export function safetyCopy(distancePct: string, safetyPct: string, actBelowPct: string): string {
   return `Your position is ${distancePct} from liquidation. Lifeline recommends a safety line of ${safetyPct} and will step in below ${actBelowPct}.`;
@@ -45,4 +49,89 @@ export function stepStates(phase: ProtectPhase): Array<"upcoming" | "current" | 
   if (phase === "protected") return ["done", "done", "done", "done"];
   const at = STEP_RANK[phase];
   return [0, 1, 2, 3].map((index) => (index < at ? "done" : index === at ? "current" : "upcoming"));
+}
+
+/** C5: 0 < act-below < safety line ≤ 20%. */
+export function clampLines(safetyPct: number, actBelowPct: number): {
+  targetBps: number;
+  triggerBps: number;
+  safetyPct: number;
+  actBelowPct: number;
+} {
+  let targetBps = Math.round(safetyPct * 100);
+  if (targetBps > MANDATE_MAX_TARGET_BPS) targetBps = MANDATE_MAX_TARGET_BPS;
+  if (targetBps < 2) targetBps = 2;
+  let triggerBps = Math.round(actBelowPct * 100);
+  if (triggerBps < 1) triggerBps = 1;
+  if (triggerBps >= targetBps) triggerBps = targetBps - 1;
+  return {
+    targetBps,
+    triggerBps,
+    safetyPct: targetBps / 100,
+    actBelowPct: triggerBps / 100,
+  };
+}
+
+export function ausdToMicro(raw: string, fallback: bigint): bigint {
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) return fallback;
+  const micro = BigInt(Math.round(value * 1_000_000));
+  return micro > 0n ? micro : fallback;
+}
+
+/** Expiry is at least a day and at most 30 days, matching C5. */
+export function expiryFromDays(raw: string, nowSec: number): bigint {
+  let days = Number(raw);
+  if (!Number.isFinite(days)) days = 7;
+  days = Math.min(30, Math.max(1, Math.round(days)));
+  return BigInt(nowSec + days * 24 * 60 * 60);
+}
+
+export interface PreviewPosition {
+  side: string;
+  entryMicro?: string;
+  markMicro?: string;
+  lot?: string;
+  fundingMicro?: string;
+  mmf?: string;
+  depositMicro?: string;
+  liquidation?: string;
+  priceDecimals?: number;
+}
+
+/** Client-side top-up estimate. Null when the position is already past the safety line. */
+export function previewTopUp(position: PreviewPosition, distancePct: string, targetBps: number): string | null {
+  if (!position.entryMicro || !position.markMicro || !position.lot || !position.mmf || !position.depositMicro || !position.liquidation) {
+    return null;
+  }
+  const side = position.side === "short" ? -1n : position.side === "long" ? 1n : null;
+  if (!side) return null;
+  try {
+    const desired = desiredDepositMicro({
+      side,
+      entryMicro: BigInt(position.entryMicro),
+      lot: BigInt(position.lot),
+      fundingMicro: BigInt(position.fundingMicro ?? "0"),
+      mmf: BigInt(position.mmf),
+      markMicro: BigInt(position.markMicro),
+      targetBps: BigInt(targetBps),
+    });
+    const deposit = BigInt(position.depositMicro);
+    if (desired <= deposit) return null;
+    const after = liquidationPriceMicro({
+      side,
+      entryMicro: BigInt(position.entryMicro),
+      lot: BigInt(position.lot),
+      depositMicro: desired,
+      fundingMicro: BigInt(position.fundingMicro ?? "0"),
+      mmf: BigInt(position.mmf),
+    });
+    const decimals = position.priceDecimals ?? 1;
+    const added = formatAusdWhole((desired - deposit).toString());
+    const from = formatPrice(position.liquidation, decimals);
+    const to = formatPrice(after.toString(), decimals);
+    return `Today ${distancePct}. Lifeline would add about ${added} now and move your liquidation price from ${from} to about ${to}.`;
+  } catch {
+    return null;
+  }
 }

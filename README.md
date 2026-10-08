@@ -4,7 +4,7 @@ Lifeline keeps Perpl positions from being liquidated while money sits idle next 
 
 ## Site
 
-Production is [lifeline-five-murex.vercel.app](https://lifeline-five-murex.vercel.app). It still serves the previous shell: `/` is the radar. The local build, not deployed, is the product through V6:
+Production is [lifeline-five-murex.vercel.app](https://lifeline-five-murex.vercel.app). It still serves the previous shell: `/` is the radar. The local build, not deployed, is the product through the V7 agent pass:
 
 | Route | Page |
 |---|---|
@@ -12,6 +12,7 @@ Production is [lifeline-five-murex.vercel.app](https://lifeline-five-murex.verce
 | `/radar` | Market risk |
 | `/check` | Address check |
 | `/a/[address]` | Risk report. Liquidation prices are dollars. |
+| `/app` | Practice-account onboarding. The dashboard is V8. |
 
 ## Risk API
 

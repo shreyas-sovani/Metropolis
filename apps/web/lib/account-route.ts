@@ -103,6 +103,9 @@ export async function handleAccount(chain: ChainId, address: string): Promise<Re
           liquidationMicro: priceToMicro(BigInt(risk.liquidationPricePNS), market.priceDecimals).toString(),
           priceDecimals: market.priceDecimals,
           freeCNS: info.freeCNS.toString(),
+          lot: position.lot.toString(),
+          fundingMicro: position.fundingMicro.toString(),
+          mmf: position.mmf.toString(),
           forfeitCNS: forfeitCNS(position.depositMicro, SPLIT).toString(),
           dryRun:
             decision.action === "topUp"

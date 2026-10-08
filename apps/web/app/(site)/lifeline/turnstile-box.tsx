@@ -3,12 +3,22 @@
 import { useEffect, useRef, useState } from "react";
 
 /** Managed widget. `interaction-only` stays blank unless Cloudflare asks for a check. */
-export function TurnstileBox({ onToken }: { onToken: (token: string) => void }) {
+export function TurnstileBox({
+  onToken,
+  force = false,
+  onWidget,
+}: {
+  onToken: (token: string) => void;
+  force?: boolean;
+  onWidget?: (widget: { reset: () => void }) => void;
+}) {
   const host = useRef<HTMLDivElement>(null);
   const onTokenRef = useRef(onToken);
+  const onWidgetRef = useRef(onWidget);
   const [ready, setReady] = useState(false);
   const [problem, setProblem] = useState("");
   onTokenRef.current = onToken;
+  onWidgetRef.current = onWidget;
 
   useEffect(() => {
     let gone = false;
@@ -26,13 +36,18 @@ export function TurnstileBox({ onToken }: { onToken: (token: string) => void }) 
             widgetId =
               window.turnstile.render(host.current, {
                 sitekey: body.siteKey,
-                appearance: "interaction-only",
+                appearance: force ? "always" : "interaction-only",
                 callback: (token: string) => {
                   setReady(true);
                   onTokenRef.current(token);
                 },
                 "error-callback": () => setProblem("challenge"),
               }) ?? "";
+            onWidgetRef.current?.({
+              reset: () => {
+                if (widgetId && window.turnstile?.reset) window.turnstile.reset(widgetId);
+              },
+            });
           })
           .catch(() => undefined);
       };
@@ -44,7 +59,12 @@ export function TurnstileBox({ onToken }: { onToken: (token: string) => void }) 
       if (widgetId && window.turnstile) window.turnstile.remove(widgetId);
       script.remove();
     };
-  }, []);
+  }, [force]);
 
-  return <div ref={host} data-testid="turnstile" data-turnstile={ready ? "ready" : "wait"} data-turnstile-error={problem} />;
+  return (
+    <div>
+      {force ? <p>Please confirm you're human.</p> : null}
+      <div ref={host} data-testid="turnstile" data-turnstile={ready ? "ready" : "wait"} data-appearance={force ? "always" : "interaction-only"} data-turnstile-error={problem} />
+    </div>
+  );
 }

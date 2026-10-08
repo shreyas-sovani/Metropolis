@@ -24,6 +24,9 @@ const house = {
   ],
 };
 
+const SANDBOX = "0x1111111111111111111111111111111111111111";
+const TWIN = "0x36DF02ca0E9B1644e181342A795556a66eB28b10";
+
 const armed = {
   txHash: "0x85fe2562",
   block: 20,
@@ -35,13 +38,22 @@ const armed = {
   msFromRequest: 80,
 };
 
+async function sandboxRoutes(page: import("@playwright/test").Page) {
+  const posted: { proxy?: string } = {};
+  await page.route("**/api/lifeline/sandbox-accounts", (route) =>
+    route.fulfill({ json: { accounts: [{ proxy: SANDBOX, distanceE6: "27000" }] } }),
+  );
+  await page.route("**/api/lifeline/sandbox", async (route) => {
+    posted.proxy = (JSON.parse(route.request().postData() ?? "{}") as { proxy?: string }).proxy;
+    await route.fulfill({ json: armed });
+  });
+  return posted;
+}
+
 test("a blocked Privy call falls through to a sandbox arm", async ({ page }) => {
   test.setTimeout(40_000);
-  await page.route("**/api/lifeline/sandbox-accounts", (route) =>
-    route.fulfill({ json: { accounts: [{ proxy: house.pairs[0]?.protected.proxy, distanceE6: "27000" }] } }),
-  );
+  const posted = await sandboxRoutes(page);
   await page.route("**/api/saves", (route) => route.fulfill({ json: { count: 0 } }));
-  await page.route("**/api/lifeline/sandbox", (route) => route.fulfill({ json: armed }));
   await page.goto("/app", { waitUntil: "domcontentloaded" });
   const start = page.getByRole("button", { name: "Open my practice account" });
   await expect(start).toHaveAttribute("data-ready", "yes");
@@ -50,14 +62,13 @@ test("a blocked Privy call falls through to a sandbox arm", async ({ page }) => 
   await expect(page.getByTestId("sandbox")).toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: "Sign and turn on protection" }).click();
   await expect(page.getByTestId("receipt")).toContainText("Distance 2.7% → 6.0%", { timeout: 12_000 });
+  expect(posted.proxy).toBe(SANDBOX);
+  expect(posted.proxy).not.toBe(TWIN);
 });
 
 test("an empty pool opens sandbox", async ({ page }) => {
+  const posted = await sandboxRoutes(page);
   await page.route("**/api/lifeline/claim", (route) => route.fulfill({ status: 503, json: { error: "empty", sandbox: true } }));
-  await page.route("**/api/lifeline/sandbox-accounts", (route) =>
-    route.fulfill({ json: { accounts: [{ proxy: house.pairs[0]?.protected.proxy, distanceE6: "27000" }] } }),
-  );
-  await page.route("**/api/lifeline/sandbox", (route) => route.fulfill({ json: armed }));
   await page.goto("/app?fault=pool", { waitUntil: "domcontentloaded" });
   const start = page.getByRole("button", { name: "Open my practice account" });
   await expect(start).toHaveAttribute("data-ready", "yes");
@@ -65,6 +76,76 @@ test("an empty pool opens sandbox", async ({ page }) => {
   await expect(page.getByTestId("sandbox")).toBeVisible();
   await page.getByRole("button", { name: "Sign and turn on protection" }).click();
   await expect(page.getByTestId("receipt")).toBeVisible({ timeout: 12_000 });
+  expect(posted.proxy).toBe(SANDBOX);
+  expect(posted.proxy).not.toBe(TWIN);
+});
+
+test("a rate limit offers demo mode", async ({ page }) => {
+  await sandboxRoutes(page);
+  await page.route("**/api/lifeline/claim", (route) =>
+    route.fulfill({ status: 429, json: { error: "rate" } }),
+  );
+  await page.goto("/app?fault=rate", { waitUntil: "domcontentloaded" });
+  const start = page.getByRole("button", { name: "Open my practice account" });
+  await expect(start).toHaveAttribute("data-ready", "yes");
+  await start.click();
+  await expect(page.getByText("Too many new accounts from this network")).toBeVisible();
+  await expect(page.getByText("use demo mode now")).toBeVisible();
+  await page.getByRole("button", { name: "Use demo mode" }).click();
+  await expect(page.getByTestId("sandbox")).toBeVisible();
+});
+
+test("a turnstile rejection shows the check and retries", async ({ page }) => {
+  await page.route("**/api/turnstile", (route) => route.fulfill({ json: { siteKey: "test-site" } }));
+  await page.route(/challenges\.cloudflare\.com/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/javascript",
+      body: `window.turnstile={
+        render(el, opts){
+          el.setAttribute("data-appearance", opts.appearance);
+          const token = opts.appearance === "always" ? "token-2" : "token-1";
+          setTimeout(() => opts.callback(token), opts.appearance === "always" ? 40 : 10);
+          return "widget";
+        },
+        remove(){},
+        reset(){ setTimeout(() => window.__turnstileRetry && window.__turnstileRetry(), 30); }
+      };`,
+    }),
+  );
+  await page.addInitScript(() => {
+    (window as unknown as { __turnstileRetry?: () => void }).__turnstileRetry = () => undefined;
+  });
+  let claims = 0;
+  await page.route("**/api/lifeline/claim", (route) => {
+    claims += 1;
+    if (claims === 1) return route.fulfill({ status: 403, json: { error: "turnstile" } });
+    return route.fulfill({
+      status: 200,
+      json: {
+        proxy: SANDBOX,
+        perpId: "16",
+        position: { market: "BTC", side: "long", leverage: "1500", distanceE6: "32000" },
+      },
+    });
+  });
+  await page.route(/\/api\/account\//, (route) =>
+    route.fulfill({
+      json: {
+        found: true,
+        positions: [{ symbol: "BTC", side: "long", leverage: "1500", distanceE6: "32000", freeCNS: "300000000" }],
+      },
+    }),
+  );
+  await page.goto("/app?fault=turnstile", { waitUntil: "domcontentloaded" });
+  const start = page.getByRole("button", { name: "Open my practice account" });
+  await expect(start).toHaveAttribute("data-ready", "yes");
+  await expect(page.getByTestId("turnstile")).toHaveAttribute("data-turnstile", "ready", { timeout: 10_000 });
+  await start.click();
+  await expect(page.getByText("Please confirm you're human.")).toBeVisible();
+  await expect(page.getByTestId("turnstile")).toHaveAttribute("data-appearance", "always");
+  await expect(page.getByRole("button", { name: "Take ownership" })).toBeVisible({ timeout: 15_000 });
+  expect(claims).toBe(2);
 });
 
 test("a degraded health check shows the banner", async ({ page }) => {

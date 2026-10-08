@@ -15,6 +15,9 @@
 .protect-sub { margin: 8px 0 0; max-width: 66ch; color: var(--ink-2); }
 .protect-note { margin: 8px 0 0; color: var(--ink-2); }
 .protect-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.protect-advanced { display: grid; gap: 16px; margin-top: 8px; }
+.protect-checks { display: grid; gap: 4px; margin: 0; }
+.protect-checks p { margin: 0; }
 
 @media (max-width: 800px) {
   .protect-head { flex-direction: column; }
