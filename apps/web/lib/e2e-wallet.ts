@@ -51,6 +51,7 @@ interface ActBody {
   proxy?: string;
   perpId?: string;
   turnstileToken?: string;
+  txHash?: string;
 }
 
 function repoRoot(): string {
@@ -221,6 +222,11 @@ export async function handleE2E(request: Request): Promise<Response> {
       const signature = await ownerAccount().signMessage({ message: disarmText(proxy, body.nonce) });
       const headers = await authHeaders(body.userId, `${body.nonce}-proof`);
       return worker("/disarm", headers, { proxy, nonce: body.nonce, signature });
+    }
+    if (body.op === "accepted") {
+      if (!body.userId || !body.nonce || !body.txHash) return Response.json({ error: "accepted" }, { status: 400 });
+      const headers = await authHeaders(body.userId, body.nonce);
+      return worker("/claim/accepted", headers, { txHash: body.txHash });
     }
     if (body.op === "distance") {
       if (!body.proxy || !body.perpId) return Response.json({ error: "distance" }, { status: 400 });

@@ -2418,7 +2418,7 @@ See it on the testnet market map →
   - **Demo isolation:** Demo mode never uses a twin's account; assert that the account is in the sandbox list.
   - **Human run** (the U6 rule): one real Privy guest run on the production preview at 390 px, verified on chain (owner, top-up, receipt). Prompt with the §1.3 template, batched with V8's human step.
   - **Screenshots:** every step at 390 and 1440 px (`v7-step1-…` through `v7-receipt-…`).
-- **Evidence:**
+- **Evidence:** Local only, not `[x]`. `/app` is the onboarding page: practice account, take ownership, safety line, receipt. `pnpm --filter @lifeline/web exec vitest run test/v7.test.ts` passed 2 tests. Playwright `e2e/fallbacks.spec.ts` demo tests passed on `/app`: a blocked Privy call and an empty pool both reach Demo mode and a receipt (`Distance 2.7% → 6.0%`). The three live `E2E_WALLET=test` runs, resume reloads, screenshots, and the human Privy run are not done.
 
 #### [ ] V8 `/app` dashboard
 - **Type:** AGENT, plus **HUMAN** (enable Privy email login) · **Depends on:** V7

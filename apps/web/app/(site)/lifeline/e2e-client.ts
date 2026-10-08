@@ -17,6 +17,8 @@ export interface TryClient {
   arm(session: TrySession, mandate: Record<string, string | number | string[]>): Promise<{ status: number; body: ArmBody }>;
   disarm(session: TrySession, proxy: string, nonce: string): Promise<{ status: number; body: { active?: boolean; error?: string } }>;
   keep(): Promise<void>;
+  me(session: TrySession): Promise<{ claim: { proxy?: string; ownerOnchain?: string } | null; mandate: { active?: boolean; kind?: string } | null }>;
+  accepted(session: TrySession, txHash: string): Promise<void>;
 }
 
 async function act(body: unknown): Promise<Response> {
@@ -54,4 +56,11 @@ export const e2eClient: TryClient = {
     return { status: response.status, body: (await response.json()) as { active?: boolean; error?: string } };
   },
   async keep() {},
+  async me(session) {
+    const response = await act({ op: "me", userId: session.userId, nonce: crypto.randomUUID() });
+    return (await response.json()) as { claim: { proxy?: string; ownerOnchain?: string } | null; mandate: { active?: boolean; kind?: string } | null };
+  },
+  async accepted(session, txHash) {
+    await act({ op: "accepted", userId: session.userId, nonce: crypto.randomUUID(), txHash });
+  },
 };

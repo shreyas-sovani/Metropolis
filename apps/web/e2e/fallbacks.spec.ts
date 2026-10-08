@@ -42,13 +42,13 @@ test("a blocked Privy call falls through to a sandbox arm", async ({ page }) => 
   );
   await page.route("**/api/saves", (route) => route.fulfill({ json: { count: 0 } }));
   await page.route("**/api/lifeline/sandbox", (route) => route.fulfill({ json: armed }));
-  await page.goto("/lifeline", { waitUntil: "domcontentloaded" });
-  const start = page.getByRole("button", { name: "Try Lifeline live" });
+  await page.goto("/app", { waitUntil: "domcontentloaded" });
+  const start = page.getByRole("button", { name: "Open my practice account" });
   await expect(start).toHaveAttribute("data-ready", "yes");
   await page.route(/https:\/\/[^/]*privy\.io\//, (route) => route.abort());
   await start.click();
   await expect(page.getByTestId("sandbox")).toBeVisible({ timeout: 20_000 });
-  await page.getByRole("button", { name: "Arm in sandbox" }).click();
+  await page.getByRole("button", { name: "Sign and turn on protection" }).click();
   await expect(page.getByTestId("receipt")).toContainText("Distance 2.7% → 6.0%", { timeout: 12_000 });
 });
 
@@ -58,12 +58,12 @@ test("an empty pool opens sandbox", async ({ page }) => {
     route.fulfill({ json: { accounts: [{ proxy: house.pairs[0]?.protected.proxy, distanceE6: "27000" }] } }),
   );
   await page.route("**/api/lifeline/sandbox", (route) => route.fulfill({ json: armed }));
-  await page.goto("/lifeline?fault=pool", { waitUntil: "domcontentloaded" });
-  const start = page.getByRole("button", { name: "Try Lifeline live" });
+  await page.goto("/app?fault=pool", { waitUntil: "domcontentloaded" });
+  const start = page.getByRole("button", { name: "Open my practice account" });
   await expect(start).toHaveAttribute("data-ready", "yes");
   await start.click();
   await expect(page.getByTestId("sandbox")).toBeVisible();
-  await page.getByRole("button", { name: "Arm in sandbox" }).click();
+  await page.getByRole("button", { name: "Sign and turn on protection" }).click();
   await expect(page.getByTestId("receipt")).toBeVisible({ timeout: 12_000 });
 });
 

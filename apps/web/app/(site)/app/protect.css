@@ -1,0 +1,21 @@
+.protect-page {
+  padding-block: 48px 96px;
+  display: grid;
+  gap: 24px;
+}
+
+.protect-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.protect-page h1 { margin: 0; }
+.protect-sub { margin: 8px 0 0; max-width: 66ch; color: var(--ink-2); }
+.protect-note { margin: 8px 0 0; color: var(--ink-2); }
+.protect-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+
+@media (max-width: 800px) {
+  .protect-head { flex-direction: column; }
+}

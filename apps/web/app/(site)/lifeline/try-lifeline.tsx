@@ -7,7 +7,7 @@ import { disarmText, type ArmBody, type ClaimBody } from "../../../lib/try-flow"
 import { e2eClient, type TryClient, type TrySession } from "./e2e-client";
 import { TryPanel } from "./try-panel";
 
-const offlineClient: TryClient = {
+export const offlineClient: TryClient = {
   async prepare() {
     return { ok: false, sandbox: true };
   },
@@ -24,25 +24,43 @@ const offlineClient: TryClient = {
     return { status: 401, body: { error: "wallet" } };
   },
   async keep() {},
+  async me() {
+    return { claim: null, mandate: null };
+  },
+  async accepted() {},
 };
 
 export function TryLifeline() {
-  if (process.env.NEXT_PUBLIC_E2E_WALLET === "test") return <TryPanel client={e2eClient} />;
-  if (!process.env.NEXT_PUBLIC_PRIVY_APP_ID) return <TryPanel client={offlineClient} />;
   return (
-    <SandboxBoundary>
-      <PrivyTry />
+    <PracticeHost fallback={<TryPanel client={offlineClient} />}>
+      {(client) => <TryPanel client={client} />}
+    </PracticeHost>
+  );
+}
+
+export function PracticeHost({
+  children,
+  fallback,
+}: {
+  children: (client: TryClient) => ReactNode;
+  fallback: ReactNode;
+}) {
+  if (process.env.NEXT_PUBLIC_E2E_WALLET === "test") return children(e2eClient);
+  if (!process.env.NEXT_PUBLIC_PRIVY_APP_ID) return <>{fallback}</>;
+  return (
+    <SandboxBoundary fallback={fallback}>
+      <PrivyTry>{children}</PrivyTry>
     </SandboxBoundary>
   );
 }
 
-class SandboxBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+class SandboxBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
   override state = { failed: false };
   static getDerivedStateFromError(): { failed: boolean } {
     return { failed: true };
   }
   override render() {
-    if (this.state.failed) return <TryPanel client={offlineClient} />;
+    if (this.state.failed) return this.props.fallback;
     return this.props.children;
   }
 }
@@ -55,7 +73,7 @@ function subject(token: string): string {
   return json.sub;
 }
 
-function PrivyTry() {
+function PrivyTry({ children }: { children: (client: TryClient) => ReactNode }) {
   const { createGuestAccount } = useGuestAccounts();
   const { authenticated, getAccessToken, login, sendTransaction, signMessage, signTypedData } = usePrivy();
   const { wallets } = useWallets();
@@ -126,9 +144,19 @@ function PrivyTry() {
     async keep() {
       await login();
     },
+    async me() {
+      const token = await getAccessToken();
+      if (!token) return { claim: null, mandate: null };
+      const response = await fetch("/api/lifeline/me", { headers: { authorization: `Bearer ${token}` } });
+      if (!response.ok) return { claim: null, mandate: null };
+      return (await response.json()) as { claim: { proxy?: string; ownerOnchain?: string } | null; mandate: { active?: boolean; kind?: string } | null };
+    },
+    async accepted(session, txHash) {
+      await withProof(session, walletsRef, getAccessToken, signMessage, "/api/lifeline/accepted", { txHash });
+    },
   };
 
-  return <TryPanel client={client} />;
+  return children(client);
 }
 
 function matchWallet(wallets: ConnectedWallet[], address: string): ConnectedWallet | undefined {
